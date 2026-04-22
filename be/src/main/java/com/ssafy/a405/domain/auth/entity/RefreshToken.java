@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "`리프레쉬 토큰`")
+@Table(name = "`Refresh_Tokens`")
 public class RefreshToken extends BaseTimeEntity {
 
     @Id

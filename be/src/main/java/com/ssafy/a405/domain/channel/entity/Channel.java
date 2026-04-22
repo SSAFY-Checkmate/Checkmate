@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "`채널 메타데이터`")
+@Table(name = "`Channels`")
 public class Channel extends BaseTimeEntity {
 
     @Id
