@@ -5,20 +5,38 @@ pipeline {
         IMAGE_NAME = "a405-backend:latest"
         CONTAINER_NAME = "a405-backend"
         APP_PORT = "8080"
+        SHOULD_DEPLOY = "false"
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
-                sh 'echo BRANCH_NAME=$BRANCH_NAME'
+                script {
+                    echo "BRANCH_NAME=${env.BRANCH_NAME}"
+
+                    if (env.BRANCH_NAME == 'develop') {
+                        def changed = sh(
+                            script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
+                            returnStdout: true
+                        ).trim()
+
+                        if (changed) {
+                            env.SHOULD_DEPLOY = "true"
+                        }
+
+                        echo "BE changed files:"
+                        echo changed ?: "(none)"
+                        echo "SHOULD_DEPLOY=${env.SHOULD_DEPLOY}"
+                    }
+                }
             }
         }
 
-        stage('Build Backend Image') {
+        stage('CI Build/Test') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.contains('/be/')
+                    return env.BRANCH_NAME != null && env.BRANCH_NAME.contains('/be/')
                 }
             }
             steps {
@@ -28,27 +46,23 @@ pipeline {
             }
         }
 
-        stage('Check BE Changes') {
+        stage('CD Build') {
             when {
-                branch 'develop'
+                expression {
+                    return env.BRANCH_NAME == 'develop' && env.SHOULD_DEPLOY == 'true'
+                }
             }
             steps {
-                script {
-                    def changed = sh(
-                        script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
-                        returnStdout: true
-                    ).trim()
-
-                    env.BE_CHANGED = changed ? "true" : "false"
-                    echo "BE_CHANGED=${env.BE_CHANGED}"
+                dir('be') {
+                    sh 'docker build -t ${IMAGE_NAME} .'
                 }
             }
         }
 
-        stage('Deploy Backend') {
+        stage('Deploy') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
+                    return env.BRANCH_NAME == 'develop' && env.SHOULD_DEPLOY == 'true'
                 }
             }
             steps {

@@ -7,7 +7,7 @@ COPY build.gradle settings.gradle ./
 COPY src ./src
 
 RUN chmod +x ./gradlew
-RUN ./gradlew clean build -x test --no-daemon
+RUN ./gradlew clean test build --no-daemon
 
 RUN JAR_FILE=$(find build/libs -name "*.jar" ! -name "*plain.jar" | head -n 1) && \
     cp "$JAR_FILE" build/libs/app.jar
