@@ -1,5 +1,6 @@
 import cv2
 import yt_dlp
+import base64
 from fastapi import HTTPException
 
 def parse_timestamp(ts: str) -> float:
@@ -15,7 +16,7 @@ def parse_timestamp(ts: str) -> float:
         pass
     raise Exception("잘못된 타임스탬프 형식입니다. '초' 또는 '분:초' 형식으로 입력하세요.")
 
-def extract_frame_bytes(url: str, timestamp_str: str) -> bytes:
+def extract_frame_base64(url: str, timestamp_str: str) -> dict:
     timestamp_sec = parse_timestamp(timestamp_str)
     
     ydl_opts = {
@@ -50,7 +51,15 @@ def extract_frame_bytes(url: str, timestamp_str: str) -> bytes:
             if not ret:
                 raise Exception("이미지 인코딩에 실패했습니다.")
                 
-            return buffer.tobytes()
+            # Base64로 인코딩하여 반환
+            base64_str = base64.b64encode(buffer).decode('utf-8')
+            
+            return {
+                "video_id": info.get('id', ''),
+                "title": info.get('title'),
+                "author": info.get('uploader'),
+                "image_base64": base64_str
+            }
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"프레임 추출 실패: {str(e)}")

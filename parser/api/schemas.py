@@ -8,6 +8,14 @@ class FrameRequest(BaseModel):
     url: str
     timestamp: str  # "90"(초 단위) 또는 "01:30"(분:초 단위) 모두 입력 가능
 
+class FrameResponse(BaseModel):
+    video_id: str
+    title: Optional[str] = None
+    author: Optional[str] = None
+    image_base64: str
+    status: str
+    processing_time: Optional[float] = None
+
 class TranscriptResponse(BaseModel):
     video_id: str
     title: Optional[str] = None
