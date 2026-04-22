@@ -1,5 +1,8 @@
 from fastapi import FastAPI
+from dotenv import load_dotenv
 from api.endpoints import router as transcript_router
+
+load_dotenv()
 
 app = FastAPI(
     title="YouTube Transcript Extraction API",

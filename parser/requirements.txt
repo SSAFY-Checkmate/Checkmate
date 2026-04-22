@@ -3,4 +3,6 @@ uvicorn
 youtube-transcript-api
 pydantic
 yt-dlp
-openai-whisper
+requests
+python-dotenv
+opencv-python-headless

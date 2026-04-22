@@ -61,6 +61,7 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
             "author": author,
             "language": lang_used,
             "content": cleaned_text,
+            "is_whisper": False,
             "status": "SUCCESS"
         }
 
