@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "`영상 기본 정보`")
+@Table(name = "`Videos`")
 public class Video extends BaseTimeEntity {
 
     @Id

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "`유튜브 원본 댓글 AI 분석`")
+@Table(name = "`Youtube_Comment_Analysis`")
 public class YoutubeCommentAnalysis extends BaseTimeEntity {
 
     @Id
