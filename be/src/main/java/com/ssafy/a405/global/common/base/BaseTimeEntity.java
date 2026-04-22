@@ -1,32 +1,25 @@
-//package com.ssafy.a405.global.common.base;
-//
-//import jakarta.persistence.Column;
-//import jakarta.persistence.MappedSuperclass;
-//import jakarta.persistence.PrePersist;
-//import jakarta.persistence.PreUpdate;
-//import lombok.Getter;
-//
-//import java.sql.Timestamp;
-//
-//@Getter
-//@MappedSuperclass
-//public abstract class BaseTimeEntity {
-//
-//	@Column(name = "created_at", nullable = false, updatable = false)
-//	private Timestamp createdAt;
-//
-//	@Column(name = "updated_at", nullable = false)
-//	private Timestamp updatedAt;
-//
-//	@PrePersist
-//	protected void onCreate() {
-//		Timestamp now = new Timestamp(System.currentTimeMillis());
-//		this.createdAt = now;
-//		this.updatedAt = now;
-//	}
-//
-//	@PreUpdate
-//	protected void onUpdate() {
-//		this.updatedAt = new Timestamp(System.currentTimeMillis());
-//	}
-//}
+package com.ssafy.a405.global.common.base;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
+
+@Getter
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+public abstract class BaseTimeEntity {
+
+	@CreatedDate
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private LocalDateTime createdAt;
+
+	@LastModifiedDate
+	@Column(name = "updated_at", nullable = false)
+	private LocalDateTime updatedAt;
+}
