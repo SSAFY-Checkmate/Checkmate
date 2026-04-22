@@ -11,10 +11,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                sh 'echo BRANCH_NAME=$BRANCH_NAME'
             }
         }
 
-        stage('Docker Build') {
+        stage('Build Backend Image') {
+            when {
+                expression {
+                    return env.BRANCH_NAME == 'develop' || env.BRANCH_NAME.contains('/be/')
+                }
+            }
             steps {
                 dir('be') {
                     sh 'docker build -t ${IMAGE_NAME} .'
@@ -22,9 +28,28 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Check BE Changes') {
             when {
                 branch 'develop'
+            }
+            steps {
+                script {
+                    def changed = sh(
+                        script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
+                        returnStdout: true
+                    ).trim()
+
+                    env.BE_CHANGED = changed ? "true" : "false"
+                    echo "BE_CHANGED=${env.BE_CHANGED}"
+                }
+            }
+        }
+
+        stage('Deploy Backend') {
+            when {
+                expression {
+                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
+                }
             }
             steps {
                 sh '''
