@@ -30,7 +30,7 @@ export const PixelCharacter = ({
   return (
     <div className={cn("relative", sizeClasses[size], className)}>
       <img
-        src="/police-station.png"
+        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/police-station.png") : "/police-station.png"}
         alt="Checkmate 경찰서"
         className="object-contain w-full h-full scale-[1.8] pointer-events-none"
         style={{ imageRendering: "pixelated" }} // 픽셀 아트 뭉개짐 방지
@@ -60,7 +60,7 @@ export const PixelOfficer = ({
   return (
     <div className={cn("relative", sizeClasses[size], className)}>
       <img
-        src="/sheriff.gif"
+        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/sheriff.gif") : "/sheriff.gif"}
         alt="Checkmate 보안관"
         className="object-contain w-full h-full"
         style={{ imageRendering: "pixelated" }} // 픽셀 아트 뭉개짐 방지
