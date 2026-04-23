@@ -1,0 +1,130 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "a405-ai"
+        CONTAINER_NAME = "a405-ai"
+        HOST_PORT = "8088"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+
+        stage('Detect AI Changes') {
+            when { branch 'develop' }
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || true',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:\n${changedFiles}"
+
+                    def aiChanged = sh(
+                        script: "git diff --name-only HEAD~1 HEAD | grep '^ai/' || true",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!aiChanged) {
+                        echo 'No AI changes detected in develop. Skipping AI deploy stages.'
+                        env.SKIP_AI_DEPLOY = "true"
+                    } else {
+                        env.SKIP_AI_DEPLOY = "false"
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                expression {
+                    return env.BRANCH_NAME != 'develop' || env.SKIP_AI_DEPLOY != "true"
+                }
+            }
+            steps {
+                script {
+                    dir('ai') {
+                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
+                        sh """
+                            docker build --no-cache \
+                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Stop Old Container') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_AI_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_AI_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh """
+                    docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p ${HOST_PORT}:8000 \
+                    --restart unless-stopped \
+                    ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Health Check') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_AI_DEPLOY != "true" }
+                }
+            }
+            steps {
+                retry(5) {
+                    sleep(time: 5, unit: 'SECONDS')
+                    sh "curl -f --max-time 10 http://127.0.0.1:${HOST_PORT}/health"
+                }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_AI_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "AI deployment successful! (Build: ${env.BUILD_NUMBER})"
+        }
+        failure {
+            echo "AI deployment failed!"
+        }
+    }
+}
