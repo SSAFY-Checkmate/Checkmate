@@ -103,7 +103,7 @@ pipeline {
             steps {
                 retry(5) {
                     sleep(time: 5, unit: 'SECONDS')
-                    sh "curl -f http://127.0.0.1:${HOST_PORT}"
+                    sh "curl -f http://k14a405.p.ssafy.io/"
                 }
             }
         }
