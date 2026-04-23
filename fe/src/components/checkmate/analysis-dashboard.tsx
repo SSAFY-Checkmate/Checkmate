@@ -43,8 +43,9 @@ export const AnalysisDashboard = ({
         return "신뢰도 검증 중...";
       case "complete":
         return "수사 완료";
+      case "idle":
       default:
-        return "";
+        return "스캔 대기 중";
     }
   }, [analysisStatus]);
 
