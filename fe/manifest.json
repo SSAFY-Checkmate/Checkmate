@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Ad Check Extension",
+  "name": "Checkmate",
   "version": "1.0.0",
   "description": "Ad check chrome extension",
   "action": {
@@ -16,9 +16,8 @@
       "js": ["src/content.ts"]
     }
   ],
-  "permissions": [
-    "storage",
-    "activeTab",
-    "scripting"
-  ]
+  "permissions": ["storage", "activeTab", "scripting"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; font-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
+  }
 }
