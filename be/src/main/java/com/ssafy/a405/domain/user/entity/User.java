@@ -32,4 +32,9 @@ public class User extends BaseTimeEntity {
         this.name = name;
         this.googleSubId = googleSubId;
     }
+
+    public void updateProfile(String email, String name) {
+        this.email = email;
+        this.name = name;
+    }
 }

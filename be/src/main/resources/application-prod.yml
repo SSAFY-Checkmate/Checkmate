@@ -3,20 +3,62 @@ spring:
     activate:
       on-profile: prod
 
-  # 운영 데이터베이스 접속 정보
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:be}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    listener:
+      ack-mode: manual
+      missing-topics-fatal: false
+
   datasource:
     url: ${PROD_DB_URL}
     username: ${PROD_DB_USERNAME}
     password: ${PROD_DB_PASSWORD}
 
-  # JPA 운영 설정
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: false
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+
+jwt:
+  secret: ${JWT_SECRET}
+
+app:
+  oauth2:
+    success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
+
+outbox:
+  publisher:
+    enabled: false
+    fixed-delay-ms: ${OUTBOX_PUBLISH_FIXED_DELAY_MS:1000}
+    batch-size: ${OUTBOX_PUBLISH_BATCH_SIZE:50}
+    max-attempts: ${OUTBOX_PUBLISH_MAX_ATTEMPTS:10}
+    send-timeout-ms: ${OUTBOX_PUBLISH_SEND_TIMEOUT_MS:5000}
+
+topics:
+  analysis:
+    requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
+    completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
+    failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}

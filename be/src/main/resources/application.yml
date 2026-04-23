@@ -2,10 +2,24 @@ spring:
   application:
     name: checkmate
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:be}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+    listener:
+      ack-mode: manual
+      missing-topics-fatal: false
+
   # 1. 로컬 데이터베이스 (MySQL) 설정
   datasource:
     url: jdbc:mysql://localhost:3306/checkmate?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME:root} # 값을 주입하지 않으면 기본값 root 사용
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -18,6 +32,51 @@ spring:
       hibernate:
         format_sql: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+        provider:
+          google:
+            user-name-attribute: sub
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration-millis: ${JWT_ACCESS_TOKEN_EXPIRATION_MILLIS:1800000}
+  refresh-token-expiration-millis: ${JWT_REFRESH_TOKEN_EXPIRATION_MILLIS:1209600000}
+
+oauth2:
+  success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:5173/oauth2/redirect}
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
+
 # 3. 서버 설정
 server:
   port: 8080
+
+outbox:
+  publisher:
+    enabled: false
+    fixed-delay-ms: ${OUTBOX_PUBLISH_FIXED_DELAY_MS:1000}
+    batch-size: ${OUTBOX_PUBLISH_BATCH_SIZE:50}
+    max-attempts: ${OUTBOX_PUBLISH_MAX_ATTEMPTS:10}
+    send-timeout-ms: ${OUTBOX_PUBLISH_SEND_TIMEOUT_MS:5000}
+
+topics:
+  analysis:
+    requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
+    completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
+    failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}

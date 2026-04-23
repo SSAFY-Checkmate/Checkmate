@@ -1,0 +1,18 @@
+spring:
+  config:
+    activate:
+      on-profile: publisher
+
+  main:
+    web-application-type: none
+
+  kafka:
+    listener:
+      auto-startup: false
+
+server:
+  port: 0
+
+outbox:
+  publisher:
+    enabled: true
