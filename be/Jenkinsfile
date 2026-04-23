@@ -46,7 +46,11 @@ pipeline {
                 withCredentials([
                     string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
                     string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
+                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
+                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     dir('be') {
                         sh '''
@@ -73,7 +77,11 @@ pipeline {
                 withCredentials([
                     string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
                     string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
+                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
+                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     dir('be') {
                         sh '''
@@ -100,7 +108,11 @@ pipeline {
                 withCredentials([
                     string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
                     string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
+                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
+                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
+                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
                         docker rm -f ${CONTAINER_NAME} || true
@@ -114,6 +126,10 @@ pipeline {
                           -e PROD_DB_URL="$PROD_DB_URL" \
                           -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
                           -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                          -e JWT_SECRET="$JWT_SECRET" \
+                          -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+                          -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+                          -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
                           ${IMAGE_NAME}
 
                         docker run -d \
@@ -123,6 +139,10 @@ pipeline {
                           -e PROD_DB_URL="$PROD_DB_URL" \
                           -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
                           -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                          -e JWT_SECRET="$JWT_SECRET" \
+                          -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+                          -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
+                          -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
                           ${IMAGE_NAME}
                     '''
                 }
