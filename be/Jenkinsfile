@@ -5,7 +5,6 @@ pipeline {
         IMAGE_NAME = "a405-backend:latest"
         CONTAINER_NAME = "a405-backend"
         APP_PORT = "8080"
-        BE_CHANGED = "false"
     }
 
     stages {
@@ -14,7 +13,6 @@ pipeline {
                 checkout scm
                 script {
                     echo "BRANCH_NAME=${env.BRANCH_NAME}"
-                    env.BE_CHANGED = "false"
 
                     if (env.BRANCH_NAME == 'develop') {
                         def changed = sh(
@@ -22,17 +20,13 @@ pipeline {
                             returnStdout: true
                         ).trim()
 
-                        echo "ALL_CHANGED_FILES=${changed}"
-
                         def beChanged = sh(
                             script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
                             returnStdout: true
                         ).trim()
 
+                        echo "ALL_CHANGED_FILES=${changed}"
                         echo "BE_CHANGED_FILES=${beChanged}"
-
-                        env.BE_CHANGED = beChanged ? "true" : "false"
-                        echo "BE_CHANGED=${env.BE_CHANGED}"
                     }
                 }
             }
@@ -67,7 +61,8 @@ pipeline {
         stage('CD Build') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
+                    return env.BRANCH_NAME == 'develop' &&
+                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
                 }
             }
             steps {
@@ -93,7 +88,8 @@ pipeline {
         stage('Deploy') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
+                    return env.BRANCH_NAME == 'develop' &&
+                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
                 }
             }
             steps {
