@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqm1cTS/EeYgJyIGCu4xYsCW6HH1vj5RG7Nq+s7mBxXen8FFJscIOtbCl87CF5VDz7wGYASv7H2K8SLwxefTc54g63wAz/LgAnezRJsCP5I8KPQSD/i/WjzChcYoLFj9NgptjYUmaOIB8o6IHUO3v+JNsXXBKlLZ/cV6CzV9si8AGpHkjkmC33VUmYz8bGYU5WSH0pFi35OMm75XWmRLcmgKyqkMeePoHb4MCyXQ37ziFNI7V7fKy86/wvjK0+D+0ob2UCkO31iUMYBougDdwCCduCCjVN3UENnqAytFrGb1Epr3biyyYK+TZAkI8pkiW8loIfQZ3qA4CZWEOmCxznwIDAQAB",
   "name": "Checkmate",
   "version": "1.0.0",
   "description": "Ad check chrome extension",
