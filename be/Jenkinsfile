@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = "a405-backend:latest"
         CONTAINER_NAME = "a405-backend"
         APP_PORT = "8080"
-        SHOULD_DEPLOY = "false"
+        BE_CHANGED = "false"
     }
 
     stages {
@@ -14,6 +14,7 @@ pipeline {
                 checkout scm
                 script {
                     echo "BRANCH_NAME=${env.BRANCH_NAME}"
+                    env.BE_CHANGED = "false"
 
                     if (env.BRANCH_NAME == 'develop') {
                         def changed = sh(
@@ -30,13 +31,8 @@ pipeline {
 
                         echo "BE_CHANGED_FILES=${beChanged}"
 
-                        if (beChanged) {
-                            env.SHOULD_DEPLOY = "true"
-                        } else {
-                            env.SHOULD_DEPLOY = "false"
-                        }
-
-                        echo "SHOULD_DEPLOY=${env.SHOULD_DEPLOY}"
+                        env.BE_CHANGED = beChanged ? "true" : "false"
+                        echo "BE_CHANGED=${env.BE_CHANGED}"
                     }
                 }
             }
@@ -71,7 +67,7 @@ pipeline {
         stage('CD Build') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' && env.SHOULD_DEPLOY == 'true'
+                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
                 }
             }
             steps {
@@ -97,7 +93,7 @@ pipeline {
         stage('Deploy') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop' && env.SHOULD_DEPLOY == 'true'
+                    return env.BRANCH_NAME == 'develop' && env.BE_CHANGED == 'true'
                 }
             }
             steps {
