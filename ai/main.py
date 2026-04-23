@@ -5,7 +5,8 @@ from routers import llm_router
 app = FastAPI(
     title=settings.app_name,
     description="FastAPI application with LangChain integration",
-    version="1.0.0"
+    version="1.0.0",
+    root_path="/ai"
 )
 
 # Include routers
