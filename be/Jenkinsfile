@@ -24,10 +24,6 @@ pipeline {
                         if (changed) {
                             env.SHOULD_DEPLOY = "true"
                         }
-
-                        echo "BE changed files:"
-                        echo changed ?: "(none)"
-                        echo "SHOULD_DEPLOY=${env.SHOULD_DEPLOY}"
                     }
                 }
             }
@@ -40,8 +36,21 @@ pipeline {
                 }
             }
             steps {
-                dir('be') {
-                    sh 'docker build -t ${IMAGE_NAME} .'
+                withCredentials([
+                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
+                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                ]) {
+                    dir('be') {
+                        sh '''
+                            docker build \
+                              --build-arg SPRING_PROFILES_ACTIVE=prod \
+                              --build-arg PROD_DB_URL="$PROD_DB_URL" \
+                              --build-arg PROD_DB_USERNAME="$PROD_DB_USERNAME" \
+                              --build-arg PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                              -t ${IMAGE_NAME} .
+                        '''
+                    }
                 }
             }
         }
@@ -53,8 +62,21 @@ pipeline {
                 }
             }
             steps {
-                dir('be') {
-                    sh 'docker build -t ${IMAGE_NAME} .'
+                withCredentials([
+                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
+                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                ]) {
+                    dir('be') {
+                        sh '''
+                            docker build \
+                              --build-arg SPRING_PROFILES_ACTIVE=prod \
+                              --build-arg PROD_DB_URL="$PROD_DB_URL" \
+                              --build-arg PROD_DB_USERNAME="$PROD_DB_USERNAME" \
+                              --build-arg PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                              -t ${IMAGE_NAME} .
+                        '''
+                    }
                 }
             }
         }
@@ -66,13 +88,23 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                    docker rm -f ${CONTAINER_NAME} || true
-                    docker run -d \
-                      --name ${CONTAINER_NAME} \
-                      -p ${APP_PORT}:8080 \
-                      ${IMAGE_NAME}
-                '''
+                withCredentials([
+                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
+                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
+                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD')
+                ]) {
+                    sh '''
+                        docker rm -f ${CONTAINER_NAME} || true
+                        docker run -d \
+                          --name ${CONTAINER_NAME} \
+                          -p ${APP_PORT}:8080 \
+                          -e SPRING_PROFILES_ACTIVE=prod \
+                          -e PROD_DB_URL="$PROD_DB_URL" \
+                          -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
+                          -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
+                          ${IMAGE_NAME}
+                    '''
+                }
             }
         }
     }
