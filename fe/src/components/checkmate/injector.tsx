@@ -6,6 +6,9 @@ import { AnalysisDashboard } from "./analysis-dashboard";
  * @param container 주입될 타겟 엘리먼트 (checkmate-root)
  */
 export const renderDashboard = (container: HTMLElement) => {
+  // 이미 Shadow Root가 있다면 중복 생성 방지
+  if (container.shadowRoot) return;
+
   // 1. Shadow Root 생성 (open 모드로 설정하여 JS 접근 허용)
   const shadow = container.attachShadow({ mode: "open" });
 
