@@ -20,5 +20,11 @@
   "permissions": ["storage", "activeTab", "scripting"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; font-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["logo.jpg", "police-station.png", "sheriff.gif"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
