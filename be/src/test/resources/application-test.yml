@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:checkmate-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password:
+    driver-class-name: org.h2.Driver
 
   jpa:
     hibernate:
@@ -11,9 +11,20 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        format_sql: false
+        dialect: org.hibernate.dialect.H2Dialect
 
-outbox:
-  publisher:
-    enabled: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - email
+              - profile
 
+jwt:
+  secret: test-secret-key-test-secret-key-test-secret-key
+  access-token-expiration-millis: 1800000
+  refresh-token-expiration-millis: 1209600000
