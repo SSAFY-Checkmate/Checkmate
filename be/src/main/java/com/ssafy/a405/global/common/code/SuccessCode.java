@@ -8,10 +8,12 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum SuccessCode implements BaseCode {
 
-    // ===== Common =====
-    OK(HttpStatus.OK, "요청이 성공했습니다."),
-    CREATED(HttpStatus.CREATED, "생성에 성공했습니다.");
+	// ===== Common =====
+	OK(HttpStatus.OK, "요청이 성공했습니다."),
+	CREATED(HttpStatus.CREATED, "생성에 성공했습니다."),
+	ACCEPTED(HttpStatus.ACCEPTED, "요청이 승인되었습니다.");
 
-    private final HttpStatus httpStatus;
-    private final String message;
+	private final HttpStatus httpStatus;
+	private final String message;
 }
+
