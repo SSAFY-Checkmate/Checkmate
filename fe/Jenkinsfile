@@ -1,0 +1,105 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "a405-frontend"
+        CONTAINER_NAME = "a405-frontend"
+        HOST_PORT = "3000"
+        VITE_API_URL = "http://k14a405.p.ssafy.io/be"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+
+        stage('Detect FE Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || true',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:\n${changedFiles}"
+
+                    if (env.BRANCH_NAME == 'develop') {
+                        def feChanged = sh(
+                            script: "git diff --name-only HEAD~1 HEAD | grep '^fe/' || true",
+                            returnStdout: true
+                        ).trim()
+
+                        if (!feChanged) {
+                            currentBuild.result = 'NOT_BUILT'
+                            error('No FE changes detected in develop. Skipping FE pipeline.')
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    dir('fe') {
+                        sh """
+                            docker build --no-cache \
+                            --build-arg VITE_API_URL=${VITE_API_URL} \
+                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Stop Old Container') {
+            when { branch 'develop' }
+            steps {
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+            }
+        }
+
+        stage('Deploy') {
+            when { branch 'develop' }
+            steps {
+                sh """
+                    docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p ${HOST_PORT}:80 \
+                    --restart unless-stopped \
+                    ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Health Check') {
+            when { branch 'develop' }
+            steps {
+                retry(5) {
+                    sleep(time: 5, unit: 'SECONDS')
+                    sh "wget -q --spider http://127.0.0.1:${HOST_PORT}"
+                }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            when { branch 'develop' }
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "FE deployment successful! (Build: ${env.BUILD_NUMBER})"
+        }
+        failure {
+            echo "FE deployment failed!"
+        }
+    }
+}
