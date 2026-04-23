@@ -17,13 +17,26 @@ pipeline {
 
                     if (env.BRANCH_NAME == 'develop') {
                         def changed = sh(
+                            script: "git diff --name-only HEAD~1 HEAD || true",
+                            returnStdout: true
+                        ).trim()
+
+                        echo "ALL_CHANGED_FILES=${changed}"
+
+                        def beChanged = sh(
                             script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
                             returnStdout: true
                         ).trim()
 
-                        if (changed) {
+                        echo "BE_CHANGED_FILES=${beChanged}"
+
+                        if (beChanged) {
                             env.SHOULD_DEPLOY = "true"
+                        } else {
+                            env.SHOULD_DEPLOY = "false"
                         }
+
+                        echo "SHOULD_DEPLOY=${env.SHOULD_DEPLOY}"
                     }
                 }
             }
