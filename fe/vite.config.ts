@@ -11,6 +11,9 @@ export default defineConfig({
     tailwindcss(),
     crx({ manifest }),
   ],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     port: 5173,
     strictPort: true,
