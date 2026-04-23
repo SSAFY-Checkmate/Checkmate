@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useCheckmateStore } from "../../lib/store";
+import { useCheckmateStore, type AnalysisStatus } from "../../lib/store";
 import { cn } from "../../lib/utils";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { ANALYSIS_WARNING_CONFIG } from "../../lib/constants/mock-data";
@@ -12,11 +12,32 @@ type AnalysisDashboardProps = {
 };
 
 /**
+ * 분석 상태에 따른 메시지를 반환하는 헬퍼 함수
+ */
+const getStatusMessage = (status: AnalysisStatus): string => {
+  switch (status) {
+    case "detecting":
+      return "영상 감지 중...";
+    case "analyzing_transcript":
+      return "자막 분석 중...";
+    case "analyzing_claims":
+      return "주장 추출 중...";
+    case "verifying":
+      return "신뢰도 검증 중...";
+    case "complete":
+      return "수사 완료";
+    case "idle":
+    default:
+      return "스캔 대기 중";
+  }
+};
+
+/**
  * [AnalysisDashboard 컴포넌트]
  * 실시간 영상 분석 상태와 결과를 보여주는 핵심 UI입니다.
  */
 export const AnalysisDashboard = ({
-  className,
+  className = "",
   onClose,
 }: AnalysisDashboardProps) => {
   // 스토어에서 상태와 액션을 가져옵니다.
@@ -31,23 +52,7 @@ export const AnalysisDashboard = ({
   } = useCheckmateStore();
 
   // 현재 분석 단계에 맞는 메시지를 결정합니다.
-  const statusMsg = useMemo(() => {
-    switch (analysisStatus) {
-      case "detecting":
-        return "영상 감지 중...";
-      case "analyzing_transcript":
-        return "자막 분석 중...";
-      case "analyzing_claims":
-        return "주장 추출 중...";
-      case "verifying":
-        return "신뢰도 검증 중...";
-      case "complete":
-        return "수사 완료";
-      case "idle":
-      default:
-        return "스캔 대기 중";
-    }
-  }, [analysisStatus]);
+  const statusMsg = useMemo(() => getStatusMessage(analysisStatus), [analysisStatus]);
 
   /**
    * 결과 팝업(주의/안전/보류)에 대한 설정 데이터
