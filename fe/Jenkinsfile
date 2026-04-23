@@ -17,6 +17,7 @@ pipeline {
         }
 
         stage('Detect FE Changes') {
+            when { branch 'develop' }
             steps {
                 script {
                     def changedFiles = sh(
@@ -26,22 +27,27 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
-                    if (env.BRANCH_NAME == 'develop') {
-                        def feChanged = sh(
-                            script: "git diff --name-only HEAD~1 HEAD | grep '^fe/' || true",
-                            returnStdout: true
-                        ).trim()
+                    def feChanged = sh(
+                        script: "git diff --name-only HEAD~1 HEAD | grep '^fe/' || true",
+                        returnStdout: true
+                    ).trim()
 
-                        if (!feChanged) {
-                            currentBuild.result = 'NOT_BUILT'
-                            error('No FE changes detected in develop. Skipping FE pipeline.')
-                        }
+                    if (!feChanged) {
+                        echo 'No FE changes detected in develop. Skipping FE deploy stages.'
+                        env.SKIP_FE_DEPLOY = "true"
+                    } else {
+                        env.SKIP_FE_DEPLOY = "false"
                     }
                 }
             }
         }
 
         stage('Build Docker Image') {
+            when {
+                expression {
+                    return env.BRANCH_NAME != 'develop' || env.SKIP_FE_DEPLOY != "true"
+                }
+            }
             steps {
                 script {
                     dir('fe') {
@@ -56,7 +62,12 @@ pipeline {
         }
 
         stage('Stop Old Container') {
-            when { branch 'develop' }
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_FE_DEPLOY != "true" }
+                }
+            }
             steps {
                 sh "docker stop ${CONTAINER_NAME} || true"
                 sh "docker rm ${CONTAINER_NAME} || true"
@@ -64,7 +75,12 @@ pipeline {
         }
 
         stage('Deploy') {
-            when { branch 'develop' }
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_FE_DEPLOY != "true" }
+                }
+            }
             steps {
                 sh """
                     docker run -d \
@@ -77,17 +93,27 @@ pipeline {
         }
 
         stage('Health Check') {
-            when { branch 'develop' }
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_FE_DEPLOY != "true" }
+                }
+            }
             steps {
                 retry(5) {
                     sleep(time: 5, unit: 'SECONDS')
-                    sh "wget -q --spider http://127.0.0.1:${HOST_PORT}"
+                    sh "curl -f http://127.0.0.1:${HOST_PORT}"
                 }
             }
         }
 
         stage('Cleanup Old Images') {
-            when { branch 'develop' }
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_FE_DEPLOY != "true" }
+                }
+            }
             steps {
                 sh 'docker image prune -f'
             }
