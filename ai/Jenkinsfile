@@ -101,7 +101,7 @@ pipeline {
             steps {
                 retry(5) {
                     sleep(time: 5, unit: 'SECONDS')
-                    sh "curl -f --max-time 10 http://127.0.0.1:${HOST_PORT}/health"
+                    sh "curl -f --max-time 10 http://k14a405.p.ssafy.io/ai/health"
                 }
             }
         }

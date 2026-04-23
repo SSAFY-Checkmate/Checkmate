@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from services.llm_service import generate_response
 
 router = APIRouter(
-    prefix="/api",
     tags=["LLM"]
 )
 
