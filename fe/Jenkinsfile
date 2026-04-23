@@ -51,6 +51,7 @@ pipeline {
             steps {
                 script {
                     dir('fe') {
+                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
                         sh """
                             docker build --no-cache \
                             --build-arg VITE_API_URL=${VITE_API_URL} \
