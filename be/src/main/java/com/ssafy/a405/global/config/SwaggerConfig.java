@@ -1,8 +1,11 @@
 package com.ssafy.a405.global.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
@@ -16,36 +19,60 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         Info info = new Info()
-                .title("A405 API")
+                .title("A405 API Docs")
                 .description("""
-                    SSAFY 프로젝트 API 문서입니다.
+                    SSAFY 14기 A405 프로젝트 API 문서입니다.
             
-                    ### API Groups (Alphabetical Order)
-                    - health: api 테스트 체크용
+                    ### 사용 안내
+                    - 모든 API 응답은 `ApiResponseBody` 공통 규격을 따릅니다.
+                    - 인증이 필요한 API는 오른쪽 'Authorize' 버튼을 눌러 Access Token을 입력해 주세요.
                     """)
                 .version("v1.0.0")
-                .contact(new Contact().name("A509 Team"));
+                .contact(new Contact().name("A405 Team"));
 
         List<Server> servers = List.of(
                 new Server().url("http://localhost:8080").description("local"),
-                new Server().url("나중에배포주소넣기").description("prod")
+                new Server().url("배포주소").description("prod")
         );
 
         String jwtSchemeName = "bearerAuth";
+        SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);
+        Components components = new Components()
+                .addSecuritySchemes(jwtSchemeName, new SecurityScheme()
+                        .name(jwtSchemeName)
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT"));
 
         return new OpenAPI()
                 .info(info)
-                .servers(servers);
+                .servers(servers)
+                .addSecurityItem(securityRequirement)
+                .components(components);
     }
 
-//    도메인별 Swagger 그룹핑
+    @Bean
+    public GroupedOpenApi allApi() {
+        return GroupedOpenApi.builder()
+                .group("all-api")
+                .packagesToScan("com.ssafy.a405.domain")
+                .build();
+    }
 
     @Bean
-    public GroupedOpenApi globalApi() {
+    public GroupedOpenApi authApi() {
+        return GroupedOpenApi.builder()
+                .group("auth")
+                .packagesToScan("com.ssafy.a405.domain.auth")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi healthApi() {
         return GroupedOpenApi.builder()
                 .group("health")
                 .packagesToScan("com.ssafy.a405.domain.health")
                 .build();
     }
-
 }
+
