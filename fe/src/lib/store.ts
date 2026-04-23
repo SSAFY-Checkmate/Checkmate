@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { MOCK_ANALYSIS_RESULTS } from "./constants/mock-data";
 
 export type Tab = "report" | "community";
 export type Verdict = "safe" | "warning" | "unknown";
@@ -124,48 +125,20 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
           set({ analysisStatus: "verifying" });
 
           setTimeout(() => {
-            // [TODO: 목업 데이터] 서버 응답을 대신하는 가짜 결과 데이터입니다.
-            let resultVerdict: Verdict = "safe";
-            let resultScore = 95;
-            let resultWarningCount = 0;
-            let resultClaims: Claim[] = [];
-
-            // [TODO: 목업 로직] 비디오 ID에 따라 다른 결과가 나오도록 시뮬레이션합니다.
-            if (videoId.includes("warn")) {
-              resultVerdict = "warning";
-              resultScore = 15;
-              resultWarningCount = 2;
-              resultClaims = [
-                {
-                  id: "c1",
-                  text: '"단 며칠 만에 10kg 감량 보장"',
-                  verdict: "warning",
-                  evidence: "과장된 표현이며 과학적 근거가 부족합니다.",
-                  sources: [{ label: "식약처 자료", url: "#" }],
-                },
-              ];
-            } else {
-              resultVerdict = "safe";
-              resultScore = 98;
-              resultClaims = [
-                {
-                  id: "c1",
-                  text: "영상 내 사실 정보 일치",
-                  verdict: "safe",
-                  evidence: "공식 기사와 교차 검증 결과 사실입니다.",
-                  sources: [{ label: "언론 보도", url: "#" }],
-                },
-              ];
-            }
+            // [TODO: 목업 데이터] 외부 상수 파일에서 데이터를 가져옵니다.
+            const isWarningCase = videoId.includes("warn");
+            const result = isWarningCase
+              ? MOCK_ANALYSIS_RESULTS.warn
+              : MOCK_ANALYSIS_RESULTS.default;
 
             // 완료 상태 업데이트
             set({
               analysisStatus: "complete",
               isWarningVisible: true,
-              overallVerdict: resultVerdict,
-              trustScore: resultScore,
-              warningCount: resultWarningCount,
-              claims: resultClaims,
+              overallVerdict: result.verdict,
+              trustScore: result.score,
+              warningCount: result.warningCount,
+              claims: result.claims,
             });
           }, 1500);
         }, 1200);
