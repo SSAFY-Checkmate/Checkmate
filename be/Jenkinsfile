@@ -141,7 +141,7 @@ pipeline {
 
                     echo "Checking backend HTTP response..."
                     # 응답 코드만 추출하여 200인지 확인
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health || echo "000")
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${CONTAINER_NAME}:8080/health || echo "000")
                     echo "Backend responded with HTTP CODE: $HTTP_CODE"
 
                     if [ "$HTTP_CODE" -eq 200 ]; then
