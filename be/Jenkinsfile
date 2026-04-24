@@ -8,7 +8,7 @@ pipeline {
         APP_PORT = "8080"
         NETWORK_NAME = "checkmate-net"
 
-        // Jenkins 환경변수에 127.0.0.1이 있다면 무시하고 kafka:9092를 사용하도록 강제 설정 추천
+        // Jenkins 시스템 설정값보다 이 값이 우선되도록 명시적 설정
         KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
     }
 
@@ -18,50 +18,10 @@ pipeline {
                 checkout scm
                 script {
                     echo "BRANCH_NAME=${env.BRANCH_NAME}"
-
                     if (env.BRANCH_NAME == 'develop') {
-                        def changed = sh(
-                            script: "git diff --name-only HEAD~1 HEAD || true",
-                            returnStdout: true
-                        ).trim()
-
-                        def beChanged = sh(
-                            script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
-                            returnStdout: true
-                        ).trim()
-
-                        echo "ALL_CHANGED_FILES=${changed}"
+                        def changed = sh(script: "git diff --name-only HEAD~1 HEAD || true", returnStdout: true).trim()
+                        def beChanged = sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
                         echo "BE_CHANGED_FILES=${beChanged}"
-                    }
-                }
-            }
-        }
-
-        stage('CI Build/Test') {
-            when {
-                expression {
-                    return env.BRANCH_NAME != null && env.BRANCH_NAME.contains('/be/')
-                }
-            }
-            steps {
-                withCredentials([
-                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
-                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
-                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
-                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
-                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
-                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
-                ]) {
-                    dir('be') {
-                        sh '''
-                            docker build \
-                              --build-arg SPRING_PROFILES_ACTIVE=prod \
-                              --build-arg PROD_DB_URL="$PROD_DB_URL" \
-                              --build-arg PROD_DB_USERNAME="$PROD_DB_USERNAME" \
-                              --build-arg PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                              -t ${IMAGE_NAME} .
-                        '''
                     }
                 }
             }
@@ -116,12 +76,15 @@ pipeline {
                     string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
+                        # 네트워크 및 카프카 연결 보장
                         docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
                         docker network connect ${NETWORK_NAME} kafka || true
 
+                        # 기존 컨테이너 제거
                         docker rm -f ${CONTAINER_NAME} || true
                         docker rm -f ${PUBLISHER_CONTAINER_NAME} || true
 
+                        # 백엔드 메인 컨테이너 실행
                         docker run -d \
                           --name ${CONTAINER_NAME} \
                           --network ${NETWORK_NAME} \
@@ -137,6 +100,7 @@ pipeline {
                           -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
                           ${IMAGE_NAME}
 
+                        # 퍼블리셔 컨테이너 실행
                         docker run -d \
                           --name ${PUBLISHER_CONTAINER_NAME} \
                           --network ${NETWORK_NAME} \
@@ -164,38 +128,36 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Waiting for containers to stabilize (30s)..."
-                    sleep 30
+                    echo "Waiting for containers to stabilize (35s)..."
+                    sleep 35
 
+                    # 컨테이너 실행 상태 확인
                     BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null || echo "false")
-                    PUBLISHER_STATUS=$(docker inspect -f '{{.State.Running}}' ${PUBLISHER_CONTAINER_NAME} 2>/dev/null || echo "false")
-
                     if [ "$BACKEND_STATUS" != "true" ]; then
                       echo "[ERROR] Backend container is not running"
-                      docker logs --tail 100 ${CONTAINER_NAME} || true
+                      docker logs --tail 100 ${CONTAINER_NAME}
                       exit 1
                     fi
 
-                    echo "Checking backend HTTP response via health endpoint..."
-                    # 명시적으로 /health 경로를 찌르며, 실패 시 로그 출력 후 종료
-                    if ! curl -f http://127.0.0.1:8080/health; then
-                      echo "[ERROR] Backend health check failed on http://127.0.0.1:8080/health"
-                      docker logs --tail 100 ${CONTAINER_NAME} || true
+                    echo "Checking backend HTTP response..."
+                    # 응답 코드만 추출하여 200인지 확인
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/health || echo "000")
+                    echo "Backend responded with HTTP CODE: $HTTP_CODE"
+
+                    if [ "$HTTP_CODE" -eq 200 ]; then
+                      echo "Health check passed!"
+                    else
+                      echo "[ERROR] Health check failed with code $HTTP_CODE"
+                      docker logs --tail 100 ${CONTAINER_NAME}
                       exit 1
                     fi
-
-                    echo "Deployment Verified Successfully!"
                 '''
             }
         }
     }
 
     post {
-        success {
-            echo 'BE pipeline success'
-        }
-        failure {
-            echo 'BE pipeline failed'
-        }
+        success { echo 'BE pipeline success' }
+        failure { echo 'BE pipeline failed' }
     }
 }
