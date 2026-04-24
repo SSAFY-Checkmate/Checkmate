@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useCheckmateStore, type WantedCard as WantedCardType } from "../../lib/store";
+import { useCheckmateStore, type Claim } from "../../lib/store";
 import { ThumbsUp, ThumbsDown, Plus, Send, Award, AlertTriangle, MessageSquare } from "lucide-react";
 
 /**
@@ -37,11 +37,17 @@ function VoteBar({ votesTrue, votesFake }: { votesTrue: number; votesFake: numbe
 }
 
 /**
- * 현상수배 카드 컴포넌트 (인라인 스타일)
+ * 현재 영상의 주장에 대한 커뮤니티 투표 카드
  */
-function WantedCard({ card }: { card: WantedCardType }) {
-  const { voteOnCard } = useCheckmateStore();
-  const hasVoted = !!card.userVote;
+function ClaimVoteCard({ claim }: { claim: Claim }) {
+  const { voteOnClaim } = useCheckmateStore();
+  const hasVoted = !!claim.userVote;
+
+  const verdictLabel = {
+    safe: { text: "AI 판정: 사실", color: "#1e8e3e", bg: "#ecf7ed" },
+    warning: { text: "AI 판정: 허위", color: "#dc2626", bg: "#fef2f2" },
+    unknown: { text: "AI 판정: 보류", color: "#d97706", bg: "#fffbeb" },
+  }[claim.verdict];
 
   const cardStyle: React.CSSProperties = {
     padding: "16px",
@@ -49,11 +55,12 @@ function WantedCard({ card }: { card: WantedCardType }) {
     backgroundColor: "white",
     display: "flex",
     flexDirection: "column",
+    gap: "12px",
     boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
   };
 
   const getVoteBtnStyle = (type: "true" | "fake"): React.CSSProperties => {
-    const isThisVoted = card.userVote === type;
+    const isThisVoted = claim.userVote === type;
     const color = type === "true" ? "#22c55e" : "#ef4444";
     const bgColor = type === "true" ? "#f0fdf4" : "#fef2f2";
     const borderColor = type === "true" ? "#bbf7d0" : "#fecaca";
@@ -66,7 +73,7 @@ function WantedCard({ card }: { card: WantedCardType }) {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      gap: "8px",
+      gap: "6px",
       transition: "all 0.2s ease",
       cursor: hasVoted ? "default" : "pointer",
       border: `2px solid ${isThisVoted ? color : borderColor}`,
@@ -76,81 +83,47 @@ function WantedCard({ card }: { card: WantedCardType }) {
   };
 
   return (
-    <div style={cardStyle} className="pixel-border transition-transform hover:scale-[1.01]">
-      <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
-        <div
-          style={{
-            width: "64px",
-            height: "64px",
-            backgroundColor: "#f4f4f5",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "24px",
-            border: "2px solid #e4e4e7",
-            flexShrink: 0,
-          }}
-          className="pixel-border"
-        >
-          🎬
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: "14px",
-              fontWeight: "900",
-              color: "black",
-              margin: 0,
-              marginBottom: "4px",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              lineHeight: 1.2,
-            }}
-          >
-            {card.claim}
-          </p>
-          <p style={{ fontSize: "11px", color: "#71717a", fontStyle: "italic", margin: 0, lineHeight: 1.4 }}>
-            제보: "{card.reporterComment}"
-          </p>
-        </div>
+    <div style={cardStyle} className="pixel-border">
+      {/* AI 판정 배지 + 주장 텍스트 */}
+      <div>
+        <span style={{ display: "inline-block", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", backgroundColor: verdictLabel.bg, color: verdictLabel.color, marginBottom: "6px" }} className="pixel-border">
+          {verdictLabel.text}
+        </span>
+        <p style={{ fontSize: "14px", fontWeight: "900", color: "black", margin: 0, lineHeight: 1.4 }}>
+          {claim.text}
+        </p>
+        <p style={{ fontSize: "11px", color: "#71717a", margin: 0, marginTop: "4px", lineHeight: 1.4 }}>
+          {claim.evidence}
+        </p>
       </div>
 
-      {/* Vote Stats */}
-      <div style={{ marginBottom: "12px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: "11px",
-            fontWeight: "bold",
-            marginBottom: "6px",
-          }}
-        >
-          <span style={{ color: "#16a34a" }}>👍 참이다 ({card.votesTrue})</span>
-          <span style={{ color: "#dc2626" }}>👎 거짓이다 ({card.votesFake})</span>
+      {/* 투표 현황 */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "bold", marginBottom: "6px" }}>
+          <span style={{ color: "#16a34a" }}>👍 사실이다 ({claim.votesTrue})</span>
+          <span style={{ color: "#dc2626" }}>👎 거짓이다 ({claim.votesFake})</span>
         </div>
-        <VoteBar votesTrue={card.votesTrue} votesFake={card.votesFake} />
+        <VoteBar votesTrue={claim.votesTrue} votesFake={claim.votesFake} />
       </div>
 
-      {/* Vote Buttons */}
+      {/* 투표 버튼 */}
       <div style={{ display: "flex", gap: "8px" }}>
         <button
-          onClick={() => !hasVoted && voteOnCard(card.id, "true")}
+          onClick={() => !hasVoted && voteOnClaim(claim.id, "true")}
           disabled={hasVoted}
           style={getVoteBtnStyle("true")}
           className="pixel-btn"
         >
-          <ThumbsUp style={{ width: "14px", height: "14px" }} />참
+          <ThumbsUp style={{ width: "14px", height: "14px" }} />사실이다
         </button>
         <button
-          onClick={() => !hasVoted && voteOnCard(card.id, "fake")}
+          onClick={() => !hasVoted && voteOnClaim(claim.id, "fake")}
           disabled={hasVoted}
           style={getVoteBtnStyle("fake")}
           className="pixel-btn"
         >
           <ThumbsDown style={{ width: "14px", height: "14px" }} />
-          거짓
+          거짓이다
         </button>
       </div>
     </div>
@@ -298,11 +271,11 @@ function ChatRoom() {
 }
 
 export function CommunityTab() {
-  const { wantedCards } = useCheckmateStore();
+  const { claims, analysisStatus } = useCheckmateStore();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
-      {/* Wanted Section */}
+      {/* 현재 영상 팩트체크 투표 섹션 */}
       <div>
         <h4
           style={{
@@ -318,12 +291,25 @@ export function CommunityTab() {
             gap: "8px",
           }}
         >
-          🧐 팩트체크 현상수배
+          🧐 이 영상, 직접 판단해봐
         </h4>
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {wantedCards.map((card) => (
-            <WantedCard key={card.id} card={card} />
-          ))}
+          {analysisStatus !== "complete" ? (
+            /* 분석 전 안내 메시지 */
+            <div style={{ textAlign: "center", padding: "32px 16px", border: "2px dashed #e2e8f0", color: "#a1a1aa" }} className="pixel-border">
+              <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div>
+              <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>아직 분석이 완료되지 않았어요</p>
+              <p style={{ fontSize: "11px", margin: "4px 0 0 0" }}>리포트 탭에서 스캔을 시작해 보세요!</p>
+            </div>
+          ) : claims.length > 0 ? (
+            claims.map((claim) => (
+              <ClaimVoteCard key={claim.id} claim={claim} />
+            ))
+          ) : (
+            <div style={{ textAlign: "center", padding: "32px 16px", border: "2px dashed #e2e8f0", color: "#a1a1aa" }} className="pixel-border">
+              <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>분석된 주장이 없습니다.</p>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import { cn } from "../../lib/utils";
-import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
 
 /**
  * 판단 배지 컴포넌트 (사실/허위/보류)
@@ -27,17 +26,17 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const { icon: Icon, label, style } = config[verdict];
 
   return (
-    <span 
-      style={{ 
-        display: "inline-flex", 
-        alignItems: "center", 
-        gap: "6px", 
-        padding: "4px 10px", 
-        fontSize: "12px", 
-        fontWeight: "bold", 
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "4px 10px",
+        fontSize: "12px",
+        fontWeight: "bold",
         borderRadius: "2px",
-        ...style 
-      }} 
+        ...style,
+      }}
       className="pixel-border"
     >
       <Icon style={{ width: "14px", height: "14px" }} strokeWidth={3} />
@@ -61,9 +60,8 @@ function TrustMeter({ score }: { score: number }) {
               width: "18px",
               height: "18px",
               border: "1.5px solid rgba(0, 0, 0, 0.1)",
-              backgroundColor: i < filledBars
-                ? score < 30 ? "#ef4444" : score < 60 ? "#f59e0b" : "#22c55e"
-                : "#e5e7eb",
+              backgroundColor:
+                i < filledBars ? (score < 30 ? "#ef4444" : score < 60 ? "#f59e0b" : "#22c55e") : "#e5e7eb",
             }}
             className="pixel-border"
           />
@@ -86,22 +84,41 @@ function TrustMeter({ score }: { score: number }) {
 
 function ClaimCard({ claim }: { claim: Claim }) {
   return (
-    <div 
-      style={{ 
-        padding: "15px", 
-        border: "2.5px solid #e2e8f0", 
-        backgroundColor: "white", 
-        display: "flex", 
-        flexDirection: "column", 
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)" 
-      }} 
+    <div
+      style={{
+        padding: "15px",
+        border: "2.5px solid #e2e8f0",
+        backgroundColor: "white",
+        display: "flex",
+        flexDirection: "column",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      }}
       className="pixel-border"
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "12px" }}>
-        <p style={{ fontSize: "14px", fontWeight: "bold", color: "black", margin: 0, lineHeight: 1.25 }}>영상 내 주요 사실 정보 일치율</p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "8px",
+          marginBottom: "12px",
+        }}
+      >
+        <p style={{ fontSize: "14px", fontWeight: "bold", color: "black", margin: 0, lineHeight: 1.25 }}>
+          영상 내 주요 사실 정보 일치율
+        </p>
         <VerdictBadge verdict={claim.verdict} />
       </div>
-      <p style={{ fontSize: "12px", color: "#52525b", marginBottom: "16px", margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+      <p
+        style={{
+          fontSize: "12px",
+          color: "#52525b",
+          marginBottom: "16px",
+          margin: 0,
+          lineHeight: 1.5,
+          fontWeight: 500,
+        }}
+      >
         {claim.evidence}
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px" }}>
@@ -109,7 +126,15 @@ function ClaimCard({ claim }: { claim: Claim }) {
           href={claim.sources?.[0]?.url || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#2563eb", fontWeight: "bold", textDecoration: "none" }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
+            color: "#2563eb",
+            fontWeight: "bold",
+            textDecoration: "none",
+          }}
           className="hover:underline"
         >
           <ExternalLink style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
@@ -149,34 +174,36 @@ export function ReportTab() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
       {/* Overall Verdict Card */}
-      <div 
-        style={{ 
-          padding: "20px", 
-          textAlign: "center", 
-          display: "flex", 
-          flexDirection: "column", 
-          alignItems: "center", 
+      <div
+        style={{
+          padding: "20px",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
           gap: "12px",
-          ...cardStyle 
-        }} 
+          ...cardStyle,
+        }}
         className="pixel-border"
       >
-        <div 
-          style={{ 
-            width: "48px", 
-            height: "48px", 
-            borderRadius: "2px", 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center", 
+        <div
+          style={{
+            width: "48px",
+            height: "48px",
+            borderRadius: "2px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-            ...iconBg 
-          }} 
+            ...iconBg,
+          }}
           className="pixel-border"
         >
           {typeof icon === "string" ? <span style={{ fontSize: "24px" }}>{icon}</span> : icon}
         </div>
-        <h3 style={{ fontSize: "19px", fontWeight: "900", letterSpacing: "-0.05em", margin: 0, lineHeight: 1 }}>{label}</h3>
+        <h3 style={{ fontSize: "19px", fontWeight: "900", letterSpacing: "-0.05em", margin: 0, lineHeight: 1 }}>
+          {label}
+        </h3>
         <div style={{ marginTop: "4px", width: "100%", display: "flex", justifyContent: "center" }}>
           <TrustMeter score={trustScore} />
         </div>
@@ -184,41 +211,25 @@ export function ReportTab() {
 
       {/* Claims List */}
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#71717a", margin: 0, paddingLeft: "4px" }}>핵심 주장 분석</h4>
+        <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#71717a", margin: 0, paddingLeft: "4px" }}>
+          핵심 주장 분석
+        </h4>
         {claims.length > 0 ? (
           claims.map((claim) => <ClaimCard key={claim.id} claim={claim} />)
         ) : (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "#a1a1aa", fontSize: "13px", border: "2px dashed #e2e8f0" }} className="pixel-border">
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px 0",
+              color: "#a1a1aa",
+              fontSize: "13px",
+              border: "2px dashed #e2e8f0",
+            }}
+            className="pixel-border"
+          >
             분석된 핵심 주장이 없습니다.
           </div>
         )}
-      </div>
-
-      {/* Response Action Button (Fixed Bottom) */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", backgroundColor: "white", borderTop: "2px solid #f4f4f5", zIndex: 10, boxShadow: "0 -4px 10px rgba(0,0,0,0.05)" }}>
-        <button
-          style={{
-            width: "100%",
-            padding: "14px 24px",
-            backgroundColor: "#006edc",
-            color: "white",
-            fontWeight: "900",
-            fontSize: "16px",
-            border: "none",
-            boxShadow: "0 4px 0 #004a94",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "12px",
-            transition: "all 0.1s ease",
-            cursor: "pointer",
-          }}
-          className="pixel-btn active:translate-y-[2px] active:shadow-[0_2px_0_#004a94] hover:brightness-110"
-        >
-          <Shield style={{ width: "24px", height: "24px" }} fill="rgba(255,255,255,0.2)" />
-          <div style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🚨</div>
-          원터치 팩트체크 대응
-        </button>
       </div>
     </div>
   );
