@@ -43,7 +43,7 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
 
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  // [이전 코드] Shadow DOM 미대응 상태로 잠시 복구
+  // [이전 코드] Shadow DOM 미대응 상태로 잠시 복구 (refactor 유닛 커밋용)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isWarningVisible && dashboardRef.current && !dashboardRef.current.contains(event.target as Node)) {
@@ -117,7 +117,9 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
   };
 
   // 1. 분석 완료 결과 팝업 (디자인 고도화 적용 상태)
-  if (isWarningVisible) {
+  const renderPopup = () => {
+    if (!isWarningVisible) return null;
+    
     const config = warningConfig[overallVerdict as keyof typeof warningConfig] || warningConfig.unknown;
     const { gradient, textColor, icon: Icon, prefix, title, desc, btnText } = config;
 
@@ -151,96 +153,101 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
         </div>
       </div>
     );
-  }
+  };
 
-  // 2. 기본 분석 대기/진행 상태 (디자인 고도화 적용 상태)
   return (
-    <div
-      ref={dashboardRef}
-      className={cn("bg-white p-6 light-border flex flex-col items-center gap-4 relative font-pixel", className)}
-    >
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-black transition-colors cursor-pointer rounded-md"
+    <>
+      {isWarningVisible ? (
+        renderPopup()
+      ) : (
+        <div
+          ref={dashboardRef}
+          className={cn("bg-white p-6 light-border flex flex-col items-center gap-4 relative font-pixel", className)}
         >
-          <X className="w-4 h-4" />
-        </button>
-      )}
-
-      <button
-        onClick={() => {
-          openPanel();
-          onClose?.();
-        }}
-        className="relative transition-transform active:scale-95 cursor-pointer mt-4"
-        style={{ background: "none", border: "none", padding: 0 }}
-      >
-        <PixelCharacter size="lg" />
-        <AnimatePresence>
-          {analysisStatus !== "idle" && (
-            <motion.div
-              initial={{ x: -60, scale: 0.8, opacity: 0 }}
-              animate={{ x: 0, scale: 1, opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.8, x: -60 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
-              className="absolute -bottom-1 -right-1"
-            >
-              <PixelOfficer
-                size="sm"
-                mood={analysisStatus === "complete" ? (overallVerdict === "warning" ? "alert" : "happy") : "thinking"}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </button>
-
-      <div className="w-full flex flex-col justify-center">
-        {analysisStatus === "idle" && (
-          <button
-            onClick={() => startAnalysis()}
-            className="w-full btn-blue-pixel py-3 px-4 text-[16px] cursor-pointer pixel-btn"
-          >
-            스캔 시작
-          </button>
-        )}
-
-        {analysisStatus !== "idle" && analysisStatus !== "complete" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5 px-1 pb-1">
-            <div className="flex items-center justify-between text-[11px] text-zinc-900 px-0.5">
-              <div className="flex items-center gap-1.5 tracking-widest">
-                <span className="animate-pulse">{statusMsg}</span>
-              </div>
-            </div>
-            <div className="h-4 w-full bg-zinc-200 p-0.5 pixel-border">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{
-                  width:
-                    analysisStatus === "detecting" ? "25%" : analysisStatus === "analyzing_transcript" ? "50%" : analysisStatus === "analyzing_claims" ? "75%" : "90%",
-                }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-green-500 transition-all duration-300"
-              />
-            </div>
-          </motion.div>
-        )}
-
-        {analysisStatus === "complete" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
+          {onClose && (
             <button
-              onClick={() => {
-                openPanel();
-                onClose?.();
-              }}
-              className="w-full btn-purple-pixel py-2.5 text-[15px] cursor-pointer pixel-btn"
+              onClick={onClose}
+              className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-black transition-colors cursor-pointer rounded-md"
             >
-              리포트 확인
+              <X className="w-4 h-4" />
             </button>
-          </motion.div>
-        )}
-      </div>
+          )}
+
+          <button
+            onClick={() => {
+              openPanel();
+              onClose?.();
+            }}
+            className="relative transition-transform active:scale-95 cursor-pointer mt-4"
+            style={{ background: "none", border: "none", padding: 0 }}
+          >
+            <PixelCharacter size="lg" />
+            <AnimatePresence>
+              {analysisStatus !== "idle" && (
+                <motion.div
+                  initial={{ x: -60, scale: 0.8, opacity: 0 }}
+                  animate={{ x: 0, scale: 1, opacity: 1 }}
+                  exit={{ opacity: 0, scale: 0.8, x: -60 }}
+                  transition={{ duration: 1.2, ease: "easeInOut" }}
+                  className="absolute -bottom-1 -right-1"
+                >
+                  <PixelOfficer
+                    size="sm"
+                    mood={analysisStatus === "complete" ? (overallVerdict === "warning" ? "alert" : "happy") : "thinking"}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+
+          <div className="w-full flex flex-col justify-center">
+            {analysisStatus === "idle" && (
+              <button
+                onClick={() => startAnalysis()}
+                className="w-full btn-blue-pixel py-3 px-4 text-[16px] cursor-pointer pixel-btn"
+              >
+                스캔 시작
+              </button>
+            )}
+
+            {analysisStatus !== "idle" && analysisStatus !== "complete" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5 px-1 pb-1">
+                <div className="flex items-center justify-between text-[11px] text-zinc-900 px-0.5">
+                  <div className="flex items-center gap-1.5 tracking-widest">
+                    <span className="animate-pulse">{statusMsg}</span>
+                  </div>
+                </div>
+                <div className="h-4 w-full bg-zinc-200 p-0.5 pixel-border">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{
+                      width:
+                        analysisStatus === "detecting" ? "25%" : analysisStatus === "analyzing_transcript" ? "50%" : analysisStatus === "analyzing_claims" ? "75%" : "90%",
+                    }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full bg-green-500 transition-all duration-300"
+                  />
+                </div>
+              </motion.div>
+            )}
+
+            {analysisStatus === "complete" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    openPanel();
+                    onClose?.();
+                  }}
+                  className="w-full btn-purple-pixel py-2.5 text-[15px] cursor-pointer pixel-btn"
+                >
+                  리포트 확인
+                </button>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      )}
       <SidePanel />
-    </div>
+    </>
   );
 }
