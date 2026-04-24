@@ -43,10 +43,14 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
 
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  // [이전 코드] Shadow DOM 미대응 상태로 잠시 복구 (refactor 유닛 커밋용)
+  // 오리지널 로직: 외부 클릭 시 닫기 (Shadow DOM 대응)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (isWarningVisible && dashboardRef.current && !dashboardRef.current.contains(event.target as Node)) {
+      if (!isWarningVisible || !dashboardRef.current) return;
+
+      // Shadow DOM 내부 클릭인지 확인하기 위해 composedPath 사용
+      const path = event.composedPath();
+      if (!path.includes(dashboardRef.current)) {
         closeWarning();
       }
     };
