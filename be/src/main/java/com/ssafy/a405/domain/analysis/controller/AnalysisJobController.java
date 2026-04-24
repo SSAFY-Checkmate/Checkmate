@@ -1,10 +1,11 @@
-package com.ssafy.a405.domain.analysis.job.controller;
+package com.ssafy.a405.domain.analysis.controller;
 
-import com.ssafy.a405.domain.analysis.job.dto.AnalysisJobCreateRequest;
-import com.ssafy.a405.domain.analysis.job.dto.AnalysisJobCreateResponse;
-import com.ssafy.a405.domain.analysis.job.dto.AnalysisJobGetResponse;
-import com.ssafy.a405.domain.analysis.job.entity.AnalysisJob;
-import com.ssafy.a405.domain.analysis.job.service.AnalysisJobService;
+import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRequest;
+import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
+import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
+import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.service.AnalysisJobOrchestrator;
+import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
 import com.ssafy.a405.global.common.code.SuccessCode;
 import com.ssafy.a405.global.common.dto.ApiResponseBody;
 import jakarta.validation.Valid;
@@ -23,16 +24,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class AnalysisJobController {
 
 	private final AnalysisJobService analysisJobService;
+	private final AnalysisJobOrchestrator analysisJobOrchestrator;
 
 	@PostMapping
 	public ResponseEntity<ApiResponseBody<AnalysisJobCreateResponse>> requestAnalysis(
 		@Valid @RequestBody AnalysisJobCreateRequest request
 	) {
-		AnalysisJob job = analysisJobService.createRequestedJob(request.youtubeUrl());
+		AnalysisJob job = analysisJobOrchestrator.requestAnalysisAsync(request.youtubeUrl());
 		AnalysisJobCreateResponse response = new AnalysisJobCreateResponse(job.getJobId(), job.getStatus());
 		return ResponseEntity
 			.status(SuccessCode.ACCEPTED.getHttpStatus())
 			.body(ApiResponseBody.onSuccess(SuccessCode.ACCEPTED, response));
+	}
+
+	@PostMapping("/sync")
+	public ResponseEntity<ApiResponseBody<AnalysisJobGetResponse>> requestAnalysisSync(
+		@Valid @RequestBody AnalysisJobCreateRequest request
+	) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobOrchestrator.requestAnalysisSync(request.youtubeUrl())));
 	}
 
 	@GetMapping("/{jobId}")

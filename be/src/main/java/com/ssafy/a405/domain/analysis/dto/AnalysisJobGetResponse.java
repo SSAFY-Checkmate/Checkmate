@@ -1,7 +1,7 @@
-package com.ssafy.a405.domain.analysis.job.dto;
+package com.ssafy.a405.domain.analysis.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.ssafy.a405.domain.analysis.job.entity.AnalysisJobStatus;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 
 public record AnalysisJobGetResponse(
 	String jobId,
