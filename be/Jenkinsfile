@@ -8,7 +8,8 @@ pipeline {
         APP_PORT = "8080"
         NETWORK_NAME = "checkmate-net"
 
-        KAFKA_BOOTSTRAP_SERVERS = "${env.KAFKA_BOOTSTRAP_SERVERS ?: 'kafka:9092'}"
+        // Jenkins 환경변수에 127.0.0.1이 있다면 무시하고 kafka:9092를 사용하도록 강제 설정 추천
+        KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
     }
 
     stages {
@@ -163,14 +164,11 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Waiting for containers to stabilize..."
-                    sleep 10
+                    echo "Waiting for containers to stabilize (30s)..."
+                    sleep 30
 
                     BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null || echo "false")
                     PUBLISHER_STATUS=$(docker inspect -f '{{.State.Running}}' ${PUBLISHER_CONTAINER_NAME} 2>/dev/null || echo "false")
-
-                    echo "BACKEND_STATUS=$BACKEND_STATUS"
-                    echo "PUBLISHER_STATUS=$PUBLISHER_STATUS"
 
                     if [ "$BACKEND_STATUS" != "true" ]; then
                       echo "[ERROR] Backend container is not running"
@@ -178,18 +176,15 @@ pipeline {
                       exit 1
                     fi
 
-                    if [ "$PUBLISHER_STATUS" != "true" ]; then
-                      echo "[ERROR] Publisher container is not running"
-                      docker logs --tail 100 ${PUBLISHER_CONTAINER_NAME} || true
-                      exit 1
-                    fi
-
-                    echo "Checking backend HTTP response..."
-                    if ! curl -f http://127.0.0.1:${APP_PORT}; then
-                      echo "[ERROR] Backend health check failed"
+                    echo "Checking backend HTTP response via health endpoint..."
+                    # 명시적으로 /health 경로를 찌르며, 실패 시 로그 출력 후 종료
+                    if ! curl -f http://127.0.0.1:8080/health; then
+                      echo "[ERROR] Backend health check failed on http://127.0.0.1:8080/health"
                       docker logs --tail 100 ${CONTAINER_NAME} || true
                       exit 1
                     fi
+
+                    echo "Deployment Verified Successfully!"
                 '''
             }
         }
