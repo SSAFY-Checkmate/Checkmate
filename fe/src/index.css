@@ -283,7 +283,8 @@
 .font-medium {
   font-weight: 500 !important;
 }
-.font-pixel, .font-pixel * {
+.font-pixel,
+.font-pixel * {
   font-family: var(--font-pixel) !important;
 }
 .tracking-wide {

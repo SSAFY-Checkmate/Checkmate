@@ -76,7 +76,6 @@ interface CheckmateState {
   openPanel: () => void;
   closePanel: () => void;
   setActiveTab: (tab: Tab) => void;
-  openResponseModal: () => void;
   closeResponseModal: () => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
@@ -131,31 +130,29 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
-  openResponseModal: () => set({ isResponseModalOpen: true }),
   closeResponseModal: () => set({ isResponseModalOpen: false }),
   showWarning: (count) => set({ isWarningVisible: true, warningCount: count }),
   closeWarning: () => set({ isWarningVisible: false }),
 
   // 커뮤니티 액션
-  voteOnCard: (cardId, vote) => set((state) => ({
-    wantedCards: state.wantedCards.map(card => 
-      card.id === cardId 
-        ? { 
-            ...card, 
-            userVote: vote,
-            votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
-            votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake 
-          } 
-        : card
-    )
-  })),
+  voteOnCard: (cardId, vote) =>
+    set((state) => ({
+      wantedCards: state.wantedCards.map((card) =>
+        card.id === cardId
+          ? {
+              ...card,
+              userVote: vote,
+              votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
+              votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
+            }
+          : card,
+      ),
+    })),
 
-  addChatMessage: (msg) => set((state) => ({
-    chatMessages: [
-      ...state.chatMessages,
-      { id: Date.now().toString(), ...msg }
-    ]
-  })),
+  addChatMessage: (msg) =>
+    set((state) => ({
+      chatMessages: [...state.chatMessages, { id: Date.now().toString(), ...msg }],
+    })),
 
   /**
    * 영상 정보를 설정
@@ -191,9 +188,7 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
 
           setTimeout(() => {
             const isWarningCase = videoId.includes("warn") || videoId === "1"; // 기본 시뮬레이션용
-            const result = isWarningCase
-              ? MOCK_ANALYSIS_RESULTS.warn
-              : MOCK_ANALYSIS_RESULTS.default;
+            const result = isWarningCase ? MOCK_ANALYSIS_RESULTS.warn : MOCK_ANALYSIS_RESULTS.default;
 
             set({
               analysisStatus: "complete",
