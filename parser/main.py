@@ -7,7 +7,8 @@ load_dotenv()
 app = FastAPI(
     title="YouTube Transcript Extraction API",
     description="FastAPI service for extracting and cleaning YouTube transcripts with STT Fallback",
-    version="1.1.0"
+    version="1.1.0",
+    root_path="/parser"
 )
 
 @app.get("/health")
