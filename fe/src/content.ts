@@ -41,10 +41,12 @@ const startInfection = () => {
 
   // 초기 로드 시 시도
   injectToWatchPage();
+  injectToShortsPage();
 
   // DOM 변화 감시 (유튜브는 SPA라 페이지 이동 시 엘리먼트가 동적으로 생성됨)
   observer = new MutationObserver(() => {
     injectToWatchPage();
+    injectToShortsPage();
   });
 
   observer.observe(document.body, {
@@ -77,8 +79,34 @@ const injectToWatchPage = () => {
   // 사이드바가 존재하고 아직 우리 대시보드가 주입되지 않았다면 실행
   if (sidebar && !sidebar.querySelector("checkmate-root")) {
     const container = document.createElement("checkmate-root");
+    container.style.display = "block";
+    container.style.width = "100%";
+    container.style.marginBottom = "16px";
+    
     // 사이드바 최상단에 삽입
     sidebar.prepend(container);
+
+    // Shadow DOM을 통한 대시보드 렌더링
+    renderDashboard(container);
+  }
+};
+
+/**
+ * 쇼츠(Shorts) 페이지의 액션 바 영역에 주입합니다.
+ */
+const injectToShortsPage = () => {
+  // 현재 활성화된 쇼츠 영상의 액션 버튼 영역 탐색
+  const activeShortsActions = document.querySelector("ytd-reel-video-renderer[is-active] #actions-inner");
+
+  if (activeShortsActions && !activeShortsActions.querySelector("checkmate-root")) {
+    const container = document.createElement("checkmate-root");
+    container.classList.add("checkmate-shorts-wrapper");
+    container.style.display = "block";
+    container.style.width = "100%";
+    container.style.marginBottom = "8px";
+
+    // 액션 바 최상단에 삽입
+    activeShortsActions.prepend(container);
 
     // Shadow DOM을 통한 대시보드 렌더링
     renderDashboard(container);
