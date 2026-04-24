@@ -1,4 +1,4 @@
-package com.ssafy.a405.domain.analysis.job.dto;
+package com.ssafy.a405.domain.analysis.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

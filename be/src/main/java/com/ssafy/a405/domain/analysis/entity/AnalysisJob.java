@@ -1,5 +1,6 @@
-package com.ssafy.a405.domain.analysis.job.entity;
+package com.ssafy.a405.domain.analysis.entity;
 
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.global.common.base.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,6 +37,12 @@ public class AnalysisJob extends BaseTimeEntity {
 	@Column(name = "result_json", columnDefinition = "LONGTEXT")
 	private String resultJson;
 
+	@Column(name = "transcript_artifact_key", length = 300)
+	private String transcriptArtifactKey;
+
+	@Column(name = "transcript_expires_at")
+	private LocalDateTime transcriptExpiresAt;
+
 	@Column(name = "error_code", length = 100)
 	private String errorCode;
 
@@ -56,11 +63,23 @@ public class AnalysisJob extends BaseTimeEntity {
 		return job;
 	}
 
-	public void markProcessing(LocalDateTime now) {
+	public void markTranscriptProcessing(LocalDateTime now) {
 		if (this.status == AnalysisJobStatus.COMPLETED || this.status == AnalysisJobStatus.FAILED) {
 			return;
 		}
-		this.status = AnalysisJobStatus.PROCESSING;
+		this.status = AnalysisJobStatus.TRANSCRIPT_PROCESSING;
+		if (this.processingStartedAt == null) {
+			this.processingStartedAt = now;
+		}
+	}
+
+	public void markAiProcessing(LocalDateTime now, String transcriptArtifactKey, LocalDateTime transcriptExpiresAt) {
+		if (this.status == AnalysisJobStatus.COMPLETED || this.status == AnalysisJobStatus.FAILED) {
+			return;
+		}
+		this.status = AnalysisJobStatus.AI_PROCESSING;
+		this.transcriptArtifactKey = transcriptArtifactKey;
+		this.transcriptExpiresAt = transcriptExpiresAt;
 		if (this.processingStartedAt == null) {
 			this.processingStartedAt = now;
 		}
@@ -93,4 +112,3 @@ public class AnalysisJob extends BaseTimeEntity {
 		this.errorMessage = errorMessage;
 	}
 }
-

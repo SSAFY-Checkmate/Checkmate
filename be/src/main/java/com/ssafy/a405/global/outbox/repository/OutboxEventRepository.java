@@ -19,6 +19,8 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, String
 		""")
 	List<OutboxEvent> findPendingForUpdate(@Param("status") OutboxStatus status, Pageable pageable);
 
+	List<OutboxEvent> findByStatusOrderByCreatedAtAsc(OutboxStatus status, Pageable pageable);
+
 	/**
 	 * MySQL 8+ recommended query for multi-instance publishers.
 	 * It avoids multiple publishers selecting the same rows by skipping locked rows.
