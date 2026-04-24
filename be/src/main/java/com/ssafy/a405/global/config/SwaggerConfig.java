@@ -32,7 +32,7 @@ public class SwaggerConfig {
 
         List<Server> servers = List.of(
                 new Server().url("http://localhost:8080").description("local"),
-                new Server().url("배포주소").description("prod")
+                new Server().url("http://k14a405.p.ssafy.io/be").description("prod")
         );
 
         String jwtSchemeName = "bearerAuth";

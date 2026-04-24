@@ -83,6 +83,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:5174",
+                "http://k14a405.p.ssafy.io",
                 "https://k14a405.p.ssafy.io" // 실제 도메인 추가
         ));
 
