@@ -1,19 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, ShieldCheck, AlertTriangle, HelpCircle } from "lucide-react";
 import { useCheckmateStore, type AnalysisStatus } from "../../lib/store";
 import { cn } from "../../lib/utils";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
-import { ANALYSIS_WARNING_CONFIG } from "../../lib/constants/mock-data";
+import { SidePanel } from "./side-panel";
 
 type AnalysisDashboardProps = {
   className?: string;
   onClose?: () => void;
 };
 
-/**
- * 분석 상태에 따른 메시지를 반환하는 헬퍼 함수
- */
 const getStatusMessage = (status: AnalysisStatus): string => {
   switch (status) {
     case "detecting":
@@ -32,37 +29,83 @@ const getStatusMessage = (status: AnalysisStatus): string => {
   }
 };
 
-/**
- * [AnalysisDashboard 컴포넌트]
- * 실시간 영상 분석 상태와 결과를 보여주는 핵심 UI입니다.
- */
-export const AnalysisDashboard = ({
-  className = "",
-  onClose,
-}: AnalysisDashboardProps) => {
-  // 스토어에서 상태와 액션을 가져옵니다.
+export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboardProps) {
   const {
     startAnalysis,
     analysisStatus,
     overallVerdict,
     openPanel,
     isWarningVisible,
+    warningCount,
     closeWarning,
     setActiveTab,
   } = useCheckmateStore();
 
-  // 현재 분석 단계에 맞는 메시지를 결정합니다.
-  const statusMsg = useMemo(() => getStatusMessage(analysisStatus), [analysisStatus]);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 결과 팝업(주의/안전/보류)에 대한 설정 데이터
-   * [TODO: 목업 데이터 분리 완료] constants/mock-data.ts에서 가져옵니다.
-   */
-  const warningConfig = ANALYSIS_WARNING_CONFIG;
+  // [이전 코드] Shadow DOM 미대응 상태로 잠시 복구
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isWarningVisible && dashboardRef.current && !dashboardRef.current.contains(event.target as Node)) {
+        closeWarning();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isWarningVisible, closeWarning]);
 
-  /**
-   * 결과 확인 버튼 클릭 시 동작
-   */
+  const statusMsg = useMemo(() => {
+    switch (analysisStatus) {
+      case "detecting":
+        return "영상 감지 중...";
+      case "analyzing_transcript":
+        return "자막 분석 중...";
+      case "analyzing_claims":
+        return "주장 추출 중...";
+      case "verifying":
+        return "신뢰도 검증 중...";
+      case "complete":
+        return "수사 완료";
+      default:
+        return "";
+    }
+  }, [analysisStatus]);
+
+  const warningConfig = {
+    safe: {
+      gradient: "from-blue-400 to-blue-600",
+      textColor: "text-blue-600",
+      icon: ShieldCheck,
+      prefix: "신뢰",
+      title: "검증된 신뢰 정보",
+      desc: "Checkmate 분석 결과, 신뢰할 수 있는 사실로 확인되었습니다.",
+      btnText: "지금 확인",
+    },
+    warning: {
+      gradient: "from-red-400 to-red-600",
+      textColor: "text-red-600",
+      icon: AlertTriangle,
+      prefix: "주의",
+      title: "허위/과장 정보 주의",
+      desc: (
+        <>
+          이 영상에서 <span className="font-bold text-red-600">{warningCount}건</span>의 허위 의심 문장이
+          발견되었습니다.
+        </>
+      ),
+      btnText: "판단 근거 보기",
+    },
+    unknown: {
+      gradient: "from-amber-400 to-amber-600",
+      textColor: "text-amber-600",
+      icon: HelpCircle,
+      prefix: "보류",
+      title: "판단 보류 안내",
+      desc: "확보된 정보만으로는 AI 판독이 어렵습니다. 커뮤니티 수배를 통해 다른 유저들과 함께 진위를 검증해 보세요.",
+      btnText: "게시판으로 이동",
+    },
+  };
+
   const handleAction = () => {
     closeWarning();
     if (overallVerdict === "unknown") {
@@ -73,68 +116,36 @@ export const AnalysisDashboard = ({
     openPanel();
   };
 
-  // 1. 분석 완료 후 결과 팝업이 띄워진 상태 (Warning/Safe View)
+  // 1. 분석 완료 결과 팝업 (디자인 고도화 적용 상태)
   if (isWarningVisible) {
-    const {
-      gradient,
-      textColor,
-      icon: Icon,
-      prefix,
-      title,
-      desc,
-      btnText,
-    } = warningConfig[overallVerdict];
+    const config = warningConfig[overallVerdict as keyof typeof warningConfig] || warningConfig.unknown;
+    const { gradient, textColor, icon: Icon, prefix, title, desc, btnText } = config;
 
     return (
       <div
+        ref={dashboardRef}
         className={cn(
-          "bg-white pixel-border overflow-hidden flex flex-col relative transition-all duration-300",
+          "bg-white pixel-border overflow-hidden flex flex-col relative transition-all duration-300 font-pixel",
           className,
         )}
       >
-        {/* 상단 컬러 섹션 */}
-        <div
-          className={cn(
-            "relative pt-8 pb-6 flex items-center justify-center border-b-[2px] border-black/20 bg-gradient-to-br",
-            gradient,
-          )}
-        >
-          <button
-            onClick={closeWarning}
-            className="absolute top-2 right-2 p-1 text-white hover:bg-black/20 transition-all cursor-pointer rounded-md"
-          >
+        <div className={cn("relative pt-8 pb-6 flex items-center justify-center border-b-[2px] border-black/20 bg-gradient-to-br", gradient)}>
+          <button onClick={closeWarning} className="absolute top-2 right-2 p-1 text-white hover:bg-black/20 transition-all cursor-pointer rounded-md">
             <X className="w-5 h-5" />
           </button>
-
           <div className="p-3 bg-black/20 rounded-md">
             <Icon className="w-12 h-12 text-white" strokeWidth={2} />
           </div>
         </div>
-
-        {/* 텍스트 설명 섹션 */}
         <div className="flex flex-col items-center pt-5 pb-3 px-4 bg-zinc-50">
           <h3 className="text-[16px] text-black mb-2 flex items-center justify-center gap-2 text-center tracking-wide">
-            <span
-              className={cn(
-                "inline-block px-1.5 py-0.5 text-[14px] font-bold",
-                textColor,
-              )}
-            >
-              [{prefix}]
-            </span>
+            <span className={cn("inline-block px-1.5 py-0.5 text-[14px] font-bold", textColor)}>[{prefix}]</span>
             <span className="font-bold">{title}</span>
           </h3>
-          <div className="text-[12px] text-zinc-600 text-center leading-relaxed font-medium">
-            {desc}
-          </div>
+          <div className="text-[12px] text-zinc-600 text-center leading-relaxed font-medium">{desc}</div>
         </div>
-
-        {/* 액션 버튼 */}
         <div className="p-4 pt-1 bg-zinc-50">
-          <button
-            onClick={handleAction}
-            className="w-full bg-[#fde047] py-2.5 text-[15px] pixel-btn"
-          >
+          <button onClick={handleAction} className="w-full btn-yellow-pixel py-2.5 text-[15px] cursor-pointer pixel-btn">
             {btnText}
           </button>
         </div>
@@ -142,13 +153,11 @@ export const AnalysisDashboard = ({
     );
   }
 
-  // 2. 기본 분석 대기/진행 상태 (Default/Scanning View)
+  // 2. 기본 분석 대기/진행 상태 (디자인 고도화 적용 상태)
   return (
     <div
-      className={cn(
-        "bg-white p-4 pixel-border flex flex-col items-center gap-1.5 relative",
-        className,
-      )}
+      ref={dashboardRef}
+      className={cn("bg-white p-6 light-border flex flex-col items-center gap-4 relative font-pixel", className)}
     >
       {onClose && (
         <button
@@ -159,8 +168,14 @@ export const AnalysisDashboard = ({
         </button>
       )}
 
-      {/* 캐릭터 섹션 */}
-      <div className="relative transition-transform active:scale-95 cursor-pointer mt-2">
+      <button
+        onClick={() => {
+          openPanel();
+          onClose?.();
+        }}
+        className="relative transition-transform active:scale-95 cursor-pointer mt-4"
+        style={{ background: "none", border: "none", padding: 0 }}
+      >
         <PixelCharacter size="lg" />
         <AnimatePresence>
           {analysisStatus !== "idle" && (
@@ -173,55 +188,36 @@ export const AnalysisDashboard = ({
             >
               <PixelOfficer
                 size="sm"
-                mood={
-                  analysisStatus === "complete"
-                    ? overallVerdict === "warning"
-                      ? "alert"
-                      : "happy"
-                    : "thinking"
-                }
+                mood={analysisStatus === "complete" ? (overallVerdict === "warning" ? "alert" : "happy") : "thinking"}
               />
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </button>
 
-      {/* 상태바 및 버튼 섹션 */}
-      <div className="w-full flex flex-col justify-center min-h-[50px] mt-2">
-        {/* A. 기본 상태 (IDLE) */}
+      <div className="w-full flex flex-col justify-center">
         {analysisStatus === "idle" && (
           <button
             onClick={() => startAnalysis()}
-            className="w-full bg-blue-500 text-white py-2.5 px-3 text-[14px] tracking-wide pixel-btn"
+            className="w-full btn-blue-pixel py-3 px-4 text-[16px] cursor-pointer pixel-btn"
           >
             스캔 시작
           </button>
         )}
 
-        {/* B. 진행 상태 (ANALYZING) */}
         {analysisStatus !== "idle" && analysisStatus !== "complete" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-1.5 px-1 pb-1"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5 px-1 pb-1">
             <div className="flex items-center justify-between text-[11px] text-zinc-900 px-0.5">
-              <span className="animate-pulse font-bold tracking-widest">
-                {statusMsg}
-              </span>
+              <div className="flex items-center gap-1.5 tracking-widest">
+                <span className="animate-pulse">{statusMsg}</span>
+              </div>
             </div>
-            <div className="h-4 w-full bg-zinc-200 p-0.5 border-[2px] border-black">
+            <div className="h-4 w-full bg-zinc-200 p-0.5 pixel-border">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{
                   width:
-                    analysisStatus === "detecting"
-                      ? "25%"
-                      : analysisStatus === "analyzing_transcript"
-                        ? "50%"
-                        : analysisStatus === "analyzing_claims"
-                          ? "75%"
-                          : "90%",
+                    analysisStatus === "detecting" ? "25%" : analysisStatus === "analyzing_transcript" ? "50%" : analysisStatus === "analyzing_claims" ? "75%" : "90%",
                 }}
                 transition={{ duration: 0.5 }}
                 className="h-full bg-green-500 transition-all duration-300"
@@ -230,22 +226,21 @@ export const AnalysisDashboard = ({
           </motion.div>
         )}
 
-        {/* C. 완료 상태 (COMPLETE) */}
         {analysisStatus === "complete" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-2"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
             <button
-              onClick={() => openPanel()}
-              className="w-full bg-purple-500 text-white py-2.5 text-[14px] pixel-btn"
+              onClick={() => {
+                openPanel();
+                onClose?.();
+              }}
+              className="w-full btn-purple-pixel py-2.5 text-[15px] cursor-pointer pixel-btn"
             >
               리포트 확인
             </button>
           </motion.div>
         )}
       </div>
+      <SidePanel />
     </div>
   );
-};
+}
