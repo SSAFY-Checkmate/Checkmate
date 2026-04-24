@@ -6,6 +6,7 @@ pipeline {
         CONTAINER_NAME = "a405-backend"
         PUBLISHER_CONTAINER_NAME = "a405-backend-publisher"
         APP_PORT = "8080"
+        NETWORK_NAME = "checkmate-net"
 
         KAFKA_BOOTSTRAP_SERVERS = "${env.KAFKA_BOOTSTRAP_SERVERS ?: 'kafka:9092'}"
     }
@@ -114,12 +115,15 @@ pipeline {
                     string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
+                        docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
+                        docker network connect ${NETWORK_NAME} kafka || true
+
                         docker rm -f ${CONTAINER_NAME} || true
                         docker rm -f ${PUBLISHER_CONTAINER_NAME} || true
 
                         docker run -d \
                           --name ${CONTAINER_NAME} \
-                          --network checkmate-net \
+                          --network ${NETWORK_NAME} \
                           -p ${APP_PORT}:8080 \
                           -e SPRING_PROFILES_ACTIVE=prod \
                           -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
@@ -134,7 +138,7 @@ pipeline {
 
                         docker run -d \
                           --name ${PUBLISHER_CONTAINER_NAME} \
-                          --network checkmate-net \
+                          --network ${NETWORK_NAME} \
                           -e SPRING_PROFILES_ACTIVE=prod,publisher \
                           -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
                           -e PROD_DB_URL="$PROD_DB_URL" \
@@ -181,7 +185,11 @@ pipeline {
                     fi
 
                     echo "Checking backend HTTP response..."
-                    curl -f http://127.0.0.1:${APP_PORT} || exit 1
+                    if ! curl -f http://127.0.0.1:${APP_PORT}; then
+                      echo "[ERROR] Backend health check failed"
+                      docker logs --tail 100 ${CONTAINER_NAME} || true
+                      exit 1
+                    fi
                 '''
             }
         }
