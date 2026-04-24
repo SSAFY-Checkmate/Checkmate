@@ -1,0 +1,136 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "a405-parser"
+        CONTAINER_NAME = "a405-parser"
+        HOST_PORT = "8089"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+            }
+        }
+
+        stage('Detect Parser Changes') {
+            when { branch 'develop' }
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || true',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Changed files:\n${changedFiles}"
+
+                    def parserChanged = sh(
+                        script: "git diff --name-only HEAD~1 HEAD | grep '^parser/' || true",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!parserChanged) {
+                        echo 'No Parser changes detected in develop. Skipping Parser deploy stages.'
+                        env.SKIP_PARSER_DEPLOY = "true"
+                    } else {
+                        env.SKIP_PARSER_DEPLOY = "false"
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                expression {
+                    return env.BRANCH_NAME != 'develop' || env.SKIP_PARSER_DEPLOY != "true"
+                }
+            }
+            steps {
+                script {
+                    dir('parser') {
+                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
+                        sh """
+                            docker build --no-cache \
+                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Stop Old Container') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY')
+                ]) {
+                    sh """
+                        docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${HOST_PORT}:8000 \
+                        -e GMS_KEY="${GMS_KEY}" \
+                        --restart unless-stopped \
+                        ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+
+        stage('Health Check') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                retry(5) {
+                    sleep(time: 5, unit: 'SECONDS')
+                    sh "curl -f --max-time 10 http://k14a405.p.ssafy.io/parser/health"
+                }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh 'docker image prune -f'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Parser deployment successful! (Build: ${env.BUILD_NUMBER})"
+        }
+        failure {
+            echo "Parser deployment failed!"
+            sh "docker logs --tail 100 ${CONTAINER_NAME} || true"
+        }
+    }
+}
