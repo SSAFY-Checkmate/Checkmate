@@ -16,10 +16,10 @@ def analyze_transcript_with_llm(parsed_data: dict) -> dict:
     
     default_result = {
         "youtubeInfo": {
-            "channelId": parsed_data.get("channel_id", "알 수 없음"),
-            "channelName": parsed_data.get("author", "알 수 없음"),
-            "videoId": parsed_data.get("video_id", "알 수 없음"),
-            "videoTitle": parsed_data.get("title", "알 수 없음")
+            "channelId": parsed_data.get("channel_id") or "알 수 없음",
+            "channelName": parsed_data.get("author") or "알 수 없음",
+            "videoId": parsed_data.get("video_id") or "알 수 없음",
+            "videoTitle": parsed_data.get("title") or "알 수 없음"
         },
         "analysisResult": {
             "trustGrade": "UNKNOWN",
@@ -104,10 +104,10 @@ def analyze_transcript_with_llm(parsed_data: dict) -> dict:
             
             return {
                 "youtubeInfo": {
-                    "channelId": parsed_data.get("channel_id", "알 수 없음"),
-                    "channelName": parsed_data.get("author", "알 수 없음"),
-                    "videoId": parsed_data.get("video_id", "알 수 없음"),
-                    "videoTitle": parsed_data.get("title", "알 수 없음")
+                    "channelId": parsed_data.get("channel_id") or "알 수 없음",
+                    "channelName": parsed_data.get("author") or "알 수 없음",
+                    "videoId": parsed_data.get("video_id") or "알 수 없음",
+                    "videoTitle": parsed_data.get("title") or "알 수 없음"
                 },
                 "analysisResult": {
                     "trustGrade": parsed.get("trustGrade", "UNKNOWN"),
