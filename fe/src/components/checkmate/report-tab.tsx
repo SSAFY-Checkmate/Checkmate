@@ -2,30 +2,45 @@ import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { cn } from "../../lib/utils";
 import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, Shield } from "lucide-react";
 
+/**
+ * 판단 배지 컴포넌트 (사실/허위/보류)
+ */
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const config = {
     warning: {
       icon: AlertTriangle,
       label: "허위",
-      className: "bg-red-50 text-red-600 border-red-200",
+      style: { backgroundColor: "#fef2f2", color: "#ef4444", border: "1.5px solid #ef4444" },
     },
     safe: {
       icon: CheckCircle,
       label: "사실",
-      className: "bg-green-50 text-green-600 border-green-200",
+      style: { backgroundColor: "#e6f4ea", color: "#1e8e3e", border: "1.5px solid #1e8e3e" },
     },
     unknown: {
       icon: HelpCircle,
-      label: "판단 보류",
-      className: "bg-amber-50 text-amber-600 border-amber-200",
+      label: "보류",
+      style: { backgroundColor: "#fffbeb", color: "#d97706", border: "1.5px solid #d97706" },
     },
   };
 
-  const { icon: Icon, label, className } = config[verdict];
+  const { icon: Icon, label, style } = config[verdict];
 
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 text-xs border pixel-border", className)}>
-      <Icon className="w-3 h-3" />
+    <span 
+      style={{ 
+        display: "inline-flex", 
+        alignItems: "center", 
+        gap: "6px", 
+        padding: "4px 10px", 
+        fontSize: "12px", 
+        fontWeight: "bold", 
+        borderRadius: "2px",
+        ...style 
+      }} 
+      className="pixel-border"
+    >
+      <Icon style={{ width: "14px", height: "14px" }} strokeWidth={3} />
       {label}
     </span>
   );
@@ -36,30 +51,32 @@ function TrustMeter({ score }: { score: number }) {
   const filledBars = Math.round((score / 100) * bars);
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-zinc-500">신뢰도:</span>
-      <div className="flex gap-0.5">
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <span style={{ fontSize: "14px", color: "#1e8e3e", fontWeight: "bold" }}>신뢰도:</span>
+      <div style={{ display: "flex", gap: "4px" }}>
         {Array.from({ length: bars }).map((_, i) => (
           <div
             key={i}
-            className={cn(
-              "w-3 h-4",
-              i < filledBars
-                ? score < 30
-                  ? "bg-red-500"
-                  : score < 60
-                    ? "bg-amber-500"
-                    : "bg-green-500"
-                : "bg-zinc-200",
-            )}
+            style={{
+              width: "18px",
+              height: "18px",
+              border: "1.5px solid rgba(0, 0, 0, 0.1)",
+              backgroundColor: i < filledBars
+                ? score < 30 ? "#ef4444" : score < 60 ? "#f59e0b" : "#22c55e"
+                : "#e5e7eb",
+            }}
+            className="pixel-border"
           />
         ))}
       </div>
       <span
-        className={cn(
-          "text-sm font-bold",
-          score < 30 ? "text-red-500" : score < 60 ? "text-amber-500" : "text-green-500",
-        )}
+        style={{
+          fontSize: "15px",
+          fontWeight: "900",
+          marginLeft: "4px",
+          letterSpacing: "-0.025em",
+          color: score < 30 ? "#ef4444" : score < 60 ? "#d97706" : "#22c55e",
+        }}
       >
         {score}%
       </span>
@@ -69,85 +86,140 @@ function TrustMeter({ score }: { score: number }) {
 
 function ClaimCard({ claim }: { claim: Claim }) {
   return (
-    <div className="p-3 border border-zinc-200 bg-white pixel-border">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-sm font-medium text-black">{claim.text}</p>
+    <div 
+      style={{ 
+        padding: "15px", 
+        border: "2.5px solid #e2e8f0", 
+        backgroundColor: "white", 
+        display: "flex", 
+        flexDirection: "column", 
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)" 
+      }} 
+      className="pixel-border"
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "12px" }}>
+        <p style={{ fontSize: "14px", fontWeight: "bold", color: "black", margin: 0, lineHeight: 1.25 }}>영상 내 주요 사실 정보 일치율</p>
         <VerdictBadge verdict={claim.verdict} />
       </div>
-      <p className="text-xs text-zinc-600 mb-2 leading-relaxed">{claim.evidence}</p>
-      {claim.sources.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {claim.sources.map((source, idx) => (
-            <a
-              key={idx}
-              href={source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline"
-            >
-              <ExternalLink className="w-3 h-3" />
-              {source.label}
-            </a>
-          ))}
-        </div>
-      )}
+      <p style={{ fontSize: "12px", color: "#52525b", marginBottom: "16px", margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+        {claim.evidence}
+      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px" }}>
+        <a
+          href={claim.sources?.[0]?.url || "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#2563eb", fontWeight: "bold", textDecoration: "none" }}
+          className="hover:underline"
+        >
+          <ExternalLink style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
+          검증된 기사
+        </a>
+      </div>
     </div>
   );
 }
 
 export function ReportTab() {
-  const { trustScore, overallVerdict, claims, openResponseModal } = useCheckmateStore();
+  const { trustScore, overallVerdict, claims } = useCheckmateStore();
 
   const verdictConfig = {
     warning: {
       icon: "🚫",
       label: "허위 정보 주의!",
-      className: "bg-red-50 border-red-500 text-red-600",
+      cardStyle: { backgroundColor: "#fef2f2", border: "3.5px solid #ef4444", color: "#ef4444" },
+      iconBg: { backgroundColor: "#ef4444", border: "2px solid #b91c1c" },
     },
     safe: {
-      icon: "✅",
+      icon: <CheckCircle style={{ width: "40px", height: "40px", color: "white" }} strokeWidth={3} />,
       label: "신뢰할 수 있는 정보",
-      className: "bg-green-50 border-green-500 text-green-600",
+      cardStyle: { backgroundColor: "#ecf7ed", border: "3.5px solid #22c55e", color: "#1e8e3e" },
+      iconBg: { backgroundColor: "#22c55e", border: "2px solid #166534" },
     },
     unknown: {
       icon: "🧐",
       label: "판단 보류 (추가 검증 필요)",
-      className: "bg-amber-50 border-amber-500 text-amber-600",
+      cardStyle: { backgroundColor: "#fffbeb", border: "3.5px solid #f59e0b", color: "#d97706" },
+      iconBg: { backgroundColor: "#f59e0b", border: "2px solid #b45309" },
     },
   };
 
-  const { icon, label, className } =
-    verdictConfig[overallVerdict as keyof typeof verdictConfig] || verdictConfig.unknown;
+  const { icon, label, cardStyle, iconBg } = verdictConfig[overallVerdict] || verdictConfig.unknown;
 
   return (
-    <div className="flex flex-col gap-4 p-4 font-pixel">
-      {/* Overall Verdict */}
-      <div className={cn("p-4 border-2 pixel-border text-center", className)}>
-        <div className="text-3xl mb-1">{icon}</div>
-        <h3 className="text-lg font-bold">{label}</h3>
-        <div className="mt-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
+      {/* Overall Verdict Card */}
+      <div 
+        style={{ 
+          padding: "20px", 
+          textAlign: "center", 
+          display: "flex", 
+          flexDirection: "column", 
+          alignItems: "center", 
+          gap: "12px",
+          ...cardStyle 
+        }} 
+        className="pixel-border"
+      >
+        <div 
+          style={{ 
+            width: "48px", 
+            height: "48px", 
+            borderRadius: "2px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+            ...iconBg 
+          }} 
+          className="pixel-border"
+        >
+          {typeof icon === "string" ? <span style={{ fontSize: "24px" }}>{icon}</span> : icon}
+        </div>
+        <h3 style={{ fontSize: "19px", fontWeight: "900", letterSpacing: "-0.05em", margin: 0, lineHeight: 1 }}>{label}</h3>
+        <div style={{ marginTop: "4px", width: "100%", display: "flex", justifyContent: "center" }}>
           <TrustMeter score={trustScore} />
         </div>
       </div>
 
       {/* Claims List */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-bold text-zinc-500">핵심 주장 분석</h4>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#71717a", margin: 0, paddingLeft: "4px" }}>핵심 주장 분석</h4>
         {claims.length > 0 ? (
           claims.map((claim) => <ClaimCard key={claim.id} claim={claim} />)
         ) : (
-          <p className="text-xs text-zinc-400 text-center py-4">분석된 주장 데이터가 없습니다.</p>
+          <div style={{ textAlign: "center", padding: "40px 0", color: "#a1a1aa", fontSize: "13px", border: "2px dashed #e2e8f0" }} className="pixel-border">
+            분석된 핵심 주장이 없습니다.
+          </div>
         )}
       </div>
 
-      {/* Response Action Button */}
-      <button
-        onClick={openResponseModal}
-        className="w-full py-3 px-4 bg-blue-500 text-white font-bold pixel-btn flex items-center justify-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
-      >
-        <Shield className="w-5 h-5" />
-        🚨 원터치 팩트체크 대응
-      </button>
+      {/* Response Action Button (Fixed Bottom) */}
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px", backgroundColor: "white", borderTop: "2px solid #f4f4f5", zIndex: 10, boxShadow: "0 -4px 10px rgba(0,0,0,0.05)" }}>
+        <button
+          style={{
+            width: "100%",
+            padding: "14px 24px",
+            backgroundColor: "#006edc",
+            color: "white",
+            fontWeight: "900",
+            fontSize: "16px",
+            border: "none",
+            boxShadow: "0 4px 0 #004a94",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            transition: "all 0.1s ease",
+            cursor: "pointer",
+          }}
+          className="pixel-btn active:translate-y-[2px] active:shadow-[0_2px_0_#004a94] hover:brightness-110"
+        >
+          <Shield style={{ width: "24px", height: "24px" }} fill="rgba(255,255,255,0.2)" />
+          <div style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>🚨</div>
+          원터치 팩트체크 대응
+        </button>
+      </div>
     </div>
   );
 }

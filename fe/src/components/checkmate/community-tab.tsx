@@ -1,87 +1,165 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useCheckmateStore, type WantedCard as WantedCardType } from "../../lib/store";
-import { cn } from "../../lib/utils";
-import { ThumbsUp, ThumbsDown, ExternalLink, Plus, Send, Award, AlertTriangle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Plus, Send, Award, AlertTriangle, MessageSquare } from "lucide-react";
 
+/**
+ * 투표 바 컴포넌트 (인라인 스타일)
+ */
 function VoteBar({ votesTrue, votesFake }: { votesTrue: number; votesFake: number }) {
   const total = votesTrue + votesFake;
   const fakePercent = total > 0 ? (votesFake / total) * 100 : 50;
 
   return (
-    <div className="w-full h-3 bg-zinc-200 flex overflow-hidden pixel-border">
-      <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${100 - fakePercent}%` }} />
-      <div className="h-full bg-red-500 transition-all duration-300" style={{ width: `${fakePercent}%` }} />
+    <div
+      style={{
+        width: "100%",
+        height: "20px",
+        backgroundColor: "#f4f4f5",
+        display: "flex",
+        overflow: "hidden",
+        border: "2px solid #e4e4e7",
+      }}
+      className="pixel-border"
+    >
+      <div
+        style={{
+          height: "100%",
+          backgroundColor: "#22c55e",
+          transition: "all 0.5s ease",
+          width: `${100 - fakePercent}%`,
+        }}
+      />
+      <div
+        style={{ height: "100%", backgroundColor: "#ef4444", transition: "all 0.5s ease", width: `${fakePercent}%` }}
+      />
     </div>
   );
 }
 
+/**
+ * 현상수배 카드 컴포넌트 (인라인 스타일)
+ */
 function WantedCard({ card }: { card: WantedCardType }) {
   const { voteOnCard } = useCheckmateStore();
   const hasVoted = !!card.userVote;
 
+  const cardStyle: React.CSSProperties = {
+    padding: "16px",
+    border: "2.5px solid #e2e8f0",
+    backgroundColor: "white",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+  };
+
+  const getVoteBtnStyle = (type: "true" | "fake"): React.CSSProperties => {
+    const isThisVoted = card.userVote === type;
+    const color = type === "true" ? "#22c55e" : "#ef4444";
+    const bgColor = type === "true" ? "#f0fdf4" : "#fef2f2";
+    const borderColor = type === "true" ? "#bbf7d0" : "#fecaca";
+
+    return {
+      flex: 1,
+      padding: "10px",
+      fontSize: "13px",
+      fontWeight: "900",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      transition: "all 0.2s ease",
+      cursor: hasVoted ? "default" : "pointer",
+      border: `2px solid ${isThisVoted ? color : borderColor}`,
+      backgroundColor: isThisVoted ? color : bgColor,
+      color: isThisVoted ? "white" : color,
+    };
+  };
+
   return (
-    <div className="p-3 border border-zinc-200 bg-white pixel-border">
-      <div className="flex gap-3 mb-3">
-        {/* Thumbnail placeholder */}
-        <div className="w-16 h-16 bg-zinc-100 flex items-center justify-center text-2xl pixel-border shrink-0">🎬</div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-black truncate mb-1">{card.claim}</p>
-          <p className="text-xs text-zinc-500">제보: {`"${card.reporterComment}"`}</p>
+    <div style={cardStyle} className="pixel-border transition-transform hover:scale-[1.01]">
+      <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+        <div
+          style={{
+            width: "64px",
+            height: "64px",
+            backgroundColor: "#f4f4f5",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "24px",
+            border: "2px solid #e4e4e7",
+            flexShrink: 0,
+          }}
+          className="pixel-border"
+        >
+          🎬
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: "14px",
+              fontWeight: "900",
+              color: "black",
+              margin: 0,
+              marginBottom: "4px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: 1.2,
+            }}
+          >
+            {card.claim}
+          </p>
+          <p style={{ fontSize: "11px", color: "#71717a", fontStyle: "italic", margin: 0, lineHeight: 1.4 }}>
+            제보: "{card.reporterComment}"
+          </p>
         </div>
       </div>
 
-      {/* Vote Bar */}
-      <div className="mb-2">
-        <div className="flex justify-between text-xs text-zinc-500 mb-1">
-          <span className="text-green-600">👍 {card.votesTrue}</span>
-          <span className="text-red-600">👎 {card.votesFake}</span>
+      {/* Vote Stats */}
+      <div style={{ marginBottom: "12px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "11px",
+            fontWeight: "bold",
+            marginBottom: "6px",
+          }}
+        >
+          <span style={{ color: "#16a34a" }}>👍 참이다 ({card.votesTrue})</span>
+          <span style={{ color: "#dc2626" }}>👎 거짓이다 ({card.votesFake})</span>
         </div>
         <VoteBar votesTrue={card.votesTrue} votesFake={card.votesFake} />
       </div>
 
       {/* Vote Buttons */}
-      <div className="flex gap-2">
+      <div style={{ display: "flex", gap: "8px" }}>
         <button
           onClick={() => !hasVoted && voteOnCard(card.id, "true")}
           disabled={hasVoted}
-          className={cn(
-            "flex-1 py-2 px-3 text-xs font-bold pixel-btn flex items-center justify-center gap-1 transition-all cursor-pointer disabled:cursor-default",
-            hasVoted && card.userVote === "true"
-              ? "bg-green-500 text-white"
-              : hasVoted
-                ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                : "bg-green-50 text-green-600 hover:bg-green-100 border border-green-200",
-          )}
+          style={getVoteBtnStyle("true")}
+          className="pixel-btn"
         >
-          <ThumbsUp className="w-3 h-3" />
-          참이다
+          <ThumbsUp style={{ width: "14px", height: "14px" }} />참
         </button>
         <button
           onClick={() => !hasVoted && voteOnCard(card.id, "fake")}
           disabled={hasVoted}
-          className={cn(
-            "flex-1 py-2 px-3 text-xs font-bold pixel-btn flex items-center justify-center gap-1 transition-all cursor-pointer disabled:cursor-default",
-            hasVoted && card.userVote === "fake"
-              ? "bg-red-500 text-white"
-              : hasVoted
-                ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                : "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200",
-          )}
+          style={getVoteBtnStyle("fake")}
+          className="pixel-btn"
         >
-          <ThumbsDown className="w-3 h-3" />
-          거짓이다
+          <ThumbsDown style={{ width: "14px", height: "14px" }} />
+          거짓
         </button>
       </div>
-
-      {/* Evidence Link */}
-      <button className="w-full mt-2 py-1.5 px-3 text-xs text-blue-500 bg-blue-50 border border-blue-200 pixel-btn flex items-center justify-center gap-1 hover:bg-blue-100 transition-all cursor-pointer">
-        <ExternalLink className="w-3 h-3" />
-        반박 근거 제출
-      </button>
     </div>
   );
 }
 
+/**
+ * 실시간 채팅방 (인라인 스타일)
+ */
 function ChatRoom() {
   const { chatMessages, addChatMessage } = useCheckmateStore();
   const [newMessage, setNewMessage] = useState("");
@@ -96,52 +174,123 @@ function ChatRoom() {
     }
   };
 
-  const getBadgeStyle = (badge?: "verifier" | "reporter") => {
-    if (badge === "verifier") return "bg-blue-500 text-white";
-    if (badge === "reporter") return "bg-amber-500 text-white";
-    return "";
-  };
-
   return (
-    <div className="border border-zinc-200 bg-white pixel-border font-pixel">
-      <div className="p-2 border-b border-zinc-200 bg-blue-50">
-        <h4 className="text-sm font-bold flex items-center gap-2">
-          💬 리뷰 채팅방
-          <span className="text-xs text-zinc-500">({chatMessages.length}명 온라인)</span>
+    <div
+      style={{ border: "2.5px solid #e4e4e7", backgroundColor: "white", overflow: "hidden" }}
+      className="pixel-border"
+    >
+      <div
+        style={{
+          padding: "10px",
+          borderBottom: "2.5px solid #e4e4e7",
+          backgroundColor: "#f0f9ff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "between",
+        }}
+      >
+        <h4
+          style={{
+            fontSize: "14px",
+            fontWeight: "900",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            color: "#0369a1",
+            margin: 0,
+            textTransform: "uppercase",
+          }}
+        >
+          <MessageSquare style={{ width: "16px", height: "16px" }} />
+          집단지성 채팅
         </h4>
+        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7dd3fc", marginLeft: "auto" }}>
+          {chatMessages.length}명 참여 중
+        </span>
       </div>
 
-      <div className="h-48 overflow-y-auto p-2 space-y-2">
+      <div
+        style={{
+          height: "220px",
+          overflowY: "auto",
+          padding: "12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          backgroundColor: "#fdfdfd",
+        }}
+      >
         {chatMessages.map((msg) => (
-          <div key={msg.id} className="text-xs">
-            <span className="font-bold text-black">
+          <div key={msg.id} style={{ fontSize: "13px", lineHeight: 1.5 }}>
+            <span style={{ fontWeight: "900", color: "#27272a" }}>
               {msg.badge && (
-                <span className={cn("inline-block px-1 py-0.5 mr-1 text-[10px]", getBadgeStyle(msg.badge))}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "2px 6px",
+                    marginRight: "6px",
+                    fontSize: "9px",
+                    borderRadius: "2px",
+                    backgroundColor: msg.badge === "verifier" ? "#eff6ff" : "#fffbeb",
+                    color: msg.badge === "verifier" ? "#2563eb" : "#d97706",
+                  }}
+                >
                   {msg.badge === "verifier" ? (
-                    <Award className="w-2 h-2 inline" />
+                    <Award style={{ width: "10px", height: "10px", marginRight: "2px" }} />
                   ) : (
-                    <AlertTriangle className="w-2 h-2 inline" />
+                    <AlertTriangle style={{ width: "10px", height: "10px", marginRight: "2px" }} />
                   )}
+                  {msg.badge === "verifier" ? "검증단" : "제보자"}
                 </span>
               )}
               {msg.username}:
             </span>{" "}
-            <span className="text-zinc-600">{msg.message}</span>
+            <span style={{ color: "#52525b", fontWeight: "500" }}>{msg.message}</span>
           </div>
         ))}
       </div>
 
-      <div className="p-2 border-t border-zinc-200 flex gap-2">
+      <div
+        style={{
+          padding: "10px",
+          borderTop: "2.5px solid #e4e4e7",
+          display: "flex",
+          gap: "8px",
+          backgroundColor: "#fafafa",
+        }}
+      >
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="의견을 입력하세요..."
-          className="flex-1 px-2 py-1 text-xs bg-zinc-50 border border-zinc-200 pixel-border focus:outline-none focus:ring-1 focus:ring-blue-500"
+          placeholder="메시지 입력..."
+          style={{
+            flex: 1,
+            padding: "10px",
+            backgroundColor: "#f9fafb",
+            border: "2.5px solid #e5e7eb",
+            fontSize: "13px",
+            outline: "none",
+          }}
+          className="pixel-border focus:border-blue-400"
         />
-        <button onClick={handleSend} className="px-3 py-1 bg-blue-500 text-white pixel-btn cursor-pointer">
-          <Send className="w-3 h-3" />
+        <button
+          onClick={handleSend}
+          style={{
+            padding: "0 16px",
+            backgroundColor: "#3b82f6",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          className="pixel-btn hover:bg-blue-600 transition-all"
+        >
+          <Send style={{ width: "16px", height: "16px" }} />
         </button>
       </div>
     </div>
@@ -152,25 +301,71 @@ export function CommunityTab() {
   const { wantedCards } = useCheckmateStore();
 
   return (
-    <div className="flex flex-col gap-4 p-4 font-pixel">
-      {/* Voting Section */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
+      {/* Wanted Section */}
       <div>
-        <h4 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">🧐 판단 보류/수배 중</h4>
-        <div className="space-y-3">
+        <h4
+          style={{
+            fontSize: "14px",
+            fontWeight: "900",
+            color: "#a1a1aa",
+            marginBottom: "12px",
+            paddingLeft: "4px",
+            textTransform: "uppercase",
+            letterSpacing: "-0.025em",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          🧐 팩트체크 현상수배
+        </h4>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {wantedCards.map((card) => (
             <WantedCard key={card.id} card={card} />
           ))}
         </div>
       </div>
 
-      {/* Chat Room */}
+      {/* Chat Section */}
       <ChatRoom />
 
-      {/* Report Button */}
-      <button className="w-full py-3 px-4 bg-amber-500 text-white font-bold pixel-btn flex items-center justify-center gap-2 hover:opacity-90 transition-opacity cursor-pointer">
-        <Plus className="w-5 h-5" />
-        나도 허위 영상 제보하기
-      </button>
+      {/* Report Button (Fixed at Bottom) */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "16px",
+          backgroundColor: "white",
+          borderTop: "2px solid #f4f4f5",
+          zIndex: 20,
+        }}
+      >
+        <button
+          style={{
+            width: "100%",
+            padding: "16px 24px",
+            backgroundColor: "#f59e0b",
+            color: "white",
+            fontWeight: "900",
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            border: "none",
+            boxShadow: "0 4px 0 #b45309",
+            transition: "all 0.1s ease",
+            cursor: "pointer",
+          }}
+          className="pixel-btn active:translate-y-[2px] active:shadow-[0_2px_0_#b45309] hover:brightness-110"
+        >
+          <Plus style={{ width: "24px", height: "24px" }} />
+          나도 허위 영상 제보하기
+        </button>
+      </div>
     </div>
   );
 }
