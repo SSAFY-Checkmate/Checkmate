@@ -29,6 +29,10 @@ export interface Claim {
   verdict: Verdict;
   evidence: string;
   sources: { label: string; url: string }[];
+  /** 커뮤니티 투표 데이터 */
+  votesTrue: number;
+  votesFake: number;
+  userVote?: "true" | "fake";
 }
 
 /**
@@ -82,6 +86,8 @@ interface CheckmateState {
   startAnalysis: () => void;
   setCurrentVideo: (id: string, title: string, channel: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
+  /** 현재 영상의 주장에 대해 투표 */
+  voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
 }
 
@@ -146,6 +152,23 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
               votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
             }
           : card,
+      ),
+    })),
+
+  /**
+   * 현재 영상의 특정 주장에 대해 커뮤니티 투표를 반영
+   */
+  voteOnClaim: (claimId, vote) =>
+    set((state) => ({
+      claims: state.claims.map((claim) =>
+        claim.id === claimId
+          ? {
+              ...claim,
+              userVote: vote,
+              votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
+              votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
+            }
+          : claim,
       ),
     })),
 
