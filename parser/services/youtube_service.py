@@ -19,6 +19,7 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
     try:
         title = None
         author = None
+        channel_id = None
         try:
             oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
             meta_res = requests.get(oembed_url, timeout=5)
@@ -26,6 +27,16 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
                 data = meta_res.json()
                 title = data.get("title")
                 author = data.get("author_name")
+        except Exception:
+            pass
+            
+        try:
+            # HTML 스크래핑을 통해 channelId 추출
+            html_res = requests.get(f"https://www.youtube.com/watch?v={video_id}", timeout=5)
+            if html_res.status_code == 200:
+                match = re.search(r'"channelId":"([^"]+)"', html_res.text)
+                if match:
+                    channel_id = match.group(1)
         except Exception:
             pass
             
@@ -59,6 +70,7 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
             "video_id": video_id,
             "title": title,
             "author": author,
+            "channel_id": channel_id,
             "language": lang_used,
             "content": cleaned_text,
             "is_whisper": False,
