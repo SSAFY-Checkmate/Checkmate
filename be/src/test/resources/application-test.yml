@@ -28,3 +28,6 @@ jwt:
   secret: test-secret-key-test-secret-key-test-secret-key
   access-token-expiration-millis: 1800000
   refresh-token-expiration-millis: 1209600000
+
+oauth2:
+  success-redirect-uri: chrome-extension://ofncopcfnmnlagnneoianbbldjglebjh/index.html
