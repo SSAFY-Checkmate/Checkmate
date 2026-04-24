@@ -2,91 +2,96 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "a405-parser:latest"
+        DOCKER_IMAGE = "a405-parser"
         CONTAINER_NAME = "a405-parser"
         HOST_PORT = "8089"
-        CONTAINER_PORT = "8000"
     }
 
     stages {
         stage('Checkout') {
             steps {
+                echo 'Checking out code...'
                 checkout scm
-                script {
-                    echo "BRANCH_NAME=${env.BRANCH_NAME}"
+            }
+        }
 
-                    def changed = sh(
-                        script: "git diff --name-only HEAD~1 HEAD || true",
+        stage('Detect Parser Changes') {
+            when { branch 'develop' }
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD || true',
                         returnStdout: true
                     ).trim()
+
+                    echo "Changed files:\n${changedFiles}"
 
                     def parserChanged = sh(
                         script: "git diff --name-only HEAD~1 HEAD | grep '^parser/' || true",
                         returnStdout: true
                     ).trim()
 
-                    echo "Changed files:"
-                    echo changed
-
-                    env.PARSER_CHANGED = parserChanged ? "true" : "false"
-
-                    echo "PARSER_CHANGED=${env.PARSER_CHANGED}"
+                    if (!parserChanged) {
+                        echo 'No Parser changes detected in develop. Skipping Parser deploy stages.'
+                        env.SKIP_PARSER_DEPLOY = "true"
+                    } else {
+                        env.SKIP_PARSER_DEPLOY = "false"
+                    }
                 }
-            }
-        }
-
-        stage('Skip Check') {
-            when {
-                expression {
-                    return env.PARSER_CHANGED != "true"
-                }
-            }
-            steps {
-                echo "parser/** 변경 사항이 없으므로 Parser build/deploy를 skip합니다."
             }
         }
 
         stage('Build Docker Image') {
             when {
                 expression {
-                    return env.PARSER_CHANGED == "true"
+                    return env.BRANCH_NAME != 'develop' || env.SKIP_PARSER_DEPLOY != "true"
                 }
             }
             steps {
                 script {
-                    sh """
-                        docker build -t ${IMAGE_NAME} ./parser
-                    """
+                    dir('parser') {
+                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
+                        sh """
+                            docker build --no-cache \
+                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
+                        """
+                    }
                 }
             }
         }
 
-        stage('Deploy Parser') {
+        stage('Stop Old Container') {
             when {
                 allOf {
                     branch 'develop'
-                    expression {
-                        return env.PARSER_CHANGED == "true"
-                    }
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
                 }
             }
             steps {
-                script {
-                    withCredentials([
-                        string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY')
-                    ]) {
-                        sh """
-                            docker stop ${CONTAINER_NAME} || true
-                            docker rm ${CONTAINER_NAME} || true
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+            }
+        }
 
-                            docker run -d \\
-                              --name ${CONTAINER_NAME} \\
-                              -p ${HOST_PORT}:${CONTAINER_PORT} \\
-                              -e GMS_KEY="${GMS_KEY}" \\
-                              --restart unless-stopped \\
-                              ${IMAGE_NAME}
-                        """
-                    }
+        stage('Deploy') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY')
+                ]) {
+                    sh """
+                        docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${HOST_PORT}:8000 \
+                        -e GMS_KEY="${GMS_KEY}" \
+                        --restart unless-stopped \
+                        ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                    """
                 }
             }
         }
@@ -95,32 +100,37 @@ pipeline {
             when {
                 allOf {
                     branch 'develop'
-                    expression {
-                        return env.PARSER_CHANGED == "true"
-                    }
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
                 }
             }
             steps {
-                script {
-                    sh """
-                        sleep 5
-                        curl -f http://localhost:${HOST_PORT}/health
-                    """
+                retry(5) {
+                    sleep(time: 5, unit: 'SECONDS')
+                    sh "curl -f --max-time 10 http://k14a405.p.ssafy.io/parser/health"
                 }
+            }
+        }
+
+        stage('Cleanup Old Images') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh 'docker image prune -f'
             }
         }
     }
 
     post {
         success {
-            echo "Parser pipeline completed successfully."
+            echo "Parser deployment successful! (Build: ${env.BUILD_NUMBER})"
         }
-
         failure {
-            echo "Parser pipeline failed."
-            sh """
-                docker logs --tail 100 ${CONTAINER_NAME} || true
-            """
+            echo "Parser deployment failed!"
+            sh "docker logs --tail 100 ${CONTAINER_NAME} || true"
         }
     }
 }
