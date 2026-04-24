@@ -8,7 +8,7 @@ pipeline {
         APP_PORT = "8080"
         NETWORK_NAME = "checkmate-net"
 
-        // Jenkins 시스템 설정값보다 이 값이 우선되도록 명시적 설정
+        // 카프카 주소 명시
         KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
     }
 
@@ -76,15 +76,21 @@ pipeline {
                     string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
-                        # 네트워크 및 카프카 연결 보장
+                        # 1. 네트워크 보장
                         docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
+
+                        # 2. 카프카를 네트워크에 연결
                         docker network connect ${NETWORK_NAME} kafka || true
 
-                        # 기존 컨테이너 제거
+                        # 💡 3. 핵심: 젠킨스 컨테이너 자신을 네트워크에 연결 (물리적 통로 확보)
+                        # 컨테이너 이름이 'jenkins'가 맞는지 docker ps로 꼭 확인하세요.
+                        docker network connect ${NETWORK_NAME} jenkins || true
+
+                        # 4. 기존 컨테이너 제거
                         docker rm -f ${CONTAINER_NAME} || true
                         docker rm -f ${PUBLISHER_CONTAINER_NAME} || true
 
-                        # 백엔드 메인 컨테이너 실행
+                        # 5. 실행
                         docker run -d \
                           --name ${CONTAINER_NAME} \
                           --network ${NETWORK_NAME} \
@@ -100,7 +106,6 @@ pipeline {
                           -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
                           ${IMAGE_NAME}
 
-                        # 퍼블리셔 컨테이너 실행
                         docker run -d \
                           --name ${PUBLISHER_CONTAINER_NAME} \
                           --network ${NETWORK_NAME} \
@@ -128,10 +133,9 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Waiting for containers to stabilize (35s)..."
-                    sleep 35
+                    echo "Waiting for containers to stabilize (40s)..."
+                    sleep 40
 
-                    # 컨테이너 실행 상태 확인
                     BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null || echo "false")
                     if [ "$BACKEND_STATUS" != "true" ]; then
                       echo "[ERROR] Backend container is not running"
@@ -139,15 +143,15 @@ pipeline {
                       exit 1
                     fi
 
-                    echo "Checking backend HTTP response..."
-                    # 응답 코드만 추출하여 200인지 확인
+                    echo "Checking backend HTTP response via Docker Network..."
+                    # 127.0.0.1 대신 컨테이너 이름을 사용 (네트워크 연결이 되었으므로 가능)
                     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${CONTAINER_NAME}:8080/health || echo "000")
                     echo "Backend responded with HTTP CODE: $HTTP_CODE"
 
                     if [ "$HTTP_CODE" -eq 200 ]; then
-                      echo "Health check passed!"
+                      echo "✅ Health check passed!"
                     else
-                      echo "[ERROR] Health check failed with code $HTTP_CODE"
+                      echo "❌ [ERROR] Health check failed with code $HTTP_CODE"
                       docker logs --tail 100 ${CONTAINER_NAME}
                       exit 1
                     fi
