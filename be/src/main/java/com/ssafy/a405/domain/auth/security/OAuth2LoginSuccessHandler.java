@@ -25,7 +25,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
     private final SwaggerRedirectCookieProvider swaggerRedirectCookieProvider;
 
-    @Value("${oauth2.success-redirect-uri:chrome-extension://ofncopcfnmnlagnneoianbbldjglebjh/index.html}")
+    @Value("${oauth2.success-redirect-uri}")
     private String successRedirectUri;
 
     @Override
