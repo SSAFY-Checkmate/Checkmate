@@ -4,6 +4,7 @@ import com.ssafy.a405.domain.auth.service.AuthService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -51,6 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String resolveToken(HttpServletRequest request) {
+        Optional<String> accessTokenCookie = resolveAccessTokenCookie(request);
+        if (accessTokenCookie.isPresent()) {
+            return accessTokenCookie.get();
+        }
+
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {
@@ -58,5 +66,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    private Optional<String> resolveAccessTokenCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return Optional.empty();
+        }
+
+        return Arrays.stream(cookies)
+                .filter(cookie -> AccessTokenCookieProvider.COOKIE_NAME.equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst();
     }
 }

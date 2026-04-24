@@ -18,8 +18,6 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    public static final String SWAGGER_REDIRECT_COOKIE_NAME = "swagger_redirect";
-
     private final ObjectMapper objectMapper;
 
     @Override

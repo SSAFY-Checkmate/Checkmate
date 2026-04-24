@@ -1,8 +1,8 @@
 package com.ssafy.a405.domain.auth.controller;
 
-import com.ssafy.a405.domain.auth.dto.AccessTokenResponse;
 import com.ssafy.a405.domain.auth.dto.CurrentUserResponse;
 import com.ssafy.a405.domain.auth.dto.TokenResponse;
+import com.ssafy.a405.domain.auth.security.AccessTokenCookieProvider;
 import com.ssafy.a405.domain.auth.security.CustomUserDetail;
 import com.ssafy.a405.domain.auth.security.RefreshTokenCookieProvider;
 import com.ssafy.a405.domain.auth.service.AuthService;
@@ -29,22 +29,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccessTokenCookieProvider accessTokenCookieProvider;
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
 
     @Operation(summary = "Reissue token", description = "Reissues tokens using the HttpOnly refresh token cookie.")
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponseBody<AccessTokenResponse>> reissue(
+    public ResponseEntity<ApiResponseBody<Void>> reissue(
             @CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME, required = false) String refreshTokenCookie
     ) {
         String refreshToken = resolveRefreshToken(refreshTokenCookie);
         TokenResponse tokenResponse = authService.reissue(refreshToken);
 
         return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookieProvider.createCookie(tokenResponse.accessToken()).toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookieProvider.createCookie(tokenResponse.refreshToken()).toString())
-                .body(ApiResponseBody.onSuccess(
-                        SuccessCode.OK,
-                        AccessTokenResponse.bearer(tokenResponse.accessToken())
-                ));
+                .body(ApiResponseBody.onSuccess(SuccessCode.OK));
     }
 
     @Operation(summary = "Current user", description = "Returns the current authenticated user.")
@@ -65,6 +64,7 @@ public class AuthController {
     ) {
         authService.logout(userDetail);
         return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookieProvider.deleteCookie().toString())
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookieProvider.deleteCookie().toString())
                 .body(ApiResponseBody.onSuccess(SuccessCode.OK));
     }
