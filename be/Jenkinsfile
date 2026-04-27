@@ -82,6 +82,7 @@ pipeline {
                         # 2. 카프카를 네트워크에 연결
                         docker network connect ${NETWORK_NAME} kafka || true
                         docker network connect ${NETWORK_NAME} redis || true
+                        docker network connect ${NETWORK_NAME} a405-parser || true
 
                         # 💡 3. 핵심: 젠킨스 컨테이너 자신을 네트워크에 연결 (물리적 통로 확보)
                         # 컨테이너 이름이 'jenkins'가 맞는지 docker ps로 꼭 확인하세요.
@@ -100,6 +101,7 @@ pipeline {
                           -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
                           -e REDIS_HOST=redis \
                           -e REDIS_PORT=6379 \
+                          -e APP_SERVICES_PARSER_BASE_URL="http://a405-parser:8000" \
                           -e PROD_DB_URL="$PROD_DB_URL" \
                           -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
                           -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
