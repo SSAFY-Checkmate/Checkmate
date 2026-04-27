@@ -59,11 +59,14 @@ pipeline {
         }
 
         stage('Deploy') {
+            // when {
+            //     expression {
+            //         return env.BRANCH_NAME == 'develop' &&
+            //                sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
+            //     }
+            // }
             when {
-                expression {
-                    return env.BRANCH_NAME == 'develop' &&
-                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
-                }
+                branch 'develop'
             }
             steps {
                 withCredentials([
