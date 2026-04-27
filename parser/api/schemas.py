@@ -16,6 +16,10 @@ class FrameResponse(BaseModel):
     status: str
     processing_time: Optional[float] = None
 
+class SegmentSchema(BaseModel):
+    start_time: float
+    text: str
+
 class TranscriptResponse(BaseModel):
     video_id: str
     title: Optional[str] = None
@@ -23,6 +27,7 @@ class TranscriptResponse(BaseModel):
     channel_id: Optional[str] = None
     language: str
     content: str
+    segments: List[SegmentSchema] = []
     status: str
     is_whisper: bool
     processing_time: Optional[float] = None

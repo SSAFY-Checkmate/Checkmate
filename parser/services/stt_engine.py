@@ -50,7 +50,8 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
                     "file": (os.path.basename(audio_path), audio_file, "audio/mp4")
                 }
                 data = {
-                    "model": "whisper-1"
+                    "model": "whisper-1",
+                    "response_format": "verbose_json"
                 }
                 response = requests.post(url, headers=headers, files=files, data=data)
                 
@@ -62,12 +63,22 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
             
             cleaned_text = clean_transcript_text(raw_text)
             
+            segments = []
+            for seg in result_json.get("segments", []):
+                c_text = clean_transcript_text(seg.get("text", "")).strip()
+                if c_text:
+                    segments.append({
+                        "start_time": seg.get("start", 0.0),
+                        "text": c_text
+                    })
+            
             return {
                 "video_id": video_id,
                 "title": title,
                 "author": author,
                 "language": "stt-auto",
                 "content": cleaned_text,
+                "segments": segments,
                 "is_whisper": True,
                 "status": "SUCCESS"
             }

@@ -3,13 +3,7 @@ import re
 import requests
 from fastapi import HTTPException
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import (
-    TranscriptsDisabled,
-    NoTranscriptFound,
-    VideoUnavailable,
-    RequestBlocked,
-    IpBlocked,
-)
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 
 from core.text_processor import clean_transcript_text
 from services.stt_engine import run_stt_fallback
@@ -80,8 +74,8 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
                     channel_id = match.group(1)
         except Exception:
             pass
-
-        ytt_api = YouTubeTranscriptApi(http_client=session)
+            
+        ytt_api = YouTubeTranscriptApi()
         transcript_list = ytt_api.list(video_id)
 
         transcript = None
@@ -105,6 +99,15 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         raw_text = " ".join([segment.text for segment in transcript_data])
         cleaned_text = clean_transcript_text(raw_text)
 
+        segments = []
+        for segment in transcript_data:
+            c_text = clean_transcript_text(segment.text).strip()
+            if c_text:
+                segments.append({
+                    "start_time": segment.start,
+                    "text": c_text
+                })
+
         return {
             "video_id": video_id,
             "title": title,
@@ -112,6 +115,7 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
             "channel_id": channel_id,
             "language": lang_used,
             "content": cleaned_text,
+            "segments": segments,
             "is_whisper": False,
             "status": "SUCCESS",
         }
