@@ -16,13 +16,16 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
             'outtmpl': audio_path,
             'quiet': True,
             'no_warnings': True,
-            'proxy': 'socks5://127.0.0.1:9050',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'm4a',
                 'preferredquality': '128',
             }],
         }
+        
+        use_tor = os.getenv("USE_TOR_PROXY", "false").lower() == "true"
+        if use_tor:
+            ydl_opts['proxy'] = 'socks5://127.0.0.1:9050'
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

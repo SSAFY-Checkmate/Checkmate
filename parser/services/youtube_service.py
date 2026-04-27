@@ -40,11 +40,21 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         except Exception:
             pass
             
-        proxies = {
-            "http": "socks5://127.0.0.1:9050",
-            "https": "socks5://127.0.0.1:9050",
-        }
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
+        import os
+        
+        # requests.Session을 통해 Proxy 설정 주입 (환경변수로 On/Off 제어)
+        session = requests.Session()
+        use_tor = os.getenv("USE_TOR_PROXY", "false").lower() == "true"
+        if use_tor:
+            proxies = {
+                "http": "socks5://127.0.0.1:9050",
+                "https": "socks5://127.0.0.1:9050",
+            }
+            session.proxies.update(proxies)
+        
+        # YouTubeTranscriptApi 객체 생성 시 http_client로 주입
+        ytt_api = YouTubeTranscriptApi(http_client=session)
+        transcript_list = ytt_api.list(video_id)
         
         transcript = None
         lang_used = None
