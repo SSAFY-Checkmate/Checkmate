@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Settings, Shield, Star, Award, Coffee } from "lucide-react";
-import { cn } from "./lib/utils";
 
 const App = () => {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
+  const [isSettingsHovered, setIsSettingsHovered] = useState(false);
 
   useEffect(() => {
     if (typeof chrome !== "undefined" && chrome.storage) {
@@ -21,116 +21,190 @@ const App = () => {
     }
   };
 
+  const fontSans = { fontFamily: "'Pretendard', -apple-system, blinkmacsystemfont, system-ui, sans-serif" };
+
   return (
-    <div className="w-[350px] h-[550px] bg-[#f0f0f0] flex items-center justify-center p-3 select-none overflow-hidden font-sans">
+    <div style={{
+      width: "350px",
+      height: "550px",
+      backgroundColor: "#f0f0f0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "12px",
+      userSelect: "none",
+      overflow: "hidden",
+      ...fontSans
+    }}>
       
       {/* 💳 대한민국 경찰 신분증 메인 프레임 */}
-      <main className={cn(
-        "w-full h-full bg-white border-[1px] border-[#ddd] rounded-2xl shadow-2xl relative flex flex-col overflow-hidden transition-all duration-500 group",
-        !isEnabled && "grayscale-[0.2] brightness-[0.98]"
-      )}>
+      <main 
+        style={{
+          width: "100%",
+          height: "100%",
+          backgroundColor: "white",
+          border: "1px solid #ddd",
+          borderRadius: "16px",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          transition: "all 0.5s ease",
+          filter: isEnabled ? "none" : "grayscale(0.2) brightness(0.98)"
+        }}
+      >
         
         {/* 1. 💡 사용자 요청: 리얼 카드 빛 반사 효과 (Reflection) */}
-        <div className="absolute inset-0 z-[100] pointer-events-none overflow-hidden rounded-2xl">
+        <div style={{ position: "absolute", inset: 0, zIndex: 100, pointerEvents: "none", overflow: "hidden", borderRadius: "16px" }}>
            {/* 정적 광택 */}
-           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20 opacity-40" />
+           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top right, transparent, rgba(255,255,255,0.05), rgba(255,255,255,0.2))", opacity: 0.4 }} />
            
-           {/* 움직이는 글로우 (마우스 호버 또는 주기적 애니메이션) */}
-           <div className="absolute top-0 -left-[150%] w-[120%] h-[200%] bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-[35deg] transition-all duration-1000 group-hover:left-[150%] animate-[card-glint_6s_infinite_ease-in-out]" />
+           {/* 움직이는 글로우 (애니메이션) */}
+           <div style={{ 
+             position: "absolute", 
+             top: 0, 
+             left: "-150%", 
+             width: "120%", 
+             height: "200%", 
+             background: "linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent)", 
+             transform: "rotate(35deg)",
+             animation: "card-glint 6s infinite ease-in-out"
+           }} />
         </div>
 
         {/* 상단 파란색 패턴 */}
-        <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-br from-[#0055aa] to-[#003388]" 
-          style={{ clipPath: "polygon(0 0, 80% 0, 0 100%)" }} 
-        />
-        <div className="absolute top-0 left-0 w-full h-[110px] bg-[#002266]" 
-          style={{ clipPath: "polygon(0 0, 70% 0, 0 100%)" }} 
-        />
+        <div style={{ 
+          position: "absolute", top: 0, left: 0, width: "100%", height: "120px", 
+          background: "linear-gradient(to bottom right, #0055aa, #003388)",
+          clipPath: "polygon(0 0, 80% 0, 0 100%)" 
+        }} />
+        <div style={{ 
+          position: "absolute", top: 0, left: 0, width: "100%", height: "110px", 
+          backgroundColor: "#002266",
+          clipPath: "polygon(0 0, 70% 0, 0 100%)" 
+        }} />
 
         {/* 하단 파란색 배경 데코 */}
-        <div className="absolute bottom-0 right-0 w-full h-[80px] bg-[#0066cc] opacity-10" 
-          style={{ clipPath: "polygon(100% 100%, 30% 100%, 100% 0)" }} 
-        />
-        <div className="absolute bottom-0 right-0 w-full h-[70px] bg-[#0044bb]" 
-          style={{ clipPath: "polygon(100% 100%, 20% 100%, 100% 0)" }} 
-        />
+        <div style={{ 
+          position: "absolute", bottom: 0, right: 0, width: "100%", height: "80px", 
+          backgroundColor: "#0066cc", opacity: 0.1,
+          clipPath: "polygon(100% 100%, 30% 100%, 100% 0)" 
+        }} />
+        <div style={{ 
+          position: "absolute", bottom: 0, right: 0, width: "100%", height: "70px", 
+          backgroundColor: "#0044bb",
+          clipPath: "polygon(100% 100%, 20% 100%, 100% 0)" 
+        }} />
 
-        {/* 설정 버튼 (좌측 상단으로 이동하여 로고와 겹침 방지) */}
-        <div className="absolute top-4 left-4 text-white/70 hover:text-white cursor-pointer z-[120] transition-all hover:rotate-90">
-           <Settings className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+        {/* 설정 버튼 */}
+        <div 
+          style={{ 
+            position: "absolute", top: "16px", left: "16px", 
+            color: isSettingsHovered ? "white" : "rgba(255,255,255,0.7)", 
+            cursor: "pointer", zIndex: 120, transition: "all 0.3s",
+            transform: isSettingsHovered ? "rotate(90deg)" : "none"
+          }}
+          onMouseEnter={() => setIsSettingsHovered(true)}
+          onMouseLeave={() => setIsSettingsHovered(false)}
+        >
+           <Settings style={{ width: "20px", height: "20px", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
         </div>
 
         {/* 배경 워터마크 로고 */}
-        <div className="absolute top-[40%] right-[-10%] w-60 h-60 opacity-[0.04] pointer-events-none rotate-[15deg]">
-           <Shield className="w-full h-full text-blue-900 fill-current" />
+        <div style={{ position: "absolute", top: "40%", right: "-10%", width: "240px", height: "240px", opacity: 0.04, pointerEvents: "none", transform: "rotate(15deg)" }}>
+           <Shield style={{ width: "100%", height: "100%", color: "#1e3a8a", fill: "currentColor" }} />
         </div>
 
         {/* 카드 상단: 엠블럼 및 로고 */}
-        <div className="relative z-10 p-5 flex justify-between items-start">
-          <div className="w-10 h-10 border-[2px] border-white/40 rounded-full flex items-center justify-center bg-white/10 backdrop-blur-md">
-            <Award className="w-5 h-5 text-white/90" />
+        <div style={{ position: "relative", zIndex: 10, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+          <div style={{ 
+            width: "40px", height: "40px", border: "2px solid rgba(255,255,255,0.4)", borderRadius: "50%", 
+            display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)" 
+          }}>
+            <Award style={{ width: "20px", height: "20px", color: "rgba(255,255,255,0.9)" }} />
           </div>
-          <div className="flex flex-col items-end">
-            <div className="w-14 h-10 relative flex justify-center items-center">
-              <Shield className="w-9 h-9 text-yellow-500 fill-current drop-shadow-md" />
-              <Star className="absolute top-1.5 w-3 h-3 text-red-600 fill-current" />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "end" }}>
+            <div style={{ width: "56px", height: "40px", position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <Shield style={{ width: "36px", height: "36px", color: "#eab308", fill: "currentColor", filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))" }} />
+              <Star style={{ position: "absolute", top: "6px", width: "12px", height: "12px", color: "#dc2626", fill: "currentColor" }} />
             </div>
-            <span className="text-[14px] font-black italic text-[#002266] mt-0.5 tracking-widest leading-none">
+            <span style={{ fontSize: "14px", fontWeight: 900, fontStyle: "italic", color: "#002266", marginTop: "2px", letterSpacing: "0.15em", lineHeight: 1 }}>
               POLICE
             </span>
           </div>
         </div>
 
         {/* 중앙: 증명사진 (로고) */}
-        <div className="relative z-10 flex flex-col items-center mt-1 px-14">
-          <div className="w-full aspect-square bg-white border-[1px] border-[#ccc] shadow-lg relative overflow-hidden group/photo">
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", marginTop: "4px", padding: "0 56px" }}>
+          <div style={{ width: "100%", aspectRatio: "1/1", backgroundColor: "white", border: "1px solid #ccc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", position: "relative", overflow: "hidden" }}>
             <img
               src="/logo.jpg"
               alt="Detective"
-              className={cn(
-                "w-full h-full object-contain p-2 transition-all duration-700",
-                isEnabled ? "scale-105" : "scale-100 opacity-50 blur-[0.3px]",
-              )}
-              style={{ imageRendering: "pixelated" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                padding: "8px",
+                transition: "all 0.7s ease",
+                transform: isEnabled ? "scale(1.05)" : "scale(1)",
+                opacity: isEnabled ? 1 : 0.5,
+                filter: isEnabled ? "none" : "blur(0.3px)",
+                imageRendering: "pixelated"
+              }}
             />
             {/* 사진 전용 반사 광택 */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/30 pointer-events-none" />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top right, transparent, rgba(255,255,255,0.1), rgba(255,255,255,0.3))", pointerEvents: "none" }} />
             {!isEnabled && (
-              <div className="absolute top-3 right-3 flex flex-col gap-1 items-end animate-bounce">
-                <span className="text-[12px] font-bold text-zinc-400 opacity-70 font-sans">zZ</span>
+              <div style={{ position: "absolute", top: "12px", right: "12px", display: "flex", flexDirection: "column", gap: "4px", alignItems: "end", animation: "bounce 1s infinite" }}>
+                <span style={{ fontSize: "12px", fontWeight: "bold", color: "#a1a1aa", opacity: 0.7 }}>zZ</span>
               </div>
             )}
           </div>
         </div>
 
         {/* 하단: 이름 및 소속 */}
-        <div className="relative z-10 flex flex-col items-center mt-6 gap-0 flex-1">
-          <h2 className="text-[32px] font-extrabold text-[#111] tracking-tighter drop-shadow-sm font-sans">체크메이트</h2>
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-[0.25em] mt-1 opacity-70">
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", marginTop: "24px", gap: 0, flex: 1 }}>
+          <h2 style={{ fontSize: "32px", fontWeight: 800, color: "#111", letterSpacing: "-0.05em", margin: 0, filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.1))" }}>체크메이트</h2>
+          <span style={{ fontSize: "11px", fontWeight: "bold", color: "#a1a1aa", textTransform: "uppercase", letterSpacing: "0.25em", marginTop: "4px", opacity: 0.7 }}>
             Digital Investigator
           </span>
 
           {/* 메인 토글 */}
-          <div className="mt-5 flex flex-col items-center gap-2">
+          <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
             <div
               onClick={handleToggle}
-              className={cn(
-                "w-[76px] h-8 rounded-full border-[1px] border-zinc-200 relative cursor-pointer p-[3px] transition-all duration-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]",
-                isEnabled ? "bg-[#004499]" : "bg-zinc-200",
-              )}
+              style={{
+                width: "76px",
+                height: "32px",
+                borderRadius: "9999px",
+                border: "1px solid #e4e4e7",
+                position: "relative",
+                cursor: "pointer",
+                padding: "3px",
+                transition: "all 0.3s",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
+                backgroundColor: isEnabled ? "#004499" : "#e4e4e7"
+              }}
             >
               <div
-                className={cn(
-                  "w-7 h-full bg-white rounded-full border-[1px] border-[#eee] transition-all duration-300 shadow-lg",
-                  isEnabled ? "translate-x-[42px]" : "translate-x-0",
-                )}
+                style={{
+                  width: "28px",
+                  height: "100%",
+                  backgroundColor: "white",
+                  borderRadius: "9999px",
+                  border: "1px solid #eee",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                  transform: isEnabled ? "translateX(42px)" : "translateX(0)"
+                }}
               />
             </div>
 
-            <div className="flex items-center gap-1.5 mt-1">
-              {isEnabled ? <Shield className="w-3.5 h-3.5 text-blue-600" /> : <Coffee className="w-3.5 h-3.5 text-zinc-400" />}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+              {isEnabled ? <Shield style={{ width: "14px", height: "14px", color: "#2563eb" }} /> : <Coffee style={{ width: "14px", height: "14px", color: "#a1a1aa" }} />}
               <span
-                className={cn("text-[13px] font-bold tracking-tight", isEnabled ? "text-blue-700 font-black" : "text-zinc-400")}
+                style={{ fontSize: "13px", fontWeight: isEnabled ? 900 : "bold", letterSpacing: "-0.025em", color: isEnabled ? "#1d4ed8" : "#a1a1aa" }}
               >
                 {isEnabled ? "공무 수행 중" : "쉬는 중.."}
               </span>
@@ -139,8 +213,8 @@ const App = () => {
         </div>
 
         {/* 최하단: 소속 문구 (FACT COP) */}
-        <div className="mt-auto relative z-10 px-8 pb-5 flex justify-end">
-          <span className="text-[20px] font-black text-white drop-shadow-[2px_2px_0_rgba(0,0,0,0.3)] italic tracking-widest font-sans">
+        <div style={{ marginTop: "auto", position: "relative", zIndex: 10, padding: "0 32px 20px 32px", display: "flex", justifyContent: "end" }}>
+          <span style={{ fontSize: "20px", fontWeight: 900, color: "white", fontStyle: "italic", letterSpacing: "0.1em", filter: "drop-shadow(2px 2px 0 rgba(0,0,0,0.3))" }}>
             FACT COP
           </span>
         </div>
@@ -151,12 +225,16 @@ const App = () => {
             font-family: 'Pretendard';
             src: url('https://cdn.jsdelivr.net/gh/Project-Noornnu/pretendard-font@v1.1.0/Pretendard-ExtraBold.woff2') format('woff2');
           }
-          .font-sans { font-family: 'Pretendard', -apple-system, blinkmacsystemfont, system-ui, sans-serif; }
           
           @keyframes card-glint {
             0% { left: -150%; }
             30% { left: 150%; }
             100% { left: 150%; }
+          }
+
+          @keyframes bounce {
+            0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+            50% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
           }
         `}</style>
       </main>

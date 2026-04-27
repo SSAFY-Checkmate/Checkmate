@@ -1,133 +1,123 @@
-import React, { useState } from "react";
 import { useCheckmateStore } from "../../lib/store";
+import { X, FileText, Users, Play } from "lucide-react";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
-import { FileText, Users, X, Shield } from "lucide-react";
-import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { ResponseModal } from "./response-modal";
+import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 
 export function SidePanel() {
-  const { activeTab, setActiveTab, closePanel } = useCheckmateStore();
-  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-
-  const tabs = [
-    { id: "report", label: "리포트", icon: FileText },
-    { id: "community", label: "커뮤니티", icon: Users },
-  ] as const;
+  const { 
+    activeTab, 
+    setActiveTab,
+    videoTitle,
+    channelName,
+    closePanel
+  } = useCheckmateStore();
 
   return (
     <div
       style={{
         width: "100%",
         height: "100%",
-        backgroundColor: "white",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
-        position: "relative",
+        backgroundColor: "white",
+        fontFamily: "'DungGeunMo', monospace",
       }}
     >
-      {/* Header */}
+      {/* Video Info Header */}
       <div
         style={{
-          padding: "16px",
-          backgroundColor: "#1e1b4b",
-          color: "white",
+          padding: "12px", // p-3
+          borderBottom: `1px solid ${COLORS.border}`,
+          backgroundColor: "rgba(241, 245, 249, 0.5)", // bg-muted/50
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          borderBottom: "4px solid #000",
+          gap: "12px", // gap-3
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Shield style={{ width: "24px", height: "24px", color: "#60a5fa" }} />
-          <h2
+        <div
+          style={{
+            width: "64px", // w-16
+            height: "48px", // h-12
+            backgroundColor: "#f1f5f9",
+            ...PIXEL_STYLES.border,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Play style={{ width: "24px", height: "24px", color: "#64748b" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
             style={{
-              fontSize: "18px",
-              fontWeight: "900",
+              fontSize: "14px",
+              fontWeight: "500",
+              color: "black",
               margin: 0,
-              letterSpacing: "-0.05em",
-              fontFamily: "var(--font-pixel)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
-            CHECKMATE
-          </h2>
+            {videoTitle || "영상 제목이 없습니다"}
+          </p>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
+            {channelName || "채널 정보 없음"}
+          </p>
         </div>
+      </div>
+
+      {/* Tab Menu */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}` }}>
         <button
-          onClick={closePanel}
+          onClick={() => setActiveTab("report")}
           style={{
-            ...PIXEL_STYLES.btnBase,
-            padding: "4px",
-            backgroundColor: "transparent",
-            color: "#94a3b8",
-            transition: "color 0.2s",
+            flex: 1,
+            padding: "12px 16px",
+            fontSize: "14px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            border: "none",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            backgroundColor: activeTab === "report" ? COLORS.primary : "#f1f5f9",
+            color: activeTab === "report" ? "white" : "#64748b",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
         >
-          <X style={{ width: "24px", height: "24px" }} />
+          <FileText size={16} />
+          📊 리포트
+        </button>
+        <button
+          onClick={() => setActiveTab("community")}
+          style={{
+            flex: 1,
+            padding: "12px 16px",
+            fontSize: "14px",
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            border: "none",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            backgroundColor: activeTab === "community" ? COLORS.primary : "#f1f5f9",
+            color: activeTab === "community" ? "white" : "#64748b",
+          }}
+        >
+          <Users size={16} />
+          🤝 커뮤니티
         </button>
       </div>
 
-      {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          backgroundColor: "#f8fafc",
-          padding: "8px 8px 0 8px",
-          gap: "4px",
-          borderBottom: "2px solid #e2e8f0",
-        }}
-      >
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const isHovered = hoveredTab === tab.id;
-          const Icon = tab.icon;
-
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as "report" | "community")}
-              onMouseEnter={() => setHoveredTab(tab.id)}
-              onMouseLeave={() => setHoveredTab(null)}
-              style={{
-                ...PIXEL_STYLES.btnBase,
-                flex: 1,
-                padding: "12px 8px",
-                fontSize: "14px",
-                backgroundColor: isActive ? "white" : (isHovered ? "#f1f5f9" : "transparent"),
-                color: isActive ? "#1e1b4b" : "#64748b",
-                borderBottom: "none",
-                position: "relative",
-                zIndex: isActive ? 2 : 1,
-                boxShadow: isActive 
-                  ? "0 -2px 0 0 #000, 2px 0 0 0 #000, -2px 0 0 0 #000" 
-                  : "none",
-                marginTop: isActive ? "0" : "2px",
-              }}
-            >
-              <Icon
-                style={{
-                  width: "18px",
-                  height: "18px",
-                  marginRight: "8px",
-                  color: isActive ? "#3b82f6" : "inherit",
-                }}
-              />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Content Area */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          position: "relative",
-        }}
-        className="custom-scrollbar"
-      >
+      <div style={{ flex: 1, overflowY: "auto" }}>
         {activeTab === "report" ? <ReportTab /> : <CommunityTab />}
       </div>
     </div>

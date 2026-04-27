@@ -1,376 +1,153 @@
-import React, { useState } from "react";
-import { useCheckmateStore, type Claim } from "../../lib/store";
-import { ThumbsUp, ThumbsDown, Plus, Send, Award, AlertTriangle, MessageSquare } from "lucide-react";
-import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { useState } from "react";
+import { useCheckmateStore } from "../../lib/store";
+import { Send, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 
-/**
- * 투표 바 컴포넌트 (인라인 스타일)
- */
-function VoteBar({ votesTrue, votesFake }: { votesTrue: number; votesFake: number }) {
-  const total = votesTrue + votesFake;
-  const fakePercent = total > 0 ? (votesFake / total) * 100 : 50;
-
-  return (
-    <div
-      style={{
-        ...PIXEL_STYLES.border,
-        width: "100%",
-        height: "20px",
-        backgroundColor: "#f4f4f5",
-        display: "flex",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          height: "100%",
-          backgroundColor: "#22c55e",
-          transition: "all 0.5s ease",
-          width: `${100 - fakePercent}%`,
-        }}
-      />
-      <div
-        style={{ height: "100%", backgroundColor: "#ef4444", transition: "all 0.5s ease", width: `${fakePercent}%` }}
-      />
-    </div>
-  );
-}
-
-/**
- * 현재 영상의 주장에 대한 커뮤니티 투표 카드
- */
-function ClaimVoteCard({ claim }: { claim: Claim }) {
-  const { voteOnClaim } = useCheckmateStore();
-  const hasVoted = !!claim.userVote;
-  const [hoveredBtn, setHoveredBtn] = useState<"true" | "fake" | null>(null);
-  const [pressedBtn, setPressedBtn] = useState<"true" | "fake" | null>(null);
-
-  const verdictLabel = {
-    safe: { text: "AI 판정: 사실", color: "#1e8e3e", bg: "#ecf7ed" },
-    warning: { text: "AI 판정: 허위", color: "#dc2626", bg: "#fef2f2" },
-    unknown: { text: "AI 판정: 보류", color: "#d97706", bg: "#fffbeb" },
-  }[claim.verdict];
-
-  const cardStyle: React.CSSProperties = {
-    ...PIXEL_STYLES.border,
+const STYLES = {
+  container: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "20px",
     padding: "16px",
     backgroundColor: "white",
+  },
+  sectionTitle: {
+    fontSize: "14px",
+    fontWeight: "bold",
+    color: "#94a3b8",
+    margin: "0 0 12px 0",
     display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-  };
+    alignItems: "center",
+    gap: "6px",
+  },
+  card: {
+    padding: "16px",
+    backgroundColor: "white",
+    border: "2px solid #e2e8f0",
+    marginBottom: "12px",
+  },
+  voteButton: {
+    flex: 1,
+    padding: "8px",
+    border: "2px solid",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    transition: "all 0.1s",
+  },
+  chatInput: {
+    width: "100%",
+    padding: "10px",
+    border: "2px solid #cbd5e1",
+    fontSize: "13px",
+    outline: "none",
+  }
+};
 
-  const getVoteBtnStyle = (type: "true" | "fake"): React.CSSProperties => {
-    const isThisVoted = claim.userVote === type;
-    const color = type === "true" ? "#22c55e" : "#ef4444";
-    const bgColor = type === "true" ? "#f0fdf4" : "#fef2f2";
-    const borderColor = type === "true" ? "#bbf7d0" : "#fecaca";
-    const isHovered = hoveredBtn === type;
-    const isPressed = pressedBtn === type;
-
-    return {
-      ...PIXEL_STYLES.btnBase,
-      flex: 1,
-      padding: "10px",
-      fontSize: "13px",
-      border: `2px solid ${isThisVoted ? color : borderColor}`,
-      backgroundColor: isThisVoted ? color : bgColor,
-      color: isThisVoted ? "white" : color,
-      boxShadow: isThisVoted 
-        ? "none" 
-        : (isPressed ? PIXEL_STYLES.btnShadow.active : (isHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default)),
-      transform: isPressed ? "translate(2px, 2px)" : "none",
-      cursor: hasVoted ? "default" : "pointer",
-    };
-  };
-
-  return (
-    <div style={cardStyle}>
-      {/* AI 판정 배지 + 주장 텍스트 */}
-      <div>
-        <span style={{ 
-          ...PIXEL_STYLES.border,
-          display: "inline-block", 
-          padding: "2px 8px", 
-          fontSize: "11px", 
-          fontWeight: "bold", 
-          backgroundColor: verdictLabel.bg, 
-          color: verdictLabel.color, 
-          marginBottom: "6px" 
-        }}>
-          {verdictLabel.text}
-        </span>
-        <p style={{ fontSize: "14px", fontWeight: "900", color: "black", margin: 0, lineHeight: 1.4 }}>
-          {claim.text}
-        </p>
-        <p style={{ fontSize: "11px", color: "#71717a", margin: 0, marginTop: "4px", lineHeight: 1.4 }}>
-          {claim.evidence}
-        </p>
-      </div>
-
-      {/* 투표 현황 */}
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "bold", marginBottom: "6px" }}>
-          <span style={{ color: "#16a34a" }}>👍 사실이다 ({claim.votesTrue})</span>
-          <span style={{ color: "#dc2626" }}>👎 거짓이다 ({claim.votesFake})</span>
-        </div>
-        <VoteBar votesTrue={claim.votesTrue} votesFake={claim.votesFake} />
-      </div>
-
-      {/* 투표 버튼 */}
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button
-          onClick={() => !hasVoted && voteOnClaim(claim.id, "true")}
-          onMouseEnter={() => !hasVoted && setHoveredBtn("true")}
-          onMouseLeave={() => { setHoveredBtn(null); setPressedBtn(null); }}
-          onMouseDown={() => !hasVoted && setPressedBtn("true")}
-          onMouseUp={() => setPressedBtn(null)}
-          disabled={hasVoted}
-          style={getVoteBtnStyle("true")}
-        >
-          <ThumbsUp style={{ width: "14px", height: "14px", marginRight: "6px" }} />사실이다
-        </button>
-        <button
-          onClick={() => !hasVoted && voteOnClaim(claim.id, "fake")}
-          onMouseEnter={() => !hasVoted && setHoveredBtn("fake")}
-          onMouseLeave={() => { setHoveredBtn(null); setPressedBtn(null); }}
-          onMouseDown={() => !hasVoted && setPressedBtn("fake")}
-          onMouseUp={() => setPressedBtn(null)}
-          disabled={hasVoted}
-          style={getVoteBtnStyle("fake")}
-        >
-          <ThumbsDown style={{ width: "14px", height: "14px", marginRight: "6px" }} />
-          거짓이다
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * 실시간 채팅방 (인라인 스타일)
- */
-function ChatRoom() {
-  const { chatMessages, addChatMessage } = useCheckmateStore();
-  const [newMessage, setNewMessage] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
-  const [isSendHovered, setIsSendHovered] = useState(false);
+export function CommunityTab() {
+  const { wantedCards, chatMessages, voteOnCard, addChatMessage } = useCheckmateStore();
+  const [newMsg, setNewMsg] = useState("");
 
   const handleSend = () => {
-    if (newMessage.trim()) {
-      addChatMessage({
-        username: "나",
-        message: newMessage.trim(),
-      });
-      setNewMessage("");
-    }
+    if (!newMsg.trim()) return;
+    addChatMessage({ username: "나", message: newMsg });
+    setNewMsg("");
   };
 
   return (
-    <div
-      style={{ ...PIXEL_STYLES.border, backgroundColor: "white", overflow: "hidden" }}
-    >
-      <div
-        style={{
-          padding: "10px",
-          borderBottom: "2px solid #e4e4e7",
-          backgroundColor: "#f0f9ff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <h4
-          style={{
-            fontSize: "14px",
-            fontWeight: "900",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            color: "#0369a1",
-            margin: 0,
-            textTransform: "uppercase",
-          }}
-        >
-          <MessageSquare style={{ width: "16px", height: "16px" }} />
-          집단지성 채팅
+    <div style={STYLES.container}>
+      {/* Vote Section */}
+      <div>
+        <h4 style={STYLES.sectionTitle}>
+          <ThumbsUp style={{ width: "16px", height: "16px" }} />
+          팩트체크 수사 요청
         </h4>
-        <span style={{ fontSize: "11px", fontWeight: "bold", color: "#7dd3fc", marginLeft: "auto" }}>
-          {chatMessages.length}명 참여 중
-        </span>
-      </div>
-
-      <div
-        style={{
-          height: "220px",
-          overflowY: "auto",
-          padding: "12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          backgroundColor: "#fdfdfd",
-        }}
-      >
-        {chatMessages.map((msg) => (
-          <div key={msg.id} style={{ fontSize: "13px", lineHeight: 1.5 }}>
-            <span style={{ fontWeight: "900", color: "#27272a" }}>
-              {msg.badge && (
-                <span
-                  style={{
-                    ...PIXEL_STYLES.border,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "2px 6px",
-                    marginRight: "6px",
-                    fontSize: "9px",
-                    backgroundColor: msg.badge === "verifier" ? "#eff6ff" : "#fffbeb",
-                    color: msg.badge === "verifier" ? "#2563eb" : "#d97706",
-                  }}
-                >
-                  {msg.badge === "verifier" ? (
-                    <Award style={{ width: "10px", height: "10px", marginRight: "2px" }} />
-                  ) : (
-                    <AlertTriangle style={{ width: "10px", height: "10px", marginRight: "2px" }} />
-                  )}
-                  {msg.badge === "verifier" ? "검증단" : "제보자"}
-                </span>
-              )}
-              {msg.username}:
-            </span>{" "}
-            <span style={{ color: "#52525b", fontWeight: "500" }}>{msg.message}</span>
+        {wantedCards.map((card) => (
+          <div key={card.id} style={STYLES.card}>
+            <p style={{ fontSize: "14px", fontWeight: "bold", margin: "0 0 8px 0" }}>{card.claim}</p>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px 0" }}>{card.reporterComment}</p>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => voteOnCard(card.id, "true")}
+                style={{
+                  ...STYLES.voteButton,
+                  borderColor: card.userVote === "true" ? "#22c55e" : "#e2e8f0",
+                  backgroundColor: card.userVote === "true" ? "#ecf7ed" : "white",
+                  color: card.userVote === "true" ? "#1e8e3e" : "#64748b",
+                }}
+              >
+                <ThumbsUp style={{ width: "14px", height: "14px" }} />
+                진실 {card.votesTrue}
+              </button>
+              <button
+                onClick={() => voteOnCard(card.id, "fake")}
+                style={{
+                  ...STYLES.voteButton,
+                  borderColor: card.userVote === "fake" ? "#ef4444" : "#e2e8f0",
+                  backgroundColor: card.userVote === "fake" ? "#fef2f2" : "white",
+                  color: card.userVote === "fake" ? "#ef4444" : "#64748b",
+                }}
+              >
+                <ThumbsDown style={{ width: "14px", height: "14px" }} />
+                허위 {card.votesFake}
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
-      <div
-        style={{
-          padding: "10px",
-          borderTop: "2px solid #e4e4e7",
-          display: "flex",
-          gap: "8px",
-          backgroundColor: "#fafafa",
-        }}
-      >
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholder="메시지 입력..."
+      {/* Chat Section */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <h4 style={STYLES.sectionTitle}>
+          <MessageSquare style={{ width: "16px", height: "16px" }} />
+          실시간 수사 상황실
+        </h4>
+        <div
           style={{
-            ...PIXEL_STYLES.border,
             flex: 1,
-            padding: "10px",
-            backgroundColor: "#f9fafb",
-            borderColor: isFocused ? "#60a5fa" : "#e5e7eb",
-            fontSize: "13px",
-            outline: "none",
-            transition: "border-color 0.2s",
-          }}
-        />
-        <button
-          onClick={handleSend}
-          onMouseEnter={() => setIsSendHovered(true)}
-          onMouseLeave={() => setIsSendHovered(false)}
-          style={{
-            ...PIXEL_STYLES.btnBase,
-            padding: "0 16px",
-            backgroundColor: isSendHovered ? "#2563eb" : "#3b82f6",
-            color: "white",
-            transition: "all 0.1s",
-          }}
-        >
-          <Send style={{ width: "16px", height: "16px" }} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function CommunityTab() {
-  const { claims, analysisStatus } = useCheckmateStore();
-  const [isBtnPressed, setIsBtnPressed] = useState(false);
-  const [isBtnHovered, setIsBtnHovered] = useState(false);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
-      {/* 현재 영상 팩트체크 투표 섹션 */}
-      <div>
-        <h4
-          style={{
-            fontSize: "14px",
-            fontWeight: "900",
-            color: "#a1a1aa",
-            marginBottom: "12px",
-            paddingLeft: "4px",
-            textTransform: "uppercase",
-            letterSpacing: "-0.025em",
+            maxHeight: "300px",
+            overflowY: "auto",
+            backgroundColor: "#f8fafc",
+            border: "2px solid #e2e8f0",
+            padding: "12px",
             display: "flex",
-            alignItems: "center",
+            flexDirection: "column",
             gap: "8px",
           }}
         >
-          🧐 이 영상, 직접 판단해봐
-        </h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {analysisStatus !== "complete" ? (
-            /* 분석 전 안내 메시지 */
-            <div style={{ ...PIXEL_STYLES.border, textAlign: "center", padding: "32px 16px", backgroundColor: "#fdfdfd", color: "#a1a1aa" }}>
-              <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div>
-              <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>아직 분석이 완료되지 않았어요</p>
-              <p style={{ fontSize: "11px", margin: "4px 0 0 0" }}>리포트 탭에서 스캔을 시작해 보세요!</p>
+          {chatMessages.map((msg) => (
+            <div key={msg.id} style={{ fontSize: "12px", lineHeight: 1.4 }}>
+              <span style={{ fontWeight: "bold", color: "#3b82f6", marginRight: "6px" }}>
+                [{msg.badge === "verifier" ? "검증자" : "제보자"}] {msg.username}
+              </span>
+              <span style={{ color: "#334155" }}>{msg.message}</span>
             </div>
-          ) : claims.length > 0 ? (
-            claims.map((claim) => (
-              <ClaimVoteCard key={claim.id} claim={claim} />
-            ))
-          ) : (
-            <div style={{ ...PIXEL_STYLES.border, textAlign: "center", padding: "32px 16px", backgroundColor: "#fdfdfd", color: "#a1a1aa" }}>
-              <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>분석된 주장이 없습니다.</p>
-            </div>
-          )}
+          ))}
         </div>
-      </div>
-
-      {/* Chat Section */}
-      <ChatRoom />
-
-      {/* Report Button (Fixed at Bottom) */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: "16px",
-          backgroundColor: "white",
-          borderTop: "2px solid #f4f4f5",
-          zIndex: 20,
-        }}
-      >
-        <button
-          onMouseEnter={() => setIsBtnHovered(true)}
-          onMouseLeave={() => { setIsBtnHovered(false); setIsBtnPressed(false); }}
-          onMouseDown={() => setIsBtnPressed(true)}
-          onMouseUp={() => setIsBtnPressed(false)}
-          style={{
-            ...PIXEL_STYLES.btnBase,
-            width: "100%",
-            padding: "16px 24px",
-            backgroundColor: "#f59e0b",
-            color: "white",
-            fontSize: "16px",
-            gap: "12px",
-            boxShadow: isBtnPressed ? PIXEL_STYLES.btnShadow.active : (isBtnHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default),
-            transform: isBtnPressed ? "translate(2px, 2px)" : "none",
-          }}
-        >
-          <Plus style={{ width: "24px", height: "24px" }} />
-          나도 허위 영상 제보하기
-        </button>
+        <div style={{ display: "flex", gap: "6px", marginTop: "10px" }}>
+          <input
+            value={newMsg}
+            onChange={(e) => setNewMsg(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="상황 보고..."
+            style={STYLES.chatInput}
+          />
+          <button
+            onClick={handleSend}
+            style={{
+              backgroundColor: "#3b82f6",
+              color: "white",
+              border: "none",
+              padding: "0 12px",
+              cursor: "pointer",
+            }}
+          >
+            <Send style={{ width: "18px", height: "18px" }} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,46 +1,48 @@
+import { useState } from "react";
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
-import { PIXEL_STYLES } from "../../lib/constants/styles";
-import React, { useState } from "react";
+import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, Shield } from "lucide-react";
+import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 
-/**
- * 판단 배지 컴포넌트 (사실/허위/보류)
- */
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const config = {
     warning: {
       icon: AlertTriangle,
       label: "허위",
-      style: { backgroundColor: "#fef2f2", color: "#ef4444", border: "1.5px solid #ef4444" },
+      color: COLORS.destructive,
+      bgColor: "rgba(239, 68, 68, 0.1)",
     },
     safe: {
       icon: CheckCircle,
       label: "사실",
-      style: { backgroundColor: "#e6f4ea", color: "#1e8e3e", border: "1.5px solid #1e8e3e" },
+      color: COLORS.success,
+      bgColor: "rgba(34, 197, 94, 0.1)",
     },
     unknown: {
       icon: HelpCircle,
-      label: "보류",
-      style: { backgroundColor: "#fffbeb", color: "#d97706", border: "1.5px solid #d97706" },
+      label: "판단 보류",
+      color: COLORS.warning,
+      bgColor: "rgba(245, 158, 11, 0.1)",
     },
   };
 
-  const { icon: Icon, label, style } = config[verdict];
+  const { icon: Icon, label, color, bgColor } = config[verdict];
 
   return (
     <span
       style={{
-        ...PIXEL_STYLES.border,
         display: "inline-flex",
         alignItems: "center",
-        gap: "6px",
-        padding: "4px 10px",
+        gap: "4px",
+        padding: "2px 8px",
         fontSize: "12px",
-        fontWeight: "bold",
-        ...style,
+        borderRadius: "4px",
+        backgroundColor: bgColor,
+        color: color,
+        border: `1px solid ${color}4d`, // 4d = 30% opacity
+        imageRendering: "pixelated",
       }}
     >
-      <Icon style={{ width: "14px", height: "14px" }} strokeWidth={3} />
+      <Icon size={12} />
       {label}
     </span>
   );
@@ -50,30 +52,33 @@ function TrustMeter({ score }: { score: number }) {
   const bars = 10;
   const filledBars = Math.round((score / 100) * bars);
 
+  const getBarColor = (i: number) => {
+    if (i >= filledBars) return "#e4e4e7"; // bg-muted
+    if (score < 30) return COLORS.destructive;
+    if (score < 60) return COLORS.warning;
+    return COLORS.success;
+  };
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <span style={{ fontSize: "14px", color: "#1e8e3e", fontWeight: "bold" }}>신뢰도:</span>
-      <div style={{ display: "flex", gap: "4px" }}>
+      <span style={{ fontSize: "14px", color: "#64748b" }}>신뢰도:</span>
+      <div style={{ display: "flex", gap: "2px" }}>
         {Array.from({ length: bars }).map((_, i) => (
           <div
             key={i}
             style={{
-              ...PIXEL_STYLES.border,
-              width: "18px",
-              height: "18px",
-              backgroundColor:
-                i < filledBars ? (score < 30 ? "#ef4444" : score < 60 ? "#f59e0b" : "#22c55e") : "#e5e7eb",
+              width: "12px",
+              height: "16px",
+              backgroundColor: getBarColor(i),
             }}
           />
         ))}
       </div>
       <span
         style={{
-          fontSize: "15px",
-          fontWeight: "900",
-          marginLeft: "4px",
-          letterSpacing: "-0.025em",
-          color: score < 30 ? "#ef4444" : score < 60 ? "#d97706" : "#22c55e",
+          fontSize: "14px",
+          fontWeight: "bold",
+          color: score < 30 ? COLORS.destructive : score < 60 ? COLORS.warning : COLORS.success,
         }}
       >
         {score}%
@@ -83,156 +88,128 @@ function TrustMeter({ score }: { score: number }) {
 }
 
 function ClaimCard({ claim }: { claim: Claim }) {
-  const [isLinkHovered, setIsLinkHovered] = useState(false);
-
   return (
     <div
       style={{
-        ...PIXEL_STYLES.border,
-        padding: "15px",
+        padding: "12px",
         backgroundColor: "white",
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        ...PIXEL_STYLES.border,
+        marginBottom: "12px",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "8px",
-          marginBottom: "12px",
-        }}
-      >
-        <p style={{ fontSize: "14px", fontWeight: "bold", color: "black", margin: 0, lineHeight: 1.25 }}>
-          영상 내 주요 사실 정보 일치율
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "8px" }}>
+        <p style={{ fontSize: "14px", fontWeight: "500", color: "black", margin: 0, lineHeight: "1.4" }}>
+          {claim.text}
         </p>
         <VerdictBadge verdict={claim.verdict} />
       </div>
-      <p
-        style={{
-          fontSize: "12px",
-          color: "#52525b",
-          marginBottom: "16px",
-          margin: 0,
-          lineHeight: 1.5,
-          fontWeight: 500,
-        }}
-      >
+      <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 8px 0", lineHeight: "1.5" }}>
         {claim.evidence}
       </p>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px" }}>
-        <a
-          href={claim.sources?.[0]?.url || "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "12px",
-            color: "#2563eb",
-            fontWeight: "bold",
-            textDecoration: isLinkHovered ? "underline" : "none",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={() => setIsLinkHovered(true)}
-          onMouseLeave={() => setIsLinkHovered(false)}
-        >
-          <ExternalLink style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
-          검증된 기사
-        </a>
-      </div>
+      {claim.sources.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {claim.sources.map((source, idx) => (
+            <a
+              key={idx}
+              href={source.url}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "12px",
+                color: COLORS.primary,
+                textDecoration: "none",
+              }}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink size={12} />
+              {source.label}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export function ReportTab() {
-  const { trustScore, overallVerdict, claims } = useCheckmateStore();
+  const { trustScore, overallVerdict, claims, openResponseModal } = useCheckmateStore();
 
   const verdictConfig = {
     warning: {
       icon: "🚫",
       label: "허위 정보 주의!",
-      cardStyle: { backgroundColor: "#fef2f2", border: "3.5px solid #ef4444", color: "#ef4444" },
-      iconBg: { backgroundColor: "#ef4444", border: "2px solid #b91c1c" },
+      bgColor: "rgba(239, 68, 68, 0.1)",
+      borderColor: COLORS.destructive,
+      textColor: COLORS.destructive,
     },
     safe: {
-      icon: <CheckCircle style={{ width: "40px", height: "40px", color: "white" }} strokeWidth={3} />,
+      icon: "✅",
       label: "신뢰할 수 있는 정보",
-      cardStyle: { backgroundColor: "#ecf7ed", border: "3.5px solid #22c55e", color: "#1e8e3e" },
-      iconBg: { backgroundColor: "#22c55e", border: "2px solid #166534" },
+      bgColor: "rgba(34, 197, 94, 0.1)",
+      borderColor: COLORS.success,
+      textColor: COLORS.success,
     },
     unknown: {
       icon: "🧐",
       label: "판단 보류 (추가 검증 필요)",
-      cardStyle: { backgroundColor: "#fffbeb", border: "3.5px solid #f59e0b", color: "#d97706" },
-      iconBg: { backgroundColor: "#f59e0b", border: "2px solid #b45309" },
+      bgColor: "rgba(245, 158, 11, 0.1)",
+      borderColor: COLORS.warning,
+      textColor: COLORS.warning,
     },
   };
 
-  const { icon, label, cardStyle, iconBg } = verdictConfig[overallVerdict] || verdictConfig.unknown;
+  const { icon, label, bgColor, borderColor, textColor } = verdictConfig[overallVerdict];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px" }}>
       {/* Overall Verdict Card */}
       <div
         style={{
-          ...PIXEL_STYLES.border,
-          padding: "20px",
+          padding: "16px",
           textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "12px",
-          ...cardStyle,
+          backgroundColor: bgColor,
+          border: `2px solid ${borderColor}`,
+          ...PIXEL_STYLES.border,
+          boxShadow: `inset 0 0 0 2px ${bgColor}, ${PIXEL_STYLES.border.boxShadow.trim()}`,
         }}
       >
-        <div
-          style={{
-            ...PIXEL_STYLES.border,
-            width: "48px",
-            height: "48px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-            ...iconBg,
-          }}
-        >
-          {typeof icon === "string" ? <span style={{ fontSize: "24px" }}>{icon}</span> : icon}
-        </div>
-        <h3 style={{ fontSize: "19px", fontWeight: "900", letterSpacing: "-0.05em", margin: 0, lineHeight: 1 }}>
-          {label}
-        </h3>
-        <div style={{ marginTop: "4px", width: "100%", display: "flex", justifyContent: "center" }}>
+        <div style={{ fontSize: "32px", marginBottom: "4px" }}>{icon}</div>
+        <h3 style={{ fontSize: "18px", fontWeight: "bold", color: textColor, margin: "0 0 8px 0" }}>{label}</h3>
+        <div style={{ display: "flex", justifyContent: "center" }}>
           <TrustMeter score={trustScore} />
         </div>
       </div>
 
       {/* Claims List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#71717a", margin: 0, paddingLeft: "4px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <h4 style={{ fontSize: "14px", fontWeight: "bold", color: "#64748b", margin: 0 }}>
           핵심 주장 분석
         </h4>
-        {claims.length > 0 ? (
-          claims.map((claim) => <ClaimCard key={claim.id} claim={claim} />)
-        ) : (
-          <div
-            style={{
-              ...PIXEL_STYLES.border,
-              textAlign: "center",
-              padding: "40px 0",
-              color: "#a1a1aa",
-              fontSize: "13px",
-              backgroundColor: "#fdfdfd",
-            }}
-          >
-            분석된 핵심 주장이 없습니다.
-          </div>
-        )}
+        {claims.map((claim) => (
+          <ClaimCard key={claim.id} claim={claim} />
+        ))}
       </div>
+
+      {/* Response Action Button */}
+      <button
+        onClick={openResponseModal}
+        style={{
+          ...PIXEL_STYLES.btnBase,
+          width: "100%",
+          padding: "16px",
+          fontSize: "16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          marginTop: "8px",
+        }}
+      >
+        <Shield size={20} />
+        🚨 원터치 팩트체크 대응
+      </button>
     </div>
   );
 }
