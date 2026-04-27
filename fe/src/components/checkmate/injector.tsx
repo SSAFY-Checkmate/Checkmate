@@ -38,5 +38,5 @@ export const renderDashboard = (container: HTMLElement) => {
   // 4. 리액트 렌더링
   container.appendChild(rootContainer);
   const root = createRoot(reactWrapper);
-  root.render(<AnalysisDashboard className="w-full" />);
+  root.render(<AnalysisDashboard style={{ width: "100%" }} />);
 };

@@ -134,8 +134,10 @@ function ClaimCard({ claim }: { claim: Claim }) {
             color: "#2563eb",
             fontWeight: "bold",
             textDecoration: "none",
+            transition: "text-decoration 0.2s",
           }}
-          className="hover:underline"
+          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
         >
           <ExternalLink style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
           검증된 기사

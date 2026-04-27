@@ -59,7 +59,13 @@ export function SidePanel() {
 
   return (
     <>
-      <div style={sidebarStyle} className="font-pixel animate-in slide-in-from-right duration-300">
+      <div 
+        style={{ 
+          ...sidebarStyle, 
+          fontFamily: "var(--font-pixel)" 
+        }} 
+        className="animate-in slide-in-from-right duration-300"
+      >
         
         {/* Floating Close Button */}
         <button
@@ -68,7 +74,7 @@ export function SidePanel() {
           className="pixel-btn transition-all active:scale-95"
           title="닫기"
         >
-          <X className="w-7 h-7" strokeWidth={4} />
+          <X style={{ width: "28px", height: "28px" }} strokeWidth={4} />
         </button>
 
         {/* Video Info Header */}
@@ -94,7 +100,7 @@ export function SidePanel() {
               flexShrink: 0 
             }}
           >
-            <Play className="w-8 h-8 text-zinc-400 fill-zinc-400" />
+            <Play style={{ width: "32px", height: "32px", color: "#a1a1aa", fill: "#a1a1aa" }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: "15px", fontWeight: "bold", color: "black", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -114,7 +120,7 @@ export function SidePanel() {
             className="pixel-btn"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <FileText className="w-5 h-5" />
+              <FileText style={{ width: "20px", height: "20px" }} />
               <span style={{ fontSize: "18px" }}>📊</span>
             </div>
             리포트
@@ -125,7 +131,7 @@ export function SidePanel() {
             className="pixel-btn"
           >
             <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-              <Users className="w-5 h-5" />
+              <Users style={{ width: "20px", height: "20px" }} />
               <span style={{ fontSize: "18px" }}>🤝</span>
             </div>
             커뮤니티
@@ -133,7 +139,10 @@ export function SidePanel() {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div 
+          style={{ flex: 1, overflowY: "auto" }} 
+          className="custom-scrollbar"
+        >
           {activeTab === "report" ? <ReportTab /> : <CommunityTab />}
         </div>
       </div>

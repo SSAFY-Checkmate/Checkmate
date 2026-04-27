@@ -8,10 +8,12 @@ import { SidePanel } from "./side-panel";
 
 type AnalysisDashboardProps = {
   className?: string;
+  style?: React.CSSProperties;
   onClose?: () => void;
 };
 
 const getStatusMessage = (status: AnalysisStatus): string => {
+  // ... (기존 로직 유지)
   switch (status) {
     case "detecting":
       return "영상 감지 중...";
@@ -29,7 +31,7 @@ const getStatusMessage = (status: AnalysisStatus): string => {
   }
 };
 
-export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboardProps) {
+export function AnalysisDashboard({ className = "", style, onClose }: AnalysisDashboardProps) {
   const {
     startAnalysis,
     analysisStatus,
@@ -43,12 +45,10 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
 
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  // 오리지널 로직: 외부 클릭 시 닫기 (Shadow DOM 대응)
+  // ... (handleClickOutside 로직 유지)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!isWarningVisible || !dashboardRef.current) return;
-
-      // Shadow DOM 내부 클릭인지 확인하기 위해 composedPath 사용
       const path = event.composedPath();
       if (!path.includes(dashboardRef.current)) {
         closeWarning();
@@ -77,8 +77,8 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
 
   const warningConfig = {
     safe: {
-      gradient: "from-blue-400 to-blue-600",
-      textColor: "text-blue-600",
+      gradient: "linear-gradient(to bottom right, #60a5fa, #2563eb)",
+      textColor: "#2563eb",
       icon: ShieldCheck,
       prefix: "신뢰",
       title: "검증된 신뢰 정보",
@@ -86,22 +86,22 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
       btnText: "지금 확인",
     },
     warning: {
-      gradient: "from-red-400 to-red-600",
-      textColor: "text-red-600",
+      gradient: "linear-gradient(to bottom right, #f87171, #dc2626)",
+      textColor: "#dc2626",
       icon: AlertTriangle,
       prefix: "주의",
       title: "허위/과장 정보 주의",
       desc: (
         <>
-          이 영상에서 <span className="font-bold text-red-600">{warningCount}건</span>의 허위 의심 문장이
+          이 영상에서 <span style={{ fontWeight: "bold", color: "#dc2626" }}>{warningCount}건</span>의 허위 의심 문장이
           발견되었습니다.
         </>
       ),
       btnText: "판단 근거 보기",
     },
     unknown: {
-      gradient: "from-amber-400 to-amber-600",
-      textColor: "text-amber-600",
+      gradient: "linear-gradient(to bottom right, #fbbf24, #d97706)",
+      textColor: "#d97706",
       icon: HelpCircle,
       prefix: "보류",
       title: "판단 보류 안내",
@@ -130,27 +130,61 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
     return (
       <div
         ref={dashboardRef}
-        className={cn(
-          "bg-white pixel-border overflow-hidden flex flex-col relative transition-all duration-300 font-pixel",
-          className,
-        )}
+        className={cn("pixel-border", className)}
+        style={{
+          ...style,
+          backgroundColor: "white",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          position: "relative",
+          fontFamily: "var(--font-pixel)",
+          transition: "all 0.3s ease",
+        }}
       >
-        <div className={cn("relative pt-8 pb-6 flex items-center justify-center border-b-[2px] border-black/20 bg-gradient-to-br", gradient)}>
-          <button onClick={closeWarning} className="absolute top-2 right-2 p-1 text-white hover:bg-black/20 transition-all cursor-pointer rounded-md">
-            <X className="w-5 h-5" />
+        <div 
+          style={{ 
+            position: "relative", 
+            paddingTop: "32px", 
+            paddingBottom: "24px", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            borderBottom: "2px solid rgba(0,0,0,0.2)",
+            backgroundImage: gradient 
+          }}
+        >
+          <button 
+            onClick={closeWarning} 
+            style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              padding: "4px",
+              color: "white",
+              backgroundColor: "transparent",
+              border: "none",
+              cursor: "pointer",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X style={{ width: "20px", height: "20px" }} />
           </button>
-          <div className="p-3 bg-black/20 rounded-md">
-            <Icon className="w-12 h-12 text-white" strokeWidth={2} />
+          <div style={{ padding: "12px", backgroundColor: "rgba(0,0,0,0.2)", borderRadius: "6px" }}>
+            <Icon style={{ width: "48px", height: "48px", color: "white" }} strokeWidth={2} />
           </div>
         </div>
-        <div className="flex flex-col items-center pt-5 pb-3 px-4 bg-zinc-50">
-          <h3 className="text-[16px] text-black mb-2 flex items-center justify-center gap-2 text-center tracking-wide">
-            <span className={cn("inline-block px-1.5 py-0.5 text-[14px] font-bold", textColor)}>[{prefix}]</span>
-            <span className="font-bold">{title}</span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "20px", paddingBottom: "12px", paddingLeft: "16px", paddingRight: "16px", backgroundColor: "#fafafa" }}>
+          <h3 style={{ fontSize: "16px", color: "black", marginBottom: "8px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", textAlign: "center", letterSpacing: "0.025em" }}>
+            <span style={{ display: "inline-block", paddingLeft: "6px", paddingRight: "6px", paddingTop: "2px", paddingBottom: "2px", fontSize: "14px", fontWeight: "bold", color: textColor }}>[{prefix}]</span>
+            <span style={{ fontWeight: "bold" }}>{title}</span>
           </h3>
-          <div className="text-[12px] text-zinc-600 text-center leading-relaxed font-medium">{desc}</div>
+          <div style={{ fontSize: "12px", color: "#52525b", textAlign: "center", lineHeight: "1.625", fontWeight: 500 }}>{desc}</div>
         </div>
-        <div className="p-4 pt-1 bg-zinc-50">
+        <div style={{ padding: "16px", paddingTop: "4px", backgroundColor: "#fafafa" }}>
           <button onClick={handleAction} className="w-full btn-yellow-pixel py-2.5 text-[15px] cursor-pointer pixel-btn">
             {btnText}
           </button>
@@ -166,14 +200,40 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
       ) : (
         <div
           ref={dashboardRef}
-          className={cn("bg-white p-6 light-border flex flex-col items-center gap-4 relative font-pixel", className)}
+          className={cn("light-border", className)}
+          style={{
+            ...style,
+            backgroundColor: "white",
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "16px",
+            position: "relative",
+            fontFamily: "var(--font-pixel)",
+          }}
         >
           {onClose && (
             <button
               onClick={onClose}
-              className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-black transition-colors cursor-pointer rounded-md"
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "8px",
+                padding: "4px",
+                color: "#a1a1aa",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                transition: "color 0.2s",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "black")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
             >
-              <X className="w-4 h-4" />
+              <X style={{ width: "16px", height: "16px" }} />
             </button>
           )}
 
@@ -183,7 +243,7 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
               onClose?.();
             }}
             className="relative transition-transform active:scale-95 cursor-pointer mt-4"
-            style={{ background: "none", border: "none", padding: 0 }}
+            style={{ background: "none", border: "none", padding: 0, marginTop: "16px", position: "relative" }}
           >
             <PixelCharacter size="lg" />
             <AnimatePresence>
@@ -193,7 +253,7 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
                   animate={{ x: 0, scale: 1, opacity: 1 }}
                   exit={{ opacity: 0, scale: 0.8, x: -60 }}
                   transition={{ duration: 1.2, ease: "easeInOut" }}
-                  className="absolute -bottom-1 -right-1"
+                  style={{ position: "absolute", bottom: "-4px", right: "-4px" }}
                 >
                   <PixelOfficer
                     size="sm"
@@ -204,24 +264,29 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
             </AnimatePresence>
           </button>
 
-          <div className="w-full flex flex-col justify-center">
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             {analysisStatus === "idle" && (
               <button
                 onClick={() => startAnalysis()}
                 className="w-full btn-blue-pixel py-3 px-4 text-[16px] cursor-pointer pixel-btn"
+                style={{ width: "100%", padding: "12px 16px", fontSize: "16px" }}
               >
                 스캔 시작
               </button>
             )}
 
             {analysisStatus !== "idle" && analysisStatus !== "complete" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-1.5 px-1 pb-1">
-                <div className="flex items-center justify-between text-[11px] text-zinc-900 px-0.5">
-                  <div className="flex items-center gap-1.5 tracking-widest">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "4px", paddingRight: "4px", paddingBottom: "4px" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: "#18181b", paddingLeft: "2px", paddingRight: "2px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", letterSpacing: "0.1em" }}>
                     <span className="animate-pulse">{statusMsg}</span>
                   </div>
                 </div>
-                <div className="h-4 w-full bg-zinc-200 p-0.5 pixel-border">
+                <div className="pixel-border" style={{ height: "16px", width: "100%", backgroundColor: "#e4e4e7", padding: "2px" }}>
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{
@@ -229,20 +294,21 @@ export function AnalysisDashboard({ className = "", onClose }: AnalysisDashboard
                         analysisStatus === "detecting" ? "25%" : analysisStatus === "analyzing_transcript" ? "50%" : analysisStatus === "analyzing_claims" ? "75%" : "90%",
                     }}
                     transition={{ duration: 0.5 }}
-                    className="h-full bg-green-500 transition-all duration-300"
+                    style={{ height: "100%", backgroundColor: "#10b981", transition: "all 0.3s ease" }}
                   />
                 </div>
               </motion.div>
             )}
 
             {analysisStatus === "complete" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <button
                   onClick={() => {
                     openPanel();
                     onClose?.();
                   }}
                   className="w-full btn-purple-pixel py-2.5 text-[15px] cursor-pointer pixel-btn"
+                  style={{ width: "100%", padding: "10px 0", fontSize: "15px" }}
                 >
                   리포트 확인
                 </button>

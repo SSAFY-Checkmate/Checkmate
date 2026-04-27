@@ -136,6 +136,7 @@ function ClaimVoteCard({ claim }: { claim: Claim }) {
 function ChatRoom() {
   const { chatMessages, addChatMessage } = useCheckmateStore();
   const [newMessage, setNewMessage] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleSend = () => {
     if (newMessage.trim()) {
@@ -159,7 +160,7 @@ function ChatRoom() {
           backgroundColor: "#f0f9ff",
           display: "flex",
           alignItems: "center",
-          justifyContent: "between",
+          justifyContent: "space-between",
         }}
       >
         <h4
@@ -238,16 +239,20 @@ function ChatRoom() {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           placeholder="메시지 입력..."
           style={{
             flex: 1,
             padding: "10px",
             backgroundColor: "#f9fafb",
-            border: "2.5px solid #e5e7eb",
+            border: "2.5px solid",
+            borderColor: isFocused ? "#60a5fa" : "#e5e7eb",
             fontSize: "13px",
             outline: "none",
+            transition: "border-color 0.2s",
           }}
-          className="pixel-border focus:border-blue-400"
+          className="pixel-border"
         />
         <button
           onClick={handleSend}
@@ -260,8 +265,11 @@ function ChatRoom() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            transition: "all 0.1s",
           }}
-          className="pixel-btn hover:bg-blue-600 transition-all"
+          className="pixel-btn"
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#3b82f6")}
         >
           <Send style={{ width: "16px", height: "16px" }} />
         </button>
@@ -272,6 +280,7 @@ function ChatRoom() {
 
 export function CommunityTab() {
   const { claims, analysisStatus } = useCheckmateStore();
+  const [isBtnPressed, setIsBtnPressed] = useState(false);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
@@ -330,6 +339,9 @@ export function CommunityTab() {
         }}
       >
         <button
+          onMouseDown={() => setIsBtnPressed(true)}
+          onMouseUp={() => setIsBtnPressed(false)}
+          onMouseLeave={() => setIsBtnPressed(false)}
           style={{
             width: "100%",
             padding: "16px 24px",
@@ -342,11 +354,12 @@ export function CommunityTab() {
             justifyContent: "center",
             gap: "12px",
             border: "none",
-            boxShadow: "0 4px 0 #b45309",
+            boxShadow: isBtnPressed ? "0 2px 0 #b45309" : "0 4px 0 #b45309",
+            transform: isBtnPressed ? "translateY(2px)" : "none",
             transition: "all 0.1s ease",
             cursor: "pointer",
           }}
-          className="pixel-btn active:translate-y-[2px] active:shadow-[0_2px_0_#b45309] hover:brightness-110"
+          className="pixel-btn"
         >
           <Plus style={{ width: "24px", height: "24px" }} />
           나도 허위 영상 제보하기

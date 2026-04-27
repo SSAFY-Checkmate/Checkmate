@@ -14,21 +14,11 @@ type PixelCharacterProps = {
  * ad-check/pixel-character.tsx의 설정을 100% 이식했습니다.
  */
 export const PixelCharacter = ({ className, size = "xl" }: PixelCharacterProps) => {
-  const sizeClasses = {
-    sm: "w-12 h-12",
-    md: "w-24 h-24",
-    lg: "w-36 h-36",
-    xl: "w-48 h-48",
-    "2xl": "w-64 h-64",
-    "3xl": "w-80 h-80",
-    "4xl": "w-96 h-96",
-  };
-
   // Shadow DOM 대응용 인라인 수치 (Tailwind 1단위 = 4px)
   const sizeValues = {
     sm: { w: "48px", h: "48px" },
     md: { w: "96px", h: "96px" },
-    lg: { w: "200px", h: "200px" },  // 144px에서 200px로 상향 조정 (스케일 대응)
+    lg: { w: "200px", h: "200px" }, // 144px에서 200px로 상향 조정 (스케일 대응)
     xl: { w: "192px", h: "192px" },
     "2xl": { w: "256px", h: "256px" },
     "3xl": { w: "320px", h: "320px" },
@@ -39,19 +29,25 @@ export const PixelCharacter = ({ className, size = "xl" }: PixelCharacterProps) 
 
   return (
     <div
-      className={cn("relative", sizeClasses[size], className)}
-      style={{ width: currentSize.w, height: currentSize.h, display: "block" }}
+      className={className}
+      style={{
+        position: "relative",
+        width: currentSize.w,
+        height: currentSize.h,
+        display: "block",
+      }}
     >
       <img
         src={chrome.runtime?.getURL ? chrome.runtime.getURL("/police-station.png") : "/police-station.png"}
         alt="Checkmate 경찰서"
-        className="object-contain w-full h-full pointer-events-none"
         style={{
           width: "100%",
           height: "auto",
           display: "block",
+          objectFit: "contain",
+          pointerEvents: "none",
           transform: "scale(1.6)",
-          transformOrigin: "center center", // 중앙을 기준으로 커지도록 수정하여 위아래 균형 맞춤
+          transformOrigin: "center center",
           imageRendering: "pixelated",
         }}
       />
@@ -64,16 +60,6 @@ export const PixelCharacter = ({ className, size = "xl" }: PixelCharacterProps) 
  * ad-check/pixel-character.tsx의 설정을 100% 이식했습니다.
  */
 export const PixelOfficer = ({ className, size = "md" }: PixelCharacterProps) => {
-  const sizeClasses = {
-    sm: "w-10 h-14",
-    md: "w-16 h-24",
-    lg: "w-24 h-36",
-    xl: "w-32 h-48",
-    "2xl": "w-48 h-72",
-    "3xl": "w-56 h-84",
-    "4xl": "w-64 h-96",
-  };
-
   // Shadow DOM 대응용 인라인 수치
   const sizeValues = {
     sm: { w: "40px", h: "56px" },
@@ -89,8 +75,9 @@ export const PixelOfficer = ({ className, size = "md" }: PixelCharacterProps) =>
 
   return (
     <div
-      className={cn("relative", sizeClasses[size], className)}
+      className={className}
       style={{
+        position: "relative",
         width: currentSize.w,
         height: currentSize.h,
         display: "flex",
@@ -101,11 +88,12 @@ export const PixelOfficer = ({ className, size = "md" }: PixelCharacterProps) =>
       <img
         src={chrome.runtime?.getURL ? chrome.runtime.getURL("/sheriff.gif") : "/sheriff.gif"}
         alt="Checkmate 보안관"
-        className="object-contain pointer-events-none"
         style={{
           width: "100%",
           height: "100%",
           display: "block",
+          objectFit: "contain",
+          pointerEvents: "none",
           imageRendering: "pixelated",
         }}
       />
