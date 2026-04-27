@@ -9,10 +9,9 @@ import java.time.Duration;
 public class SwaggerRedirectCookieProvider {
 
     public static final String COOKIE_NAME = "swagger_redirect";
-    private static final String SWAGGER_REDIRECT_URI = "/swagger-ui/index.html";
 
-    public ResponseCookie createCookie() {
-        return ResponseCookie.from(COOKIE_NAME, SWAGGER_REDIRECT_URI)
+    public ResponseCookie createCookie(String swaggerRedirectUri) {
+        return ResponseCookie.from(COOKIE_NAME, swaggerRedirectUri)
                 .httpOnly(true)
                 .secure(true)
                 .path("/")

@@ -45,9 +45,8 @@ server:
 jwt:
   secret: ${JWT_SECRET}
 
-app:
-  oauth2:
-    success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
+oauth2:
+  success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
 
 outbox:
   publisher:
