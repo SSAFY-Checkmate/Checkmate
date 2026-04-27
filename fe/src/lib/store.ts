@@ -76,6 +76,9 @@ interface CheckmateState {
   wantedCards: WantedCard[];
   chatMessages: ChatMessage[];
 
+  // 분석 결과 캐시
+  analyzedVideos: Record<string, Partial<CheckmateState>>;
+
   // 액션 (상태 변경 함수들)
   openPanel: () => void;
   closePanel: () => void;
@@ -87,7 +90,6 @@ interface CheckmateState {
   startAnalysis: () => void;
   setCurrentVideo: (id: string, title: string, channel: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
-  /** 현재 영상의 주장에 대해 투표 */
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
 }
@@ -95,7 +97,7 @@ interface CheckmateState {
 /**
  * Zustand Store 구현
  */
-export const useCheckmateStore = create<CheckmateState>((set) => ({
+export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   // 초기 상태 설정
   isPanelOpen: false,
   activeTab: "report",
@@ -105,27 +107,16 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
   analysisStatus: "idle",
   videoTitle: "",
   channelName: "",
-  currentVideoId: "1",
+  currentVideoId: null,
   trustScore: 0,
   overallVerdict: "unknown",
   claims: [],
+  analyzedVideos: {},
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
-    {
-      id: "w1",
-      claim: "이 약만 먹으면 일주일 만에 10kg 감량?",
-      reporterComment: "과장 광고가 의심됩니다.",
-      votesTrue: 12,
-      votesFake: 85,
-    },
-    {
-      id: "w2",
-      claim: "내일부터 모든 세금이 0원?",
-      reporterComment: "가짜 뉴스인 것 같아요.",
-      votesTrue: 3,
-      votesFake: 142,
-    },
+    { id: "w1", claim: "이 약만 먹으면 일주일 만에 10kg 감량?", reporterComment: "과장 광고가 의심됩니다.", votesTrue: 12, votesFake: 85 },
+    { id: "w2", claim: "내일부터 모든 세금이 0원?", reporterComment: "가짜 뉴스인 것 같아요.", votesTrue: 3, votesFake: 142 },
   ],
   chatMessages: [
     { id: "1", username: "팩트체커", message: "이 영상 3분 12초 부분 자막이 이상해요.", badge: "verifier" },
@@ -147,29 +138,16 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
     set((state) => ({
       wantedCards: state.wantedCards.map((card) =>
         card.id === cardId
-          ? {
-              ...card,
-              userVote: vote,
-              votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
-              votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
-            }
+          ? { ...card, userVote: vote, votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue, votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake }
           : card,
       ),
     })),
 
-  /**
-   * 현재 영상의 특정 주장에 대해 커뮤니티 투표를 반영
-   */
   voteOnClaim: (claimId, vote) =>
     set((state) => ({
       claims: state.claims.map((claim) =>
         claim.id === claimId
-          ? {
-              ...claim,
-              userVote: vote,
-              votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
-              votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
-            }
+          ? { ...claim, userVote: vote, votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue, votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake }
           : claim,
       ),
     })),
@@ -180,24 +158,48 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
     })),
 
   /**
-   * 영상 정보를 설정
+   * 영상 정보를 설정하고 캐시를 확인하여 상태를 복원하거나 리셋
    */
-  setCurrentVideo: (id, title, channel) =>
-    set({
-      currentVideoId: id,
-      videoTitle: title,
-      channelName: channel,
-      analysisStatus: "idle",
-      overallVerdict: "unknown",
-      trustScore: 0,
-      isWarningVisible: false,
-    }),
+  setCurrentVideo: (id, title, channel) => {
+    const state = get();
+    // 이미 같은 영상이면 무시
+    if (state.currentVideoId === id) return;
+
+    const cachedData = state.analyzedVideos[id];
+
+    if (cachedData) {
+      // 캐시된 분석 결과가 있으면 복원
+      set({
+        currentVideoId: id,
+        videoTitle: title || state.videoTitle,
+        channelName: channel || state.channelName,
+        isPanelOpen: false, // 영상 전환 시 서랍은 닫음
+        ...cachedData,
+      });
+      console.log(`[Checkmate] 영상(${id}) 캐시 복원됨:`, cachedData);
+    } else {
+      // 새로운 영상이면 초기화
+      set({
+        currentVideoId: id,
+        videoTitle: title || state.videoTitle,
+        channelName: channel || state.channelName,
+        analysisStatus: "idle",
+        overallVerdict: "unknown",
+        trustScore: 0,
+        isWarningVisible: false,
+        isPanelOpen: false,
+        claims: [],
+        warningCount: 0,
+      });
+      console.log(`[Checkmate] 새로운 영상(${id}) 상태 초기화됨`);
+    }
+  },
 
   /**
    * 영상 분석 시뮬레이션
    */
   startAnalysis: () => {
-    const videoId = useCheckmateStore.getState().currentVideoId;
+    const videoId = get().currentVideoId;
     if (!videoId) return;
 
     set({ analysisStatus: "detecting" });
@@ -212,17 +214,26 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
           set({ analysisStatus: "verifying" });
 
           setTimeout(() => {
-            const isWarningCase = videoId.includes("warn") || videoId === "1"; // 기본 시뮬레이션용
+            const isWarningCase = videoId.includes("warn") || videoId === "1"; // 시뮬레이션
             const result = isWarningCase ? MOCK_ANALYSIS_RESULTS.warn : MOCK_ANALYSIS_RESULTS.default;
 
-            set({
-              analysisStatus: "complete",
+            const finalState = {
+              analysisStatus: "complete" as AnalysisStatus,
               isWarningVisible: true,
               overallVerdict: result.verdict,
               trustScore: result.score,
               warningCount: result.warningCount,
               claims: result.claims,
-            });
+            };
+
+            // 상태 업데이트 및 캐시에 저장
+            set((state) => ({
+              ...finalState,
+              analyzedVideos: {
+                ...state.analyzedVideos,
+                [videoId]: finalState,
+              },
+            }));
           }, 1500);
         }, 1200);
       }, 1000);

@@ -2,6 +2,8 @@
  * Checkmate Content Script - v3.0 (단일 확장형 카드 방식)
  */
 
+import { useCheckmateStore } from "./lib/store";
+
 if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
 } else {
@@ -57,6 +59,46 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
 
       const isWatchPage = window.location.pathname === "/watch";
       const isShortsPage = window.location.pathname.startsWith("/shorts");
+
+      let videoId: string | null = null;
+      if (isWatchPage) {
+        videoId = new URLSearchParams(window.location.search).get("v");
+      } else if (isShortsPage) {
+        videoId = "shorts-" + window.location.pathname.split("/").pop();
+      }
+
+      if (videoId) {
+        // DOM이 업데이트될 때까지 기다리면서 제목과 채널명을 찾는 재시도 함수
+        const fetchVideoInfo = (attempts = 0) => {
+          if (attempts > 10) {
+            // 10번 시도(약 5초) 후에도 못 찾으면 일단 기본값으로 세팅
+            useCheckmateStore.getState().setCurrentVideo(videoId!, document.title.replace(" - YouTube", ""), "알 수 없는 채널");
+            return;
+          }
+
+          let titleEl: Element | null = null;
+          let channelEl: Element | null = null;
+
+          if (isWatchPage) {
+            titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string');
+            channelEl = document.querySelector('#owner ytd-channel-name yt-formatted-string a');
+          } else if (isShortsPage) {
+            titleEl = document.querySelector('ytd-reel-video-renderer[is-active] h2.title');
+            channelEl = document.querySelector('ytd-reel-video-renderer[is-active] ytd-channel-name yt-formatted-string a');
+          }
+
+          if (titleEl && titleEl.textContent && channelEl && channelEl.textContent) {
+            const title = titleEl.textContent.trim();
+            const channel = channelEl.textContent.trim();
+            useCheckmateStore.getState().setCurrentVideo(videoId!, title, channel);
+          } else {
+            // DOM이 아직 안 그려졌다면 500ms 후 재시도
+            setTimeout(() => fetchVideoInfo(attempts + 1), 500);
+          }
+        };
+
+        fetchVideoInfo();
+      }
 
       if (isWatchPage) {
         injectToWatchPage();
