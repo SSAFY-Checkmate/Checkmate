@@ -1,89 +1,190 @@
 /**
- * Checkmate Content Script
- * 유튜브 페이지의 변화를 감지하고 분석 대시보드를 주입하는 핵심 엔진
+ * Checkmate Content Script - v3.0 (단일 확장형 카드 방식)
  */
-console.log("[Checkmate] 콘텐츠 스크립트 로드됨! (v1.1)");
 
-import { renderDashboard } from "./components/checkmate/injector";
+import { useCheckmateStore } from "./lib/store";
 
-let isEnabled = false;
-let observer: MutationObserver | null = null;
+if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
+  console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
+} else {
+  (window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__ = true;
+  console.log("[Checkmate] 콘텐츠 스크립트 로드됨! (v3.0 - Expandable Card)");
 
-/**
- * 스토리지에서 현재 활성화 상태를 가져오고 변경을 감지합니다.
- */
-const initStorage = async () => {
-  const result = await chrome.storage.local.get(["factCheckEnabled"]);
-  isEnabled = !!result.factCheckEnabled;
+  const runCheckmate = async () => {
+    const { renderDashboard } = await import("./components/checkmate/injector");
 
-  if (isEnabled) startInfection();
+    let isEnabled = false;
+    let observer: MutationObserver | null = null;
 
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.factCheckEnabled) {
-      isEnabled = !!changes.factCheckEnabled.newValue;
+    const initStorage = async () => {
+      const result = await chrome.storage.local.get(["factCheckEnabled"]);
+      isEnabled = result.factCheckEnabled !== undefined ? !!result.factCheckEnabled : true;
+
       if (isEnabled) {
         startInfection();
-      } else {
-        stopInfection();
       }
+
+      chrome.storage.onChanged.addListener((changes) => {
+        if (changes.factCheckEnabled) {
+          isEnabled = !!changes.factCheckEnabled.newValue;
+          if (isEnabled) startInfection();
+          else stopInfection();
+        }
+      });
+    };
+
+    const startInfection = () => {
+      runInjections();
+
+      // 기존의 무거운 MutationObserver 제거 및 단순 감시 타이머로 교체
+      if (!(window as any).__CHECKMATE_INTERVAL__) {
+        (window as any).__CHECKMATE_INTERVAL__ = setInterval(() => {
+          const isShortsPage = window.location.pathname.startsWith("/shorts");
+          const shortsCard = document.getElementById("checkmate-shorts-card-v3.0");
+
+          // 쇼츠에서 댓글창이 열려있는지 감시
+          if (isShortsPage && shortsCard) {
+            let isPanelOpen = false;
+            // 화면 내의 모든 패널을 확인
+            const panels = document.querySelectorAll('ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]');
+            
+            panels.forEach(panel => {
+              if (window.getComputedStyle(panel).display !== "none" && panel.getBoundingClientRect().width > 0) {
+                isPanelOpen = true; // 열려있는 패널 발견!
+              }
+            });
+            
+            if (isPanelOpen) {
+              // 투명하게 만드는 것이 아니라 아예 화면에서 지워버림 (클릭 방해 0%)
+              shortsCard.style.display = "none";
+            } else {
+              shortsCard.style.display = "block";
+            }
+          }
+        }, 500); // 0.5초 간격으로 가볍게 체크
+      }
+
+      window.removeEventListener("yt-navigate-finish", runInjections);
+      window.addEventListener("yt-navigate-finish", runInjections);
+    };
+
+    const stopInfection = () => {
+      if ((window as any).__CHECKMATE_INTERVAL__) {
+        clearInterval((window as any).__CHECKMATE_INTERVAL__);
+        (window as any).__CHECKMATE_INTERVAL__ = null;
+      }
+      window.removeEventListener("yt-navigate-finish", runInjections);
+      document.querySelectorAll(".checkmate-root-container").forEach(el => el.remove());
+    };
+
+    const runInjections = () => {
+      if (!isEnabled) return;
+
+      const isWatchPage = window.location.pathname === "/watch";
+      const isShortsPage = window.location.pathname.startsWith("/shorts");
+
+      let videoId: string | null = null;
+      if (isWatchPage) {
+        videoId = new URLSearchParams(window.location.search).get("v");
+      } else if (isShortsPage) {
+        videoId = "shorts-" + window.location.pathname.split("/").pop();
+      }
+
+      if (videoId) {
+        // DOM이 업데이트될 때까지 기다리면서 제목과 채널명을 찾는 재시도 함수
+        const fetchVideoInfo = (attempts = 0) => {
+          if (attempts > 10) {
+            // 10번 시도(약 5초) 후에도 못 찾으면 일단 기본값으로 세팅
+            useCheckmateStore
+              .getState()
+              .setCurrentVideo(videoId!, document.title.replace(" - YouTube", ""), "알 수 없는 채널");
+            return;
+          }
+
+          let titleEl: Element | null = null;
+          let channelEl: Element | null = null;
+
+          if (isWatchPage) {
+            titleEl = document.querySelector("h1.ytd-watch-metadata yt-formatted-string");
+            channelEl = document.querySelector("#owner ytd-channel-name yt-formatted-string a");
+          } else if (isShortsPage) {
+            titleEl = document.querySelector("ytd-reel-video-renderer[is-active] h2.title");
+            channelEl = document.querySelector(
+              "ytd-reel-video-renderer[is-active] ytd-channel-name yt-formatted-string a",
+            );
+          }
+
+          if (titleEl && titleEl.textContent && channelEl && channelEl.textContent) {
+            const title = titleEl.textContent.trim();
+            const channel = channelEl.textContent.trim();
+            useCheckmateStore.getState().setCurrentVideo(videoId!, title, channel);
+          } else {
+            // DOM이 아직 안 그려졌다면 500ms 후 재시도
+            setTimeout(() => fetchVideoInfo(attempts + 1), 500);
+          }
+        };
+
+        fetchVideoInfo();
+      }
+
+      if (isWatchPage) {
+        injectToWatchPage();
+      } else if (isShortsPage) {
+        injectToShortsPage();
+      } else {
+        document.querySelectorAll(".checkmate-root-container").forEach((el) => el.remove());
+      }
+    };
+
+    const injectToWatchPage = () => {
+      const sidebar = document.querySelector("#secondary-inner") || document.querySelector("#secondary");
+      if (document.getElementById("checkmate-watch-card-v3.0")) return;
+
+      if (sidebar) {
+        // 기존 카드 제거
+        document.querySelectorAll(".checkmate-root-container").forEach((el) => el.remove());
+
+        const container = document.createElement("div");
+        container.id = "checkmate-watch-card-v3.0";
+        container.className = "checkmate-root-container";
+        container.style.width = "100%";
+        sidebar.prepend(container);
+        renderDashboard(container);
+      }
+    };
+
+    const injectToShortsPage = () => {
+      // 쇼츠 컨테이너가 렌더링되었는지 확인
+      const shortsContainer = document.querySelector("ytd-shorts");
+      if (!shortsContainer) return;
+
+      // 이미 주입되어 있으면 무시 (React가 상태 변경을 감지해서 알아서 업데이트함)
+      if (document.getElementById("checkmate-shorts-card-v3.0")) return;
+
+      document.querySelectorAll(".checkmate-root-container").forEach((el) => el.remove());
+
+      const container = document.createElement("div");
+      container.id = "checkmate-shorts-card-v3.0";
+      container.className = "checkmate-root-container";
+
+      // 화면(body) 기준으로 고정하여 유튜브 Polymer DOM 에러(댓글창 안 닫힘 등) 방지
+      container.style.position = "fixed";
+      container.style.top = "50px";
+      container.style.left = "calc(50% + 350px)"; // 비디오 중심에서 우측으로 350px 이동
+      container.style.width = "320px";
+      container.style.zIndex = "9999"; 
+      container.style.transition = "opacity 0.2s ease"; // 부드러운 숨김 애니메이션
+
+      document.body.appendChild(container);
+      renderDashboard(container);
+    };
+
+    if (!document.body) {
+      window.addEventListener("DOMContentLoaded", initStorage);
+    } else {
+      initStorage();
     }
-  });
-};
+  };
 
-/**
- * 유튜브 DOM을 감시하여 주입 지점이 나타나면 대시보드를 렌더링합니다.
- */
-const startInfection = () => {
-  console.log("[Checkmate] 수사 시작...");
-
-  // 이미 감시 중이라면 중복 방지
-  if (observer) return;
-
-  // 초기 로드 시 시도
-  injectToWatchPage();
-
-  // DOM 변화 감시 (유튜브는 SPA라 페이지 이동 시 엘리먼트가 동적으로 생성됨)
-  observer = new MutationObserver(() => {
-    injectToWatchPage();
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-};
-
-/**
- * 기능을 정지하고 주입된 UI를 제거합니다.
- */
-const stopInfection = () => {
-  console.log("[Checkmate] 수사 중지...");
-  if (observer) {
-    observer.disconnect();
-    observer = null;
-  }
-
-  // 주입된 모든 요소 제거
-  const injected = document.querySelectorAll("checkmate-root");
-  injected.forEach((el) => el.remove());
-};
-
-/**
- * 일반 영상(Watch) 페이지의 사이드바에 주입합니다.
- */
-const injectToWatchPage = () => {
-  const sidebar = document.querySelector("#secondary-inner");
-
-  // 사이드바가 존재하고 아직 우리 대시보드가 주입되지 않았다면 실행
-  if (sidebar && !sidebar.querySelector("checkmate-root")) {
-    const container = document.createElement("checkmate-root");
-    // 사이드바 최상단에 삽입
-    sidebar.prepend(container);
-
-    // Shadow DOM을 통한 대시보드 렌더링
-    renderDashboard(container);
-  }
-};
-
-// 엔진 가동
-initStorage();
+  runCheckmate();
+}

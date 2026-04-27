@@ -1,70 +1,61 @@
-import { cn } from "../../lib/utils";
-
 /**
- * 캐릭터 컴포넌트 공통 Props 타입
+ * [Checkmate 캐릭터 컴포넌트 - 레퍼런스 최적화 및 타입 복구]
  */
 type PixelCharacterProps = {
-  className?: string; // 추가 스타일 클래스
-  mood?: "neutral" | "alert" | "happy" | "thinking"; // 캐릭터 표정/상태
-  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl"; // 크기 프리셋
+  className?: string;
+  mood?: "neutral" | "alert" | "happy" | "thinking"; // 사라졌던 mood 속성 복구
+  size?: "sm" | "md" | "lg";
 };
 
-/**
- * [Checkmate 경찰서 건물 컴포넌트]
- * 이 컴포넌트는 분석의 메인 버튼 디자인으로 사용됩니다.
- */
-export const PixelCharacter = ({
-  className,
-  size = "xl",
-}: PixelCharacterProps) => {
-  const sizeClasses = {
-    sm: "w-12 h-12",
-    md: "w-24 h-24",
-    lg: "w-36 h-36",
-    xl: "w-48 h-48",
-    "2xl": "w-64 h-64",
-    "3xl": "w-80 h-80",
-    "4xl": "w-96 h-96",
+export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) => {
+  const sizes = {
+    sm: "48px",
+    md: "96px",
+    lg: "240px",
   };
 
   return (
-    <div className={cn("relative", sizeClasses[size], className)}>
+    <div
+      className={className}
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
+      }}
+    >
       <img
-        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/police-station.png") : "/police-station.png"}
-        alt="Checkmate 경찰서"
-        className="object-contain w-full h-full scale-[1.8] pointer-events-none"
-        style={{ imageRendering: "pixelated" }} // 픽셀 아트 뭉개짐 방지
+        src={chrome.runtime?.getURL ? chrome.runtime.getURL("police-station.png") : "/police-station.png"}
+        alt="Police Station"
+        style={{
+          width: sizes[size],
+          height: "auto",
+          display: "block",
+          imageRendering: "pixelated",
+        }}
       />
     </div>
   );
 };
 
-/**
- * [Checkmate 보안관 캐릭터 컴포넌트]
- * 분석 중이거나 결과 발표 시 보조 캐릭터로 등장합니다.
- */
-export const PixelOfficer = ({
-  className,
-  size = "md",
-}: PixelCharacterProps) => {
-  const sizeClasses = {
-    sm: "w-10 h-14",
-    md: "w-16 h-24",
-    lg: "w-24 h-36",
-    xl: "w-32 h-48",
-    "2xl": "w-48 h-72",
-    "3xl": "w-56 h-84",
-    "4xl": "w-64 h-96",
+export const PixelOfficer = ({ size = "sm", mood = "neutral" }: PixelCharacterProps) => {
+  const sizes = {
+    sm: "40px",
+    md: "64px",
+    lg: "96px",
   };
 
+  // mood에 따라 다른 애니메이션이나 상태를 보여줄 수 있으나, 
+  // 현재는 기본 sheriff.gif를 사용하되 타입 에러를 해결합니다.
   return (
-    <div className={cn("relative", sizeClasses[size], className)}>
-      <img
-        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/sheriff.gif") : "/sheriff.gif"}
-        alt="Checkmate 보안관"
-        className="object-contain w-full h-full"
-        style={{ imageRendering: "pixelated" }} // 픽셀 아트 뭉개짐 방지
-      />
-    </div>
+    <img
+      src={chrome.runtime?.getURL ? chrome.runtime.getURL("sheriff.gif") : "/sheriff.gif"}
+      alt={`Officer (${mood})`}
+      style={{
+        width: sizes[size],
+        height: "auto",
+        imageRendering: "pixelated",
+      }}
+    />
   );
 };

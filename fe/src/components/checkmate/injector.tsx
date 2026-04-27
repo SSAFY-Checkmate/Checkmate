@@ -1,55 +1,55 @@
-import ReactDOM from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { AnalysisDashboard } from "./analysis-dashboard";
+import styles from "../../index.css?inline";
 
 /**
- * 특정 컨테이너에 Shadow DOM을 생성하고 리액트 컴포넌트를 렌더링합니다.
- * @param container 주입될 타겟 엘리먼트 (checkmate-root)
+ * [Checkmate 유튜브 인젝터 - v3.0 단일 카드 버전]
  */
 export const renderDashboard = (container: HTMLElement) => {
-  // 이미 Shadow Root가 있다면 중복 생성 방지
-  if (container.shadowRoot) return;
+  const rootId = "checkmate-dashboard-root";
+  if (container.querySelector(`#${rootId}`)) return;
 
-  // 1. Shadow Root 생성 (open 모드로 설정하여 JS 접근 허용)
-  const shadow = container.attachShadow({ mode: "open" });
-
-  // 2. 리액트 앱이 담길 내부 컨테이너 생성
   const rootContainer = document.createElement("div");
-  rootContainer.id = "checkmate-dashboard-inner";
+  rootContainer.id = rootId;
+  rootContainer.style.width = "100%";
+  rootContainer.style.display = "block";
+  rootContainer.style.position = "relative";
 
-  // 3. Shadow DOM 내부에 스타일 주입 (Vite가 생성한 스타일을 Shadow DOM으로 복제)
-  // 메인 문서에 주입된 스타일을 찾아서 Shadow DOM 안으로 복사합니다.
-  const styles = document.querySelectorAll('link[rel="stylesheet"], style');
-  styles.forEach((s) => {
-    shadow.appendChild(s.cloneNode(true));
-  });
+  // 1. Shadow DOM 생성 (격리벽 설치)
+  const shadow = rootContainer.attachShadow({ mode: "open" });
 
-  const style = document.createElement("style");
-  style.textContent = `
+  // 2. 스타일 주입
+  const styleElement = document.createElement("style");
+  styleElement.textContent = `
     :host {
-      display: block;
-      width: 100%;
-      margin-bottom: 20px;
-      z-index: 9999;
-    }
-    #checkmate-dashboard-inner {
-      display: block;
-      width: 100%;
-      font-family: 'Pretendard', sans-serif;
+      all: initial !important;
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      position: relative !important;
+      overflow: visible !important;
     }
     .checkmate-injected-wrapper {
-      width: 100%;
-      box-sizing: border-box;
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      pointer-events: auto !important;
+      image-rendering: pixelated !important;
     }
+    ${styles}
   `;
+  shadow.appendChild(styleElement);
 
-  shadow.appendChild(style);
-  shadow.appendChild(rootContainer);
+  const reactWrapper = document.createElement("div");
+  reactWrapper.className = "checkmate-injected-wrapper";
+  shadow.appendChild(reactWrapper);
 
-  // 4. 리액트 렌더링
-  const root = ReactDOM.createRoot(rootContainer);
-  root.render(
-    <div className="checkmate-injected-wrapper">
-      <AnalysisDashboard />
-    </div>,
-  );
+  container.appendChild(rootContainer);
+
+  try {
+    const root = createRoot(reactWrapper);
+    root.render(<AnalysisDashboard />);
+  } catch (err) {
+    console.error("[Checkmate] 렌더링 에러:", err);
+  }
 };

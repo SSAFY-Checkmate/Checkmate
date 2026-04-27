@@ -1,251 +1,254 @@
-import { useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
-import { useCheckmateStore, type AnalysisStatus } from "../../lib/store";
-import { cn } from "../../lib/utils";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useCheckmateStore } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
-import { ANALYSIS_WARNING_CONFIG } from "../../lib/constants/mock-data";
-
-type AnalysisDashboardProps = {
-  className?: string;
-  onClose?: () => void;
-};
-
-/**
- * 분석 상태에 따른 메시지를 반환하는 헬퍼 함수
- */
-const getStatusMessage = (status: AnalysisStatus): string => {
-  switch (status) {
-    case "detecting":
-      return "영상 감지 중...";
-    case "analyzing_transcript":
-      return "자막 분석 중...";
-    case "analyzing_claims":
-      return "주장 추출 중...";
-    case "verifying":
-      return "신뢰도 검증 중...";
-    case "complete":
-      return "수사 완료";
-    case "idle":
-    default:
-      return "스캔 대기 중";
-  }
-};
+import { SidePanel } from "./side-panel";
+import { ResponseModal } from "./response-modal";
+import { motion, AnimatePresence } from "framer-motion";
+import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
 
 /**
- * [AnalysisDashboard 컴포넌트]
- * 실시간 영상 분석 상태와 결과를 보여주는 핵심 UI입니다.
+ * [Checkmate 대시보드 - v3.0 확장형 카드 버전]
  */
-export const AnalysisDashboard = ({
-  className = "",
-  onClose,
-}: AnalysisDashboardProps) => {
-  // 스토어에서 상태와 액션을 가져옵니다.
-  const {
-    startAnalysis,
-    analysisStatus,
-    overallVerdict,
-    openPanel,
-    isWarningVisible,
-    closeWarning,
+export function AnalysisDashboard() {
+  const { 
+    startAnalysis, 
+    analysisStatus, 
+    overallVerdict, 
+    openPanel, 
+    isWarningVisible, 
+    warningCount, 
+    closeWarning, 
     setActiveTab,
+    isPanelOpen,
+    closePanel
   } = useCheckmateStore();
+  
+  const [isPressed, setIsPressed] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
-  // 현재 분석 단계에 맞는 메시지를 결정합니다.
-  const statusMsg = useMemo(() => getStatusMessage(analysisStatus), [analysisStatus]);
+  const isWatchPage = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
+  }, []);
 
-  /**
-   * 결과 팝업(주의/안전/보류)에 대한 설정 데이터
-   * [TODO: 목업 데이터 분리 완료] constants/mock-data.ts에서 가져옵니다.
-   */
-  const warningConfig = ANALYSIS_WARNING_CONFIG;
+  // Click outside to close (외부 클릭 시 대시보드 닫기)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Shadow DOM 환경을 고려하여 composedPath() 사용
+      const path = event.composedPath();
+      if (
+        isPanelOpen &&
+        dashboardRef.current &&
+        !path.includes(dashboardRef.current)
+      ) {
+        closePanel();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isPanelOpen, closePanel]);
 
-  /**
-   * 결과 확인 버튼 클릭 시 동작
-   */
-  const handleAction = () => {
-    closeWarning();
-    if (overallVerdict === "unknown") {
-      setActiveTab("community");
-    } else {
-      setActiveTab("report");
+  const togglePanel = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isPanelOpen) closePanel();
+    else {
+      if (overallVerdict === "unknown") setActiveTab("community");
+      else setActiveTab("report");
+      openPanel();
     }
-    openPanel();
   };
 
-  // 1. 분석 완료 후 결과 팝업이 띄워진 상태 (Warning/Safe View)
-  if (isWarningVisible) {
-    const {
-      gradient,
-      textColor,
-      icon: Icon,
-      prefix,
-      title,
-      desc,
-      btnText,
-    } = warningConfig[overallVerdict];
+  /**
+   * 분석 상태에 따른 메시지 매핑
+   */
+  const statusMsg = useMemo(() => {
+    switch (analysisStatus) {
+      case "detecting": return "영상 감지 중...";
+      case "analyzing_transcript": return "자막 분석 중...";
+      case "analyzing_claims": return "주장 추출 중...";
+      case "verifying": return "신뢰도 검증 중...";
+      case "complete": return "수사 완료";
+      default: return "";
+    }
+  }, [analysisStatus]);
 
-    return (
-      <div
-        className={cn(
-          "bg-white pixel-border overflow-hidden flex flex-col relative transition-all duration-300",
-          className,
-        )}
-      >
-        {/* 상단 컬러 섹션 */}
-        <div
-          className={cn(
-            "relative pt-8 pb-6 flex items-center justify-center border-b-[2px] border-black/20 bg-gradient-to-br",
-            gradient,
-          )}
-        >
-          <button
-            onClick={closeWarning}
-            className="absolute top-2 right-2 p-1 text-white hover:bg-black/20 transition-all cursor-pointer rounded-md"
-          >
-            <X className="w-5 h-5" />
-          </button>
+  const warningConfig = {
+    safe: {
+      gradient: "linear-gradient(135deg, #60a5fa, #2563eb)",
+      textColor: "#2563eb",
+      icon: ShieldCheck,
+      prefix: "신뢰",
+      title: "검증된 신뢰 정보",
+      desc: "분석 결과, 신뢰할 수 있는 사실로 확인되었습니다.",
+      btnText: "결과 상세 보기",
+    },
+    warning: {
+      gradient: "linear-gradient(135deg, #f87171, #dc2626)",
+      textColor: "#dc2626",
+      icon: AlertTriangle,
+      prefix: "주의",
+      title: "허위 정보 주의",
+      desc: `${warningCount}건의 허위 의심 문장이 발견되었습니다.`,
+      btnText: "판단 근거 보기",
+    },
+    unknown: {
+      gradient: "linear-gradient(135deg, #fbbf24, #d97706)",
+      textColor: "#d97706",
+      icon: HelpCircle,
+      prefix: "보류",
+      title: "판단 보류",
+      desc: "AI 판독이 어렵습니다. 커뮤니티에서 진위를 따져보세요.",
+      btnText: "커뮤니티 이동",
+    },
+  };
 
-          <div className="p-3 bg-black/20 rounded-md">
-            <Icon className="w-12 h-12 text-white" strokeWidth={2} />
-          </div>
-        </div>
+  if (!isWatchPage) return null;
 
-        {/* 텍스트 설명 섹션 */}
-        <div className="flex flex-col items-center pt-5 pb-3 px-4 bg-zinc-50">
-          <h3 className="text-[16px] text-black mb-2 flex items-center justify-center gap-2 text-center tracking-wide">
-            <span
-              className={cn(
-                "inline-block px-1.5 py-0.5 text-[14px] font-bold",
-                textColor,
-              )}
-            >
-              [{prefix}]
-            </span>
-            <span className="font-bold">{title}</span>
-          </h3>
-          <div className="text-[12px] text-zinc-600 text-center leading-relaxed font-medium">
-            {desc}
-          </div>
-        </div>
-
-        {/* 액션 버튼 */}
-        <div className="p-4 pt-1 bg-zinc-50">
-          <button
-            onClick={handleAction}
-            className="w-full bg-[#fde047] py-2.5 text-[15px] pixel-btn"
-          >
-            {btnText}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. 기본 분석 대기/진행 상태 (Default/Scanning View)
   return (
-    <div
-      className={cn(
-        "bg-white p-4 pixel-border flex flex-col items-center gap-1.5 relative",
-        className,
-      )}
+    <div 
+      ref={dashboardRef}
+      style={PIXEL_STYLES.dashboardContainer}
     >
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-black transition-colors cursor-pointer rounded-md"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
-
-      {/* 캐릭터 섹션 */}
-      <div className="relative transition-transform active:scale-95 cursor-pointer mt-2">
-        <PixelCharacter size="lg" />
-        <AnimatePresence>
-          {analysisStatus !== "idle" && (
-            <motion.div
-              initial={{ x: -60, scale: 0.8, opacity: 0 }}
-              animate={{ x: 0, scale: 1, opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.8, x: -60 }}
-              transition={{ duration: 1.2, ease: "easeInOut" }}
-              className="absolute -bottom-1 -right-1"
-            >
-              <PixelOfficer
-                size="sm"
-                mood={
-                  analysisStatus === "complete"
-                    ? overallVerdict === "warning"
-                      ? "alert"
-                      : "happy"
-                    : "thinking"
-                }
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* 상태바 및 버튼 섹션 */}
-      <div className="w-full flex flex-col justify-center min-h-[50px] mt-2">
-        {/* A. 기본 상태 (IDLE) */}
-        {analysisStatus === "idle" && (
-          <button
-            onClick={() => startAnalysis()}
-            className="w-full bg-blue-500 text-white py-2.5 px-3 text-[14px] tracking-wide pixel-btn"
-          >
-            스캔 시작
-          </button>
-        )}
-
-        {/* B. 진행 상태 (ANALYZING) */}
-        {analysisStatus !== "idle" && analysisStatus !== "complete" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-1.5 px-1 pb-1"
-          >
-            <div className="flex items-center justify-between text-[11px] text-zinc-900 px-0.5">
-              <span className="animate-pulse font-bold tracking-widest">
-                {statusMsg}
-              </span>
+      {/* --- 상단 메인 카드 영역 --- */}
+      <div
+        id="checkmate-main-card"
+        style={{
+          ...PIXEL_STYLES.border,
+          ...PIXEL_STYLES.mainCard,
+        }}
+      >
+        {isWarningVisible ? (
+          /* 분석 결과 표시 상태 */
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={PIXEL_STYLES.warningHeader(warningConfig[overallVerdict].gradient)}>
+              <div style={PIXEL_STYLES.warningIconContainer}>
+                {(() => {
+                  const Icon = warningConfig[overallVerdict].icon;
+                  return <Icon size={32} color="white" />;
+                })()}
+              </div>
+              <h3 style={{ fontSize: "15px", margin: 0, color: "white", fontWeight: "bold" }}>
+                [{warningConfig[overallVerdict].prefix}] {warningConfig[overallVerdict].title}
+              </h3>
             </div>
-            <div className="h-4 w-full bg-zinc-200 p-0.5 border-[2px] border-black">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{
-                  width:
-                    analysisStatus === "detecting"
-                      ? "25%"
-                      : analysisStatus === "analyzing_transcript"
-                        ? "50%"
-                        : analysisStatus === "analyzing_claims"
-                          ? "75%"
-                          : "90%",
+            
+            <div style={{ padding: "16px", backgroundColor: "#fafafa", textAlign: "center" }}>
+              <p style={{ fontSize: "12px", color: "#52525b", lineHeight: "1.5", margin: "0 0 12px 0" }}>
+                {warningConfig[overallVerdict].desc}
+              </p>
+              <button 
+                onClick={(e) => togglePanel(e)} 
+                style={{ 
+                  ...PIXEL_STYLES.btnBase, 
+                  backgroundColor: isPanelOpen ? "#e4e4e7" : "#fde047", 
+                  color: "black",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px"
                 }}
-                transition={{ duration: 0.5 }}
-                className="h-full bg-green-500 transition-all duration-300"
-              />
+              >
+                {isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
+                {isPanelOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* 분석 대기/진행 상태 */
+          <div style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            <div style={{ position: "relative", cursor: "pointer" }} onClick={() => startAnalysis()}>
+              <PixelCharacter size="lg" />
+              <AnimatePresence>
+                {analysisStatus !== "idle" && (
+                  <motion.div
+                    initial={{ x: -40, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    style={{ position: "absolute", bottom: "-2px", right: "-10px" }}
+                  >
+                    <PixelOfficer size="sm" mood={analysisStatus === "complete" ? "happy" : "thinking"} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div style={{ width: "100%", minHeight: "44px" }}>
+              {analysisStatus === "idle" ? (
+                <button
+                  onClick={() => startAnalysis()}
+                  onMouseDown={() => setIsPressed(true)}
+                  onMouseUp={() => setIsPressed(false)}
+                  style={{
+                    ...PIXEL_STYLES.btnBase,
+                    backgroundColor: COLORS.primary,
+                    color: "white",
+                    ...(isPressed ? PIXEL_STYLES.btnActive : {}),
+                  }}
+                >
+                  팩트체크 수사 시작
+                </button>
+              ) : analysisStatus === "complete" ? (
+                <button
+                  onClick={(e) => togglePanel(e)}
+                  style={{
+                    ...PIXEL_STYLES.btnBase,
+                    backgroundColor: "#a855f7", // 보라색 버튼
+                    boxShadow: "2px 2px 0 0 rgba(0,0,0,0.3), inset -2px -2px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 0 rgba(255,255,255,0.3)",
+                    color: "white",
+                  }}
+                >
+                  리포트 다시 보기
+                </button>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#18181b" }}>
+                    <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
+                  </div>
+                  <div style={{ height: "12px", width: "100%", backgroundColor: "#e4e4e7", padding: "2px", ...PIXEL_STYLES.border }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{
+                        width:
+                          analysisStatus === "detecting" ? "25%" : 
+                          analysisStatus === "analyzing_transcript" ? "50%" : 
+                          analysisStatus === "analyzing_claims" ? "75%" : "90%",
+                      }}
+                      style={{ height: "100%", backgroundColor: "#22c55e" }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* --- 하단 확장 영역 (리포트/커뮤니티) --- */}
+      <AnimatePresence>
+        {isPanelOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            style={{ 
+              width: "100%", 
+              overflow: "hidden",
+              ...PIXEL_STYLES.border,
+              borderTop: "none",
+              backgroundColor: "white",
+              zIndex: 10
+            }}
+          >
+            <div style={{ height: "500px", display: "flex", flexDirection: "column" }}>
+              <SidePanel />
             </div>
           </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* C. 완료 상태 (COMPLETE) */}
-        {analysisStatus === "complete" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-2"
-          >
-            <button
-              onClick={() => openPanel()}
-              className="w-full bg-purple-500 text-white py-2.5 text-[14px] pixel-btn"
-            >
-              리포트 확인
-            </button>
-          </motion.div>
-        )}
-      </div>
+      <ResponseModal />
     </div>
   );
-};
+}
