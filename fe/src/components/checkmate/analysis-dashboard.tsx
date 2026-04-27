@@ -27,17 +27,22 @@ export function AnalysisDashboard() {
   const [isPressed, setIsPressed] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  const isWatchPage = window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
+  const isWatchPage = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
+  }, []);
 
-  // Click outside to close (Optional - 확장된 카드를 닫을지 결정)
+  // Click outside to close (외부 클릭 시 대시보드 닫기)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Shadow DOM 환경을 고려하여 composedPath() 사용
+      const path = event.composedPath();
       if (
         isPanelOpen &&
         dashboardRef.current &&
-        !dashboardRef.current.contains(event.target as Node)
+        !path.includes(dashboardRef.current)
       ) {
-        // closePanel(); // 필요 시 활성화
+        closePanel();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -54,6 +59,9 @@ export function AnalysisDashboard() {
     }
   };
 
+  /**
+   * 분석 상태에 따른 메시지 매핑
+   */
   const statusMsg = useMemo(() => {
     switch (analysisStatus) {
       case "detecting": return "영상 감지 중...";
@@ -100,42 +108,21 @@ export function AnalysisDashboard() {
   return (
     <div 
       ref={dashboardRef}
-      style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        alignItems: "center", 
-        width: "100%",
-        fontFamily: "'DungGeunMo', monospace",
-        marginBottom: "24px",
-      }}
+      style={PIXEL_STYLES.dashboardContainer}
     >
       {/* --- 상단 메인 카드 영역 --- */}
       <div
         id="checkmate-main-card"
         style={{
           ...PIXEL_STYLES.border,
-          width: "100%",
-          margin: "16px 0 0 0",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "white",
-          transition: "all 0.3s ease",
+          ...PIXEL_STYLES.mainCard,
         }}
       >
         {isWarningVisible ? (
           /* 분석 결과 표시 상태 */
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ 
-              padding: "24px 0 16px 0", 
-              display: "flex", 
-              flexDirection: "column",
-              alignItems: "center", 
-              justifyContent: "center",
-              background: warningConfig[overallVerdict].gradient,
-              borderBottom: "2px solid rgba(0,0,0,0.1)"
-            }}>
-              <div style={{ padding: "8px", backgroundColor: "rgba(0,0,0,0.2)", borderRadius: "8px", marginBottom: "12px" }}>
+            <div style={PIXEL_STYLES.warningHeader(warningConfig[overallVerdict].gradient)}>
+              <div style={PIXEL_STYLES.warningIconContainer}>
                 {(() => {
                   const Icon = warningConfig[overallVerdict].icon;
                   return <Icon size={32} color="white" />;

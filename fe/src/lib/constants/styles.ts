@@ -63,4 +63,40 @@ export const PIXEL_STYLES = {
     ::-webkit-scrollbar-track { background: #f1f1f1; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 0; }
   `,
+
+  dashboardContainer: {
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    width: "100%",
+    fontFamily: "'DungGeunMo', monospace",
+    marginBottom: "24px",
+  },
+
+  mainCard: {
+    width: "100%",
+    margin: "16px 0 0 0",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column" as const,
+    backgroundColor: "white",
+    transition: "all 0.3s ease",
+  },
+
+  warningHeader: (gradient: string) => ({
+    padding: "24px 0 16px 0",
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    justifyContent: "center",
+    background: gradient,
+    borderBottom: "2px solid rgba(0,0,0,0.1)",
+  }),
+
+  warningIconContainer: {
+    padding: "8px",
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderRadius: "8px",
+    marginBottom: "12px",
+  },
 };
