@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useCheckmateStore, type Claim } from "../../lib/store";
 import { ThumbsUp, ThumbsDown, Plus, Send, Award, AlertTriangle, MessageSquare } from "lucide-react";
+import { PIXEL_STYLES } from "../../lib/constants/styles";
 
 /**
  * 투표 바 컴포넌트 (인라인 스타일)
@@ -12,14 +13,13 @@ function VoteBar({ votesTrue, votesFake }: { votesTrue: number; votesFake: numbe
   return (
     <div
       style={{
+        ...PIXEL_STYLES.border,
         width: "100%",
         height: "20px",
         backgroundColor: "#f4f4f5",
         display: "flex",
         overflow: "hidden",
-        border: "2px solid #e4e4e7",
       }}
-      className="pixel-border"
     >
       <div
         style={{
@@ -42,6 +42,8 @@ function VoteBar({ votesTrue, votesFake }: { votesTrue: number; votesFake: numbe
 function ClaimVoteCard({ claim }: { claim: Claim }) {
   const { voteOnClaim } = useCheckmateStore();
   const hasVoted = !!claim.userVote;
+  const [hoveredBtn, setHoveredBtn] = useState<"true" | "fake" | null>(null);
+  const [pressedBtn, setPressedBtn] = useState<"true" | "fake" | null>(null);
 
   const verdictLabel = {
     safe: { text: "AI 판정: 사실", color: "#1e8e3e", bg: "#ecf7ed" },
@@ -50,8 +52,8 @@ function ClaimVoteCard({ claim }: { claim: Claim }) {
   }[claim.verdict];
 
   const cardStyle: React.CSSProperties = {
+    ...PIXEL_STYLES.border,
     padding: "16px",
-    border: "2.5px solid #e2e8f0",
     backgroundColor: "white",
     display: "flex",
     flexDirection: "column",
@@ -64,29 +66,39 @@ function ClaimVoteCard({ claim }: { claim: Claim }) {
     const color = type === "true" ? "#22c55e" : "#ef4444";
     const bgColor = type === "true" ? "#f0fdf4" : "#fef2f2";
     const borderColor = type === "true" ? "#bbf7d0" : "#fecaca";
+    const isHovered = hoveredBtn === type;
+    const isPressed = pressedBtn === type;
 
     return {
+      ...PIXEL_STYLES.btnBase,
       flex: 1,
       padding: "10px",
       fontSize: "13px",
-      fontWeight: "900",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: "6px",
-      transition: "all 0.2s ease",
-      cursor: hasVoted ? "default" : "pointer",
       border: `2px solid ${isThisVoted ? color : borderColor}`,
       backgroundColor: isThisVoted ? color : bgColor,
       color: isThisVoted ? "white" : color,
+      boxShadow: isThisVoted 
+        ? "none" 
+        : (isPressed ? PIXEL_STYLES.btnShadow.active : (isHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default)),
+      transform: isPressed ? "translate(2px, 2px)" : "none",
+      cursor: hasVoted ? "default" : "pointer",
     };
   };
 
   return (
-    <div style={cardStyle} className="pixel-border">
+    <div style={cardStyle}>
       {/* AI 판정 배지 + 주장 텍스트 */}
       <div>
-        <span style={{ display: "inline-block", padding: "2px 8px", fontSize: "11px", fontWeight: "bold", backgroundColor: verdictLabel.bg, color: verdictLabel.color, marginBottom: "6px" }} className="pixel-border">
+        <span style={{ 
+          ...PIXEL_STYLES.border,
+          display: "inline-block", 
+          padding: "2px 8px", 
+          fontSize: "11px", 
+          fontWeight: "bold", 
+          backgroundColor: verdictLabel.bg, 
+          color: verdictLabel.color, 
+          marginBottom: "6px" 
+        }}>
           {verdictLabel.text}
         </span>
         <p style={{ fontSize: "14px", fontWeight: "900", color: "black", margin: 0, lineHeight: 1.4 }}>
@@ -110,19 +122,25 @@ function ClaimVoteCard({ claim }: { claim: Claim }) {
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           onClick={() => !hasVoted && voteOnClaim(claim.id, "true")}
+          onMouseEnter={() => !hasVoted && setHoveredBtn("true")}
+          onMouseLeave={() => { setHoveredBtn(null); setPressedBtn(null); }}
+          onMouseDown={() => !hasVoted && setPressedBtn("true")}
+          onMouseUp={() => setPressedBtn(null)}
           disabled={hasVoted}
           style={getVoteBtnStyle("true")}
-          className="pixel-btn"
         >
-          <ThumbsUp style={{ width: "14px", height: "14px" }} />사실이다
+          <ThumbsUp style={{ width: "14px", height: "14px", marginRight: "6px" }} />사실이다
         </button>
         <button
           onClick={() => !hasVoted && voteOnClaim(claim.id, "fake")}
+          onMouseEnter={() => !hasVoted && setHoveredBtn("fake")}
+          onMouseLeave={() => { setHoveredBtn(null); setPressedBtn(null); }}
+          onMouseDown={() => !hasVoted && setPressedBtn("fake")}
+          onMouseUp={() => setPressedBtn(null)}
           disabled={hasVoted}
           style={getVoteBtnStyle("fake")}
-          className="pixel-btn"
         >
-          <ThumbsDown style={{ width: "14px", height: "14px" }} />
+          <ThumbsDown style={{ width: "14px", height: "14px", marginRight: "6px" }} />
           거짓이다
         </button>
       </div>
@@ -137,6 +155,7 @@ function ChatRoom() {
   const { chatMessages, addChatMessage } = useCheckmateStore();
   const [newMessage, setNewMessage] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [isSendHovered, setIsSendHovered] = useState(false);
 
   const handleSend = () => {
     if (newMessage.trim()) {
@@ -150,13 +169,12 @@ function ChatRoom() {
 
   return (
     <div
-      style={{ border: "2.5px solid #e4e4e7", backgroundColor: "white", overflow: "hidden" }}
-      className="pixel-border"
+      style={{ ...PIXEL_STYLES.border, backgroundColor: "white", overflow: "hidden" }}
     >
       <div
         style={{
           padding: "10px",
-          borderBottom: "2.5px solid #e4e4e7",
+          borderBottom: "2px solid #e4e4e7",
           backgroundColor: "#f0f9ff",
           display: "flex",
           alignItems: "center",
@@ -200,12 +218,12 @@ function ChatRoom() {
               {msg.badge && (
                 <span
                   style={{
+                    ...PIXEL_STYLES.border,
                     display: "inline-flex",
                     alignItems: "center",
                     padding: "2px 6px",
                     marginRight: "6px",
                     fontSize: "9px",
-                    borderRadius: "2px",
                     backgroundColor: msg.badge === "verifier" ? "#eff6ff" : "#fffbeb",
                     color: msg.badge === "verifier" ? "#2563eb" : "#d97706",
                   }}
@@ -228,7 +246,7 @@ function ChatRoom() {
       <div
         style={{
           padding: "10px",
-          borderTop: "2.5px solid #e4e4e7",
+          borderTop: "2px solid #e4e4e7",
           display: "flex",
           gap: "8px",
           backgroundColor: "#fafafa",
@@ -243,33 +261,27 @@ function ChatRoom() {
           onBlur={() => setIsFocused(false)}
           placeholder="메시지 입력..."
           style={{
+            ...PIXEL_STYLES.border,
             flex: 1,
             padding: "10px",
             backgroundColor: "#f9fafb",
-            border: "2.5px solid",
             borderColor: isFocused ? "#60a5fa" : "#e5e7eb",
             fontSize: "13px",
             outline: "none",
             transition: "border-color 0.2s",
           }}
-          className="pixel-border"
         />
         <button
           onClick={handleSend}
+          onMouseEnter={() => setIsSendHovered(true)}
+          onMouseLeave={() => setIsSendHovered(false)}
           style={{
+            ...PIXEL_STYLES.btnBase,
             padding: "0 16px",
-            backgroundColor: "#3b82f6",
+            backgroundColor: isSendHovered ? "#2563eb" : "#3b82f6",
             color: "white",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             transition: "all 0.1s",
           }}
-          className="pixel-btn"
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#3b82f6")}
         >
           <Send style={{ width: "16px", height: "16px" }} />
         </button>
@@ -281,6 +293,7 @@ function ChatRoom() {
 export function CommunityTab() {
   const { claims, analysisStatus } = useCheckmateStore();
   const [isBtnPressed, setIsBtnPressed] = useState(false);
+  const [isBtnHovered, setIsBtnHovered] = useState(false);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px", paddingBottom: "112px" }}>
@@ -305,7 +318,7 @@ export function CommunityTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {analysisStatus !== "complete" ? (
             /* 분석 전 안내 메시지 */
-            <div style={{ textAlign: "center", padding: "32px 16px", border: "2px dashed #e2e8f0", color: "#a1a1aa" }} className="pixel-border">
+            <div style={{ ...PIXEL_STYLES.border, textAlign: "center", padding: "32px 16px", backgroundColor: "#fdfdfd", color: "#a1a1aa" }}>
               <div style={{ fontSize: "32px", marginBottom: "8px" }}>🔍</div>
               <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>아직 분석이 완료되지 않았어요</p>
               <p style={{ fontSize: "11px", margin: "4px 0 0 0" }}>리포트 탭에서 스캔을 시작해 보세요!</p>
@@ -315,7 +328,7 @@ export function CommunityTab() {
               <ClaimVoteCard key={claim.id} claim={claim} />
             ))
           ) : (
-            <div style={{ textAlign: "center", padding: "32px 16px", border: "2px dashed #e2e8f0", color: "#a1a1aa" }} className="pixel-border">
+            <div style={{ ...PIXEL_STYLES.border, textAlign: "center", padding: "32px 16px", backgroundColor: "#fdfdfd", color: "#a1a1aa" }}>
               <p style={{ fontSize: "13px", fontWeight: "bold", margin: 0 }}>분석된 주장이 없습니다.</p>
             </div>
           )}
@@ -339,27 +352,21 @@ export function CommunityTab() {
         }}
       >
         <button
+          onMouseEnter={() => setIsBtnHovered(true)}
+          onMouseLeave={() => { setIsBtnHovered(false); setIsBtnPressed(false); }}
           onMouseDown={() => setIsBtnPressed(true)}
           onMouseUp={() => setIsBtnPressed(false)}
-          onMouseLeave={() => setIsBtnPressed(false)}
           style={{
+            ...PIXEL_STYLES.btnBase,
             width: "100%",
             padding: "16px 24px",
             backgroundColor: "#f59e0b",
             color: "white",
-            fontWeight: "900",
             fontSize: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             gap: "12px",
-            border: "none",
-            boxShadow: isBtnPressed ? "0 2px 0 #b45309" : "0 4px 0 #b45309",
-            transform: isBtnPressed ? "translateY(2px)" : "none",
-            transition: "all 0.1s ease",
-            cursor: "pointer",
+            boxShadow: isBtnPressed ? PIXEL_STYLES.btnShadow.active : (isBtnHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default),
+            transform: isBtnPressed ? "translate(2px, 2px)" : "none",
           }}
-          className="pixel-btn"
         >
           <Plus style={{ width: "24px", height: "24px" }} />
           나도 허위 영상 제보하기

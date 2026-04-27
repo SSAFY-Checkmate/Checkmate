@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useCheckmateStore } from "../../lib/store";
 import { X, Check, Shield, Trash2, Ban, Flag } from "lucide-react";
 import { PixelOfficer } from "./pixel-character";
+import { PIXEL_STYLES } from "../../lib/constants/styles";
 
 interface ActionItem {
   id: string;
@@ -36,6 +37,9 @@ export function ResponseModal() {
   const [selectedActions, setSelectedActions] = useState<string[]>(actions.map((a) => a.id));
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [hoveredActionId, setHoveredActionId] = useState<string | null>(null);
+  const [isExecuteBtnHovered, setIsExecuteBtnHovered] = useState(false);
+  const [isExecuteBtnPressed, setIsExecuteBtnPressed] = useState(false);
 
   const toggleAction = (id: string) => {
     setSelectedActions((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
@@ -143,21 +147,24 @@ export function ResponseModal() {
           ) : (
             <>
               {/* Action Items */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
                 {actions.map((action) => {
                   const isSelected = selectedActions.includes(action.id);
+                  const isHovered = hoveredActionId === action.id;
+                  
                   return (
                     <button
                       key={action.id}
                       onClick={() => toggleAction(action.id)}
+                      onMouseEnter={() => setHoveredActionId(action.id)}
+                      onMouseLeave={() => setHoveredActionId(null)}
                       disabled={isProcessing}
-                      className="pixel-border"
                       style={{
+                        ...PIXEL_STYLES.border,
                         width: "100%",
                         padding: "12px",
-                        border: "1px solid",
                         borderColor: isSelected ? "#3b82f6" : "#e4e4e7",
-                        backgroundColor: isSelected ? "#eff6ff" : "white",
+                        backgroundColor: isSelected ? "#eff6ff" : (isHovered ? "#fafafa" : "white"),
                         display: "flex",
                         alignItems: "start",
                         gap: "12px",
@@ -165,12 +172,6 @@ export function ResponseModal() {
                         transition: "all 0.2s",
                         cursor: isProcessing ? "not-allowed" : "pointer",
                         opacity: isProcessing ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected && !isProcessing) e.currentTarget.style.backgroundColor = "#fafafa";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected && !isProcessing) e.currentTarget.style.backgroundColor = "white";
                       }}
                     >
                       <div
@@ -207,21 +208,25 @@ export function ResponseModal() {
               {/* Execute Button */}
               <button
                 onClick={handleExecute}
+                onMouseEnter={() => setIsExecuteBtnHovered(true)}
+                onMouseLeave={() => {
+                  setIsExecuteBtnHovered(false);
+                  setIsExecuteBtnPressed(false);
+                }}
+                onMouseDown={() => setIsExecuteBtnPressed(true)}
+                onMouseUp={() => setIsExecuteBtnPressed(false)}
                 disabled={selectedActions.length === 0 || isProcessing}
-                className="pixel-btn"
                 style={{
+                  ...PIXEL_STYLES.btnBase,
                   width: "100%",
                   padding: "12px 16px",
-                  fontWeight: "bold",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  transition: "all 0.2s",
-                  cursor: (selectedActions.length === 0 || isProcessing) ? "not-allowed" : "pointer",
+                  fontSize: "16px",
                   backgroundColor: (selectedActions.length === 0 || isProcessing) ? "#e4e4e7" : "#3b82f6",
                   color: (selectedActions.length === 0 || isProcessing) ? "#71717a" : "white",
-                  border: "none",
+                  boxShadow: (selectedActions.length === 0 || isProcessing) 
+                    ? "none" 
+                    : (isExecuteBtnPressed ? PIXEL_STYLES.btnShadow.active : (isExecuteBtnHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default)),
+                  transform: isExecuteBtnPressed ? "translate(2px, 2px)" : "none",
                 }}
               >
                 {isProcessing ? (
@@ -236,7 +241,7 @@ export function ResponseModal() {
                         animation: "spin 1s linear infinite" 
                       }} 
                     />
-                    처리 중...
+                    &nbsp;처리 중...
                   </>
                 ) : (
                   <>👉 한 번에 해결하기</>

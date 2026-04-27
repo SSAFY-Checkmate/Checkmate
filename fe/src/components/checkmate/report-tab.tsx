@@ -1,5 +1,7 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
+import { PIXEL_STYLES } from "../../lib/constants/styles";
+import React, { useState } from "react";
 
 /**
  * 판단 배지 컴포넌트 (사실/허위/보류)
@@ -28,16 +30,15 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   return (
     <span
       style={{
+        ...PIXEL_STYLES.border,
         display: "inline-flex",
         alignItems: "center",
         gap: "6px",
         padding: "4px 10px",
         fontSize: "12px",
         fontWeight: "bold",
-        borderRadius: "2px",
         ...style,
       }}
-      className="pixel-border"
     >
       <Icon style={{ width: "14px", height: "14px" }} strokeWidth={3} />
       {label}
@@ -57,13 +58,12 @@ function TrustMeter({ score }: { score: number }) {
           <div
             key={i}
             style={{
+              ...PIXEL_STYLES.border,
               width: "18px",
               height: "18px",
-              border: "1.5px solid rgba(0, 0, 0, 0.1)",
               backgroundColor:
                 i < filledBars ? (score < 30 ? "#ef4444" : score < 60 ? "#f59e0b" : "#22c55e") : "#e5e7eb",
             }}
-            className="pixel-border"
           />
         ))}
       </div>
@@ -83,17 +83,18 @@ function TrustMeter({ score }: { score: number }) {
 }
 
 function ClaimCard({ claim }: { claim: Claim }) {
+  const [isLinkHovered, setIsLinkHovered] = useState(false);
+
   return (
     <div
       style={{
+        ...PIXEL_STYLES.border,
         padding: "15px",
-        border: "2.5px solid #e2e8f0",
         backgroundColor: "white",
         display: "flex",
         flexDirection: "column",
         boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
       }}
-      className="pixel-border"
     >
       <div
         style={{
@@ -133,11 +134,11 @@ function ClaimCard({ claim }: { claim: Claim }) {
             fontSize: "12px",
             color: "#2563eb",
             fontWeight: "bold",
-            textDecoration: "none",
-            transition: "text-decoration 0.2s",
+            textDecoration: isLinkHovered ? "underline" : "none",
+            transition: "all 0.2s",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
-          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+          onMouseEnter={() => setIsLinkHovered(true)}
+          onMouseLeave={() => setIsLinkHovered(false)}
         >
           <ExternalLink style={{ width: "16px", height: "16px" }} strokeWidth={2.5} />
           검증된 기사
@@ -178,6 +179,7 @@ export function ReportTab() {
       {/* Overall Verdict Card */}
       <div
         style={{
+          ...PIXEL_STYLES.border,
           padding: "20px",
           textAlign: "center",
           display: "flex",
@@ -186,20 +188,18 @@ export function ReportTab() {
           gap: "12px",
           ...cardStyle,
         }}
-        className="pixel-border"
       >
         <div
           style={{
+            ...PIXEL_STYLES.border,
             width: "48px",
             height: "48px",
-            borderRadius: "2px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
             ...iconBg,
           }}
-          className="pixel-border"
         >
           {typeof icon === "string" ? <span style={{ fontSize: "24px" }}>{icon}</span> : icon}
         </div>
@@ -221,13 +221,13 @@ export function ReportTab() {
         ) : (
           <div
             style={{
+              ...PIXEL_STYLES.border,
               textAlign: "center",
               padding: "40px 0",
               color: "#a1a1aa",
               fontSize: "13px",
-              border: "2px dashed #e2e8f0",
+              backgroundColor: "#fdfdfd",
             }}
-            className="pixel-border"
           >
             분석된 핵심 주장이 없습니다.
           </div>
