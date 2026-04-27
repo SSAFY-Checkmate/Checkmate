@@ -80,6 +80,7 @@ interface CheckmateState {
   openPanel: () => void;
   closePanel: () => void;
   setActiveTab: (tab: Tab) => void;
+  openResponseModal: () => void;
   closeResponseModal: () => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
@@ -136,6 +137,7 @@ export const useCheckmateStore = create<CheckmateState>((set) => ({
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+  openResponseModal: () => set({ isResponseModalOpen: true }),
   closeResponseModal: () => set({ isResponseModalOpen: false }),
   showWarning: (count) => set({ isWarningVisible: true, warningCount: count }),
   closeWarning: () => set({ isWarningVisible: false }),
