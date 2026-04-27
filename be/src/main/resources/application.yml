@@ -58,6 +58,7 @@ jwt:
 
 oauth2:
   success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:5173/oauth2/redirect}
+  redirection-base-uri: /login/oauth2/code/*
 
 springdoc:
   swagger-ui:

@@ -38,6 +38,11 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
@@ -45,9 +50,9 @@ server:
 jwt:
   secret: ${JWT_SECRET}
 
-app:
-  oauth2:
-    success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
+oauth2:
+  success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
+  redirection-base-uri: ${OAUTH2_REDIRECTION_BASE_URI:/login/oauth2/code/*}
 
 outbox:
   publisher:

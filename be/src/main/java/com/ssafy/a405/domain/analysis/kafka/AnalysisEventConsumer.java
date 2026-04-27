@@ -2,7 +2,7 @@ package com.ssafy.a405.domain.analysis.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.ssafy.a405.domain.analysis.job.service.AnalysisJobService;
+import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import com.ssafy.a405.global.event.EventEnvelope;

@@ -6,3 +6,7 @@ yt-dlp
 requests
 python-dotenv
 opencv-python-headless
+aiokafka
+redis
+PySocks
+kiwipiepy

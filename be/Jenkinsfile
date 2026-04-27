@@ -6,9 +6,10 @@ pipeline {
         CONTAINER_NAME = "a405-backend"
         PUBLISHER_CONTAINER_NAME = "a405-backend-publisher"
         APP_PORT = "8080"
+        NETWORK_NAME = "checkmate-net"
 
-        // Prefer a Jenkins env var if set; otherwise assume a docker-network Kafka service name.
-        KAFKA_BOOTSTRAP_SERVERS = "${env.KAFKA_BOOTSTRAP_SERVERS ?: 'kafka:9092'}"
+        // 카프카 주소 명시
+        KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
     }
 
     stages {
@@ -17,50 +18,10 @@ pipeline {
                 checkout scm
                 script {
                     echo "BRANCH_NAME=${env.BRANCH_NAME}"
-
                     if (env.BRANCH_NAME == 'develop') {
-                        def changed = sh(
-                            script: "git diff --name-only HEAD~1 HEAD || true",
-                            returnStdout: true
-                        ).trim()
-
-                        def beChanged = sh(
-                            script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
-                            returnStdout: true
-                        ).trim()
-
-                        echo "ALL_CHANGED_FILES=${changed}"
+                        def changed = sh(script: "git diff --name-only HEAD~1 HEAD || true", returnStdout: true).trim()
+                        def beChanged = sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
                         echo "BE_CHANGED_FILES=${beChanged}"
-                    }
-                }
-            }
-        }
-
-        stage('CI Build/Test') {
-            when {
-                expression {
-                    return env.BRANCH_NAME != null && env.BRANCH_NAME.contains('/be/')
-                }
-            }
-            steps {
-                withCredentials([
-                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
-                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
-                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
-                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
-                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
-                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
-                ]) {
-                    dir('be') {
-                        sh '''
-                            docker build \
-                              --build-arg SPRING_PROFILES_ACTIVE=prod \
-                              --build-arg PROD_DB_URL="$PROD_DB_URL" \
-                              --build-arg PROD_DB_USERNAME="$PROD_DB_USERNAME" \
-                              --build-arg PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                              -t ${IMAGE_NAME} .
-                        '''
                     }
                 }
             }
@@ -98,11 +59,14 @@ pipeline {
         }
 
         stage('Deploy') {
+            // when {
+            //     expression {
+            //         return env.BRANCH_NAME == 'develop' &&
+            //                sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
+            //     }
+            // }
             when {
-                expression {
-                    return env.BRANCH_NAME == 'develop' &&
-                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
-                }
+                branch 'develop'
             }
             steps {
                 withCredentials([
@@ -115,14 +79,32 @@ pipeline {
                     string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
+                        # 1. 네트워크 보장
+                        docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
+
+                        # 2. 카프카를 네트워크에 연결
+                        docker network connect ${NETWORK_NAME} kafka || true
+                        docker network connect ${NETWORK_NAME} redis || true
+                        docker network connect ${NETWORK_NAME} a405-parser || true
+
+                        # 💡 3. 핵심: 젠킨스 컨테이너 자신을 네트워크에 연결 (물리적 통로 확보)
+                        # 컨테이너 이름이 'jenkins'가 맞는지 docker ps로 꼭 확인하세요.
+                        docker network connect ${NETWORK_NAME} jenkins || true
+
+                        # 4. 기존 컨테이너 제거
                         docker rm -f ${CONTAINER_NAME} || true
                         docker rm -f ${PUBLISHER_CONTAINER_NAME} || true
 
+                        # 5. 실행
                         docker run -d \
                           --name ${CONTAINER_NAME} \
+                          --network ${NETWORK_NAME} \
                           -p ${APP_PORT}:8080 \
                           -e SPRING_PROFILES_ACTIVE=prod \
                           -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
+                          -e REDIS_HOST=redis \
+                          -e REDIS_PORT=6379 \
+                          -e APP_SERVICES_PARSER_BASE_URL="http://a405-parser:8000" \
                           -e PROD_DB_URL="$PROD_DB_URL" \
                           -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
                           -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
@@ -134,8 +116,11 @@ pipeline {
 
                         docker run -d \
                           --name ${PUBLISHER_CONTAINER_NAME} \
+                          --network ${NETWORK_NAME} \
                           -e SPRING_PROFILES_ACTIVE=prod,publisher \
                           -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
+                          -e REDIS_HOST=redis \
+                          -e REDIS_PORT=6379 \
                           -e PROD_DB_URL="$PROD_DB_URL" \
                           -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
                           -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
@@ -148,14 +133,45 @@ pipeline {
                 }
             }
         }
+
+        stage('Verify Deployment') {
+            when {
+                expression {
+                    return env.BRANCH_NAME == 'develop' &&
+                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
+                }
+            }
+            steps {
+                sh '''
+                    echo "Waiting for containers to stabilize (40s)..."
+                    sleep 40
+
+                    BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null || echo "false")
+                    if [ "$BACKEND_STATUS" != "true" ]; then
+                      echo "[ERROR] Backend container is not running"
+                      docker logs --tail 100 ${CONTAINER_NAME}
+                      exit 1
+                    fi
+
+                    echo "Checking backend HTTP response via Docker Network..."
+                    # 127.0.0.1 대신 컨테이너 이름을 사용 (네트워크 연결이 되었으므로 가능)
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${CONTAINER_NAME}:8080/health || echo "000")
+                    echo "Backend responded with HTTP CODE: $HTTP_CODE"
+
+                    if [ "$HTTP_CODE" -eq 200 ]; then
+                      echo "✅ Health check passed!"
+                    else
+                      echo "❌ [ERROR] Health check failed with code $HTTP_CODE"
+                      docker logs --tail 100 ${CONTAINER_NAME}
+                      exit 1
+                    fi
+                '''
+            }
+        }
     }
 
     post {
-        success {
-            echo 'BE pipeline success'
-        }
-        failure {
-            echo 'BE pipeline failed'
-        }
+        success { echo 'BE pipeline success' }
+        failure { echo 'BE pipeline failed' }
     }
 }

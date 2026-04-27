@@ -79,4 +79,11 @@ public class OutboxEvent extends BaseTimeEntity {
 			this.status = OutboxStatus.DEAD;
 		}
 	}
+
+	public void resetToPending() {
+		this.status = OutboxStatus.PENDING;
+		this.attempts = 0;
+		this.publishedAt = null;
+		this.lastError = null;
+	}
 }

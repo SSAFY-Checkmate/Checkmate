@@ -19,6 +19,12 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -32,6 +38,9 @@ public class SecurityConfig {
     private final CookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final SwaggerOAuth2LoginRedirectFilter swaggerOAuth2LoginRedirectFilter;
+
+    @Value("${oauth2.redirection-base-uri}")
+    private String oauth2RedirectionBaseUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -50,10 +59,15 @@ public class SecurityConfig {
                                 "/health",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
+                                "/be/swagger-ui.html",
+                                "/be/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/api/auth/reissue",
+                                "/be/v3/api-docs/**",
+                                "/auth/reissue",
                                 "/oauth2/**",
-                                "/login/oauth2/**"
+                                "/be/oauth2/**",
+                                "/login/oauth2/**",
+                                "/be/login/oauth2/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
@@ -62,6 +76,9 @@ public class SecurityConfig {
                         .authorizationEndpoint(authorization -> authorization
                                 .authorizationRequestRepository(authorizationRequestRepository)
                         )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri(oauth2RedirectionBaseUri)
+                        )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oauth2LoginSuccessHandler)
                 )
@@ -69,4 +86,28 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 싸피 환경 도메인 및 로컬 주소 허용
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://k14a405.p.ssafy.io",
+                "https://k14a405.p.ssafy.io" // 실제 도메인 추가
+        ));
+
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
 }

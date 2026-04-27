@@ -5,17 +5,20 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Arrays;
 
 @Component
+@RequiredArgsConstructor
 public class SwaggerOAuth2LoginRedirectFilter extends OncePerRequestFilter {
+
+    private final SwaggerRedirectCookieProvider swaggerRedirectCookieProvider;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     protected void doFilterInternal(
@@ -24,19 +27,12 @@ public class SwaggerOAuth2LoginRedirectFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         if (shouldRedirectToGoogleLogin(request)) {
-            ResponseCookie redirectCookie = ResponseCookie.from(
-                            CustomAuthenticationEntryPoint.SWAGGER_REDIRECT_COOKIE_NAME,
-                            normalizeSwaggerUri(request)
-                    )
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .sameSite("None")
-                    .maxAge(Duration.ofMinutes(3))
-                    .build();
-
-            response.addHeader(HttpHeaders.SET_COOKIE, redirectCookie.toString());
-            response.sendRedirect("/oauth2/authorization/google");
+            String prefix = resolveExternalPrefix(request);
+            response.addHeader(
+                    HttpHeaders.SET_COOKIE,
+                    swaggerRedirectCookieProvider.createCookie(prefix + "/swagger-ui/index.html").toString()
+            );
+            response.sendRedirect(prefix + "/oauth2/authorization/google");
             return;
         }
 
@@ -44,34 +40,100 @@ public class SwaggerOAuth2LoginRedirectFilter extends OncePerRequestFilter {
     }
 
     private boolean shouldRedirectToGoogleLogin(HttpServletRequest request) {
-        return isSwaggerPageRequest(request) && !hasRefreshTokenCookie(request);
+        return isSwaggerPageRequest(request) && !hasValidAccessToken(request);
     }
 
     private boolean isSwaggerPageRequest(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        return "GET".equalsIgnoreCase(request.getMethod())
-                && ("/swagger-ui.html".equals(uri)
-                || "/swagger-ui".equals(uri)
-                || "/swagger-ui/".equals(uri)
-                || "/swagger-ui/index.html".equals(uri));
-    }
-
-    private boolean hasRefreshTokenCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
             return false;
         }
 
-        return Arrays.stream(cookies)
-                .anyMatch(cookie -> RefreshTokenCookieProvider.COOKIE_NAME.equals(cookie.getName())
-                        && cookie.getValue() != null
-                        && !cookie.getValue().isBlank());
+        String swaggerSuffix = resolveSwaggerSuffix(uri);
+        if (swaggerSuffix == null) {
+            return false;
+        }
+
+        return "/swagger-ui.html".equals(swaggerSuffix)
+                || "/swagger-ui".equals(swaggerSuffix)
+                || "/swagger-ui/".equals(swaggerSuffix)
+                || "/swagger-ui/index.html".equals(swaggerSuffix);
     }
 
-    private String normalizeSwaggerUri(HttpServletRequest request) {
+    private boolean hasValidAccessToken(HttpServletRequest request) {
+        String token = resolveAccessTokenCookieValue(request);
+        if (token == null) {
+            return false;
+        }
+
+        try {
+            jwtTokenProvider.parseClaims(token);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private String resolveAccessTokenCookieValue(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        return Arrays.stream(cookies)
+                .filter(cookie -> AccessTokenCookieProvider.COOKIE_NAME.equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String resolveExternalPrefix(HttpServletRequest request) {
+        String forwardedPrefix = request.getHeader("X-Forwarded-Prefix");
+        if (forwardedPrefix != null && !forwardedPrefix.isBlank()) {
+            String normalized = forwardedPrefix.trim();
+            if (!normalized.startsWith("/")) {
+                normalized = "/" + normalized;
+            }
+            if (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
+            return normalized.equals("/") ? "" : normalized;
+        }
+
+        String contextPath = request.getContextPath();
+        if (contextPath != null && !contextPath.isBlank() && !"/".equals(contextPath)) {
+            return contextPath.endsWith("/") ? contextPath.substring(0, contextPath.length() - 1) : contextPath;
+        }
+
         String uri = request.getRequestURI();
-        return "/swagger-ui.html".equals(uri) || "/swagger-ui".equals(uri) || "/swagger-ui/".equals(uri)
-                ? "/swagger-ui/index.html"
-                : uri;
+        String swaggerSuffix = resolveSwaggerSuffix(uri);
+        if (swaggerSuffix == null) {
+            return "";
+        }
+
+        int idx = uri.lastIndexOf(swaggerSuffix);
+        if (idx <= 0) {
+            return "";
+        }
+
+        return uri.substring(0, idx);
+    }
+
+    private String resolveSwaggerSuffix(String uri) {
+        if (uri == null) {
+            return null;
+        }
+
+        if (uri.startsWith("/swagger-ui") || "/swagger-ui.html".equals(uri)) {
+            return uri;
+        }
+
+        int idx = uri.lastIndexOf("/swagger-ui");
+        if (idx < 0) {
+            return null;
+        }
+
+        return uri.substring(idx);
     }
 }
