@@ -216,18 +216,17 @@ export function ResponseModal() {
                 onMouseDown={() => setIsExecuteBtnPressed(true)}
                 onMouseUp={() => setIsExecuteBtnPressed(false)}
                 disabled={selectedActions.length === 0 || isProcessing}
-                style={{
-                  ...PIXEL_STYLES.btnBase,
-                  width: "100%",
-                  padding: "12px 16px",
-                  fontSize: "16px",
-                  backgroundColor: (selectedActions.length === 0 || isProcessing) ? "#e4e4e7" : "#3b82f6",
-                  color: (selectedActions.length === 0 || isProcessing) ? "#71717a" : "white",
-                  boxShadow: (selectedActions.length === 0 || isProcessing) 
-                    ? "none" 
-                    : (isExecuteBtnPressed ? PIXEL_STYLES.btnShadow.active : (isExecuteBtnHovered ? PIXEL_STYLES.btnShadow.hover : PIXEL_STYLES.btnShadow.default)),
-                  transform: isExecuteBtnPressed ? "translate(2px, 2px)" : "none",
-                }}
+                  style={{
+                    ...PIXEL_STYLES.btnBase,
+                    width: "100%",
+                    padding: "12px 16px",
+                    fontSize: "16px",
+                    backgroundColor: (selectedActions.length === 0 || isProcessing) ? "#e4e4e7" : "#3b82f6",
+                    color: (selectedActions.length === 0 || isProcessing) ? "#71717a" : "white",
+                    ...(isExecuteBtnPressed ? PIXEL_STYLES.btnActive : {}),
+                    // 비활성 상태일 때 그림자 제거
+                    boxShadow: (selectedActions.length === 0 || isProcessing) ? "none" : (isExecuteBtnPressed ? PIXEL_STYLES.btnActive.boxShadow : PIXEL_STYLES.btnBase.boxShadow),
+                  }}
               >
                 {isProcessing ? (
                   <>

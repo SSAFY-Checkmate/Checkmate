@@ -1,80 +1,66 @@
 /**
- * [Checkmate 디자인 시스템 - 픽셀 아트 인라인 스타일 상수]
- * index.css의 복잡한 box-shadow 및 디자인 규칙을 JS 객체로 이식했습니다.
+ * [Checkmate 디자인 시스템 - ad-check 오리지널 픽셀 스타일]
  */
 
+export const COLORS = {
+  primary: "#3b82f6", // oklch(0.55 0.18 250) 근사치
+  primaryForeground: "#ffffff",
+  border: "#e2e8f0", // oklch(0.88 0.02 220) 근사치
+  background: "#ffffff",
+  muted: "#f1f5f9",
+  mutedForeground: "#64748b",
+  destructive: "#ef4444",
+  success: "#22c55e",
+  warning: "#f59e0b",
+};
+
 export const PIXEL_STYLES = {
-  // 1. 기본 픽셀 테두리
+  // ad-check 오리지널 .pixel-border
   border: {
+    backgroundColor: "white",
     imageRendering: "pixelated" as const,
     boxShadow: `
-      0 2px 0 0 #000,
-      0 -2px 0 0 #000,
-      2px 0 0 0 #000,
-      -2px 0 0 0 #000
+      0 2px 0 0 ${COLORS.border},
+      0 -2px 0 0 ${COLORS.border},
+      2px 0 0 0 ${COLORS.border},
+      -2px 0 0 0 ${COLORS.border}
     `,
-    border: "none",
   },
 
-  // 2. 안쪽 그림자가 있는 픽셀 테두리 (탭/카드용)
-  borderIn: {
-    imageRendering: "pixelated" as const,
-    boxShadow: `
-      inset -2px -2px 0 0 rgba(0, 0, 0, 0.1),
-      2px 2px 0 0 rgba(0, 0, 0, 0.05),
-      0 2px 0 0 #000,
-      0 -2px 0 0 #000,
-      2px 0 0 0 #000,
-      -2px 0 0 0 #000
-    `,
-    border: "none",
-  },
-
-  // 3. 버튼 베이스 스타일
+  // ad-check 오리지널 .pixel-btn
   btnBase: {
-    imageRendering: "pixelated" as const,
+    backgroundColor: COLORS.primary,
+    color: "white",
     border: "none",
-    fontFamily: "var(--font-pixel)",
+    padding: "10px 16px",
+    fontSize: "14px",
     fontWeight: "bold",
-    transition: "all 0.1s",
     cursor: "pointer",
+    width: "100%", // 버튼을 부모 너비에 꽉 차게 설정
+    imageRendering: "pixelated" as const,
+    boxShadow: `
+      2px 2px 0 0 rgba(0,0,0,0.3),
+      inset -2px -2px 0 0 rgba(0,0,0,0.2),
+      inset 2px 2px 0 0 rgba(255,255,255,0.3)
+    `,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative" as const,
+    transition: "all 0.1s",
   },
 
-  // 4. 버튼 상태별 그림자 (JS 이벤트 핸들러용)
-  btnShadow: {
-    default: "3px 3px 0 0 rgba(0, 0, 0, 0.2)",
-    hover: "4px 4px 0 0 rgba(0, 0, 0, 0.2)",
-    active: "none",
+  // ad-check 오리지널 .pixel-btn:active
+  btnActive: {
+    boxShadow: `
+      inset 2px 2px 0 0 rgba(0,0,0,0.2),
+      inset -2px -2px 0 0 rgba(255,255,255,0.3)
+    `,
+    transform: "translate(1px, 1px)",
   },
 
-  // 5. 색상별 버튼 스타일
-  btnColors: {
-    blue: {
-      backgroundColor: "#3b82f6",
-      color: "#ffffff",
-      boxShadow: "3px 3px 0 0 #1d4ed8",
-    },
-    purple: {
-      backgroundColor: "#8b5cf6",
-      color: "#ffffff",
-      boxShadow: "3px 3px 0 0 #6d28d9",
-    },
-    yellow: {
-      backgroundColor: "#fde047",
-      color: "#000000",
-      boxShadow: "3px 3px 0 0 #ca8a04",
-    },
-  },
-
-  // 6. 스크롤바 스타일 (CSS 변수 활용 권장)
   scrollbar: `
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #f1f1f1; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 0; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   `,
 };

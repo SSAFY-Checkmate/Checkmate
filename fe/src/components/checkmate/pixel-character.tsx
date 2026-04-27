@@ -1,53 +1,36 @@
-import { cn } from "../../lib/utils";
-
 /**
- * 캐릭터 컴포넌트 공통 Props 타입
+ * [Checkmate 캐릭터 컴포넌트 - 레퍼런스 최적화 및 타입 복구]
  */
 type PixelCharacterProps = {
-  className?: string; // 추가 스타일 클래스
-  mood?: "neutral" | "alert" | "happy" | "thinking"; // 캐릭터 표정/상태
-  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl"; // 크기 프리셋
+  className?: string;
+  mood?: "neutral" | "alert" | "happy" | "thinking"; // 사라졌던 mood 속성 복구
+  size?: "sm" | "md" | "lg";
 };
 
-/**
- * [Checkmate 경찰서 건물 컴포넌트]
- * ad-check/pixel-character.tsx의 설정을 100% 이식했습니다.
- */
-export const PixelCharacter = ({ className, size = "xl" }: PixelCharacterProps) => {
-  // Shadow DOM 대응용 인라인 수치 (Tailwind 1단위 = 4px)
-  const sizeValues = {
-    sm: { w: "48px", h: "48px" },
-    md: { w: "96px", h: "96px" },
-    lg: { w: "200px", h: "200px" }, // 144px에서 200px로 상향 조정 (스케일 대응)
-    xl: { w: "192px", h: "192px" },
-    "2xl": { w: "256px", h: "256px" },
-    "3xl": { w: "320px", h: "320px" },
-    "4xl": { w: "384px", h: "384px" },
+export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) => {
+  const sizes = {
+    sm: "48px",
+    md: "96px",
+    lg: "240px",
   };
-
-  const currentSize = sizeValues[size as keyof typeof sizeValues] || sizeValues.xl;
 
   return (
     <div
       className={className}
       style={{
-        position: "relative",
-        width: currentSize.w,
-        height: currentSize.h,
-        display: "block",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100%",
       }}
     >
       <img
-        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/police-station.png") : "/police-station.png"}
-        alt="Checkmate 경찰서"
+        src={chrome.runtime?.getURL ? chrome.runtime.getURL("police-station.png") : "/police-station.png"}
+        alt="Police Station"
         style={{
-          width: "100%",
+          width: sizes[size],
           height: "auto",
           display: "block",
-          objectFit: "contain",
-          pointerEvents: "none",
-          transform: "scale(1.6)",
-          transformOrigin: "center center",
           imageRendering: "pixelated",
         }}
       />
@@ -55,48 +38,24 @@ export const PixelCharacter = ({ className, size = "xl" }: PixelCharacterProps) 
   );
 };
 
-/**
- * [Checkmate 보안관 캐릭터 컴포넌트]
- * ad-check/pixel-character.tsx의 설정을 100% 이식했습니다.
- */
-export const PixelOfficer = ({ className, size = "md" }: PixelCharacterProps) => {
-  // Shadow DOM 대응용 인라인 수치
-  const sizeValues = {
-    sm: { w: "40px", h: "56px" },
-    md: { w: "64px", h: "96px" },
-    lg: { w: "96px", h: "144px" },
-    xl: { w: "128px", h: "192px" },
-    "2xl": { w: "192px", h: "288px" },
-    "3xl": { w: "224px", h: "336px" },
-    "4xl": { w: "256px", h: "384px" },
+export const PixelOfficer = ({ size = "sm", mood = "neutral" }: PixelCharacterProps) => {
+  const sizes = {
+    sm: "40px",
+    md: "64px",
+    lg: "96px",
   };
 
-  const currentSize = sizeValues[size as keyof typeof sizeValues] || sizeValues.md;
-
+  // mood에 따라 다른 애니메이션이나 상태를 보여줄 수 있으나, 
+  // 현재는 기본 sheriff.gif를 사용하되 타입 에러를 해결합니다.
   return (
-    <div
-      className={className}
+    <img
+      src={chrome.runtime?.getURL ? chrome.runtime.getURL("sheriff.gif") : "/sheriff.gif"}
+      alt={`Officer (${mood})`}
       style={{
-        position: "relative",
-        width: currentSize.w,
-        height: currentSize.h,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        width: sizes[size],
+        height: "auto",
+        imageRendering: "pixelated",
       }}
-    >
-      <img
-        src={chrome.runtime?.getURL ? chrome.runtime.getURL("/sheriff.gif") : "/sheriff.gif"}
-        alt="Checkmate 보안관"
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "block",
-          objectFit: "contain",
-          pointerEvents: "none",
-          imageRendering: "pixelated",
-        }}
-      />
-    </div>
+    />
   );
 };
