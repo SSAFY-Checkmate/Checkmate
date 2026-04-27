@@ -5,6 +5,7 @@ WORKDIR /app
 # Python 기본 설정
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV USE_TOR_PROXY=true
 
 # 시스템 패키지 설치
 # - gcc: 일부 Python 패키지 빌드용
