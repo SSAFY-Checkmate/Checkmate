@@ -47,7 +47,7 @@ jwt:
 
 oauth2:
   success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
-  redirection-base-uri: /be/login/oauth2/code/*
+  redirection-base-uri: ${OAUTH2_REDIRECTION_BASE_URI:/login/oauth2/code/*}
 
 outbox:
   publisher:
