@@ -5,3 +5,6 @@ langchain-openai
 pydantic
 pydantic-settings
 python-dotenv
+openai
+mcp
+nltk
