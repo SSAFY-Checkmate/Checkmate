@@ -5,7 +5,6 @@ WORKDIR /app
 # Python 기본 설정
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV USE_TOR_PROXY=true
 
 # 시스템 패키지 설치
 # - gcc: 일부 Python 패키지 빌드용
@@ -13,7 +12,6 @@ ENV USE_TOR_PROXY=true
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     curl \
-    tor \
     && rm -rf /var/lib/apt/lists/*
 
 # 의존성 먼저 복사해서 Docker layer cache 활용
@@ -28,5 +26,4 @@ COPY . .
 # FastAPI 컨테이너 내부 포트
 EXPOSE 8000
 
-# main.py 안에 app = FastAPI() 가 있다고 가정
-CMD ["sh", "-c", "service tor start && uvicorn main:app --host 0.0.0.0 --port 8000 --http h11"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--http", "h11"]

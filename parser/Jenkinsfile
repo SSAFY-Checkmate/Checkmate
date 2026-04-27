@@ -82,17 +82,35 @@ pipeline {
             }
             steps {
                 withCredentials([
-                    string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY')
+                    string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY'),
+                    string(credentialsId: 'DECODO_PROXY_URL', variable: 'DECODO_PROXY_URL')
                 ]) {
                     sh """
                         docker run -d \
                         --name ${CONTAINER_NAME} \
                         -p ${HOST_PORT}:8000 \
                         -e GMS_KEY="${GMS_KEY}" \
+                        -e USE_RESIDENTIAL_PROXY="true" \
+                        -e PROXY_URL="${DECODO_PROXY_URL}" \
                         --restart unless-stopped \
                         ${DOCKER_IMAGE}:${BUILD_NUMBER}
                     """
                 }
+            }
+        }
+
+        stage('Check Proxy Environment') {
+            when {
+                allOf {
+                    branch 'develop'
+                    expression { env.SKIP_PARSER_DEPLOY != "true" }
+                }
+            }
+            steps {
+                sh """
+                    docker exec ${CONTAINER_NAME} sh -c 'echo USE_RESIDENTIAL_PROXY=\$USE_RESIDENTIAL_PROXY'
+                    docker exec ${CONTAINER_NAME} sh -c 'test -n "\$PROXY_URL" && echo PROXY_URL is set || echo PROXY_URL is missing'
+                """
             }
         }
 
