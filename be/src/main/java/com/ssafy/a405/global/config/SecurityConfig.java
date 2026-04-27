@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Arrays;
 
@@ -37,6 +38,9 @@ public class SecurityConfig {
     private final CookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final SwaggerOAuth2LoginRedirectFilter swaggerOAuth2LoginRedirectFilter;
+
+    @Value("${oauth2.redirection-base-uri}")
+    private String oauth2RedirectionBaseUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -71,6 +75,9 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
                                 .authorizationRequestRepository(authorizationRequestRepository)
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri(oauth2RedirectionBaseUri)
                         )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oauth2LoginSuccessHandler)
