@@ -55,10 +55,15 @@ public class SecurityConfig {
                                 "/health",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
+                                "/be/swagger-ui.html",
+                                "/be/swagger-ui/**",
                                 "/v3/api-docs/**",
+                                "/be/v3/api-docs/**",
                                 "/auth/reissue",
                                 "/oauth2/**",
-                                "/login/oauth2/**"
+                                "/be/oauth2/**",
+                                "/login/oauth2/**",
+                                "/be/login/oauth2/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
