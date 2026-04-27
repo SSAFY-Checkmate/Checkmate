@@ -40,8 +40,11 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         except Exception:
             pass
             
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.list(video_id)
+        proxies = {
+            "http": "socks5://127.0.0.1:9050",
+            "https": "socks5://127.0.0.1:9050",
+        }
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
         
         transcript = None
         lang_used = None

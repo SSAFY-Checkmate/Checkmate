@@ -16,6 +16,7 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
             'outtmpl': audio_path,
             'quiet': True,
             'no_warnings': True,
+            'proxy': 'socks5://127.0.0.1:9050',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'm4a',
