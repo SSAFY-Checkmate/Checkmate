@@ -25,7 +25,7 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
         
         use_tor = os.getenv("USE_TOR_PROXY", "false").lower() == "true"
         if use_tor:
-            ydl_opts['proxy'] = 'socks5://127.0.0.1:9050'
+            ydl_opts['proxy'] = os.getenv("TOR_PROXY_URL", "socks5://127.0.0.1:9050")
         
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

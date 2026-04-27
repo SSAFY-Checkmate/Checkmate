@@ -46,9 +46,10 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         session = requests.Session()
         use_tor = os.getenv("USE_TOR_PROXY", "false").lower() == "true"
         if use_tor:
+            proxy_url = os.getenv("TOR_PROXY_URL", "socks5://127.0.0.1:9050")
             proxies = {
-                "http": "socks5://127.0.0.1:9050",
-                "https": "socks5://127.0.0.1:9050",
+                "http": proxy_url,
+                "https": proxy_url,
             }
             session.proxies.update(proxies)
         
