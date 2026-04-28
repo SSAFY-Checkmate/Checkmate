@@ -54,8 +54,8 @@ class LLMClient:
         self.setup_logging()
 
         # OpenAI client is optional (only needed for fallback)
-        api_key = parse_env_str("OPENAI_API_KEY", parse_env_str("GMS_KEY", ""))
-        base_url = parse_env_str("OPENAI_BASE_URL", parse_env_str("GMS_BASE_URL", ""))
+        api_key = parse_env_str("OPENAI_API_KEY", "")
+        base_url = parse_env_str("OPENAI_BASE_URL", "")
         if api_key:
             from langchain_openai import ChatOpenAI
             if base_url:

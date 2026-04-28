@@ -6,12 +6,12 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     def __init__(self):
-        self.api_key = settings.gms_key
-        self.base_url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+        self.api_key = settings.openai_api_key
+        self.base_url = settings.openai_base_url or "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
         self.model = "text-embedding-3-small"
         
         if not self.api_key:
-            logger.warning("GMS_KEY is not set. Embeddings might fail.")
+            logger.warning("OPENAI_API_KEY is not set. Embeddings might fail.")
             self.embeddings = None
         else:
             # LangChain의 OpenAIEmbeddings 사용
@@ -25,7 +25,7 @@ class EmbeddingService:
     def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text."""
         if not self.embeddings:
-            raise ValueError("OpenAIEmbeddings is not initialized due to missing GMS_KEY.")
+            raise ValueError("OpenAIEmbeddings is not initialized due to missing OPENAI_API_KEY.")
             
         try:
             return self.embeddings.embed_query(text)
@@ -36,7 +36,7 @@ class EmbeddingService:
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple texts."""
         if not self.embeddings:
-            raise ValueError("OpenAIEmbeddings is not initialized due to missing GMS_KEY.")
+            raise ValueError("OpenAIEmbeddings is not initialized due to missing OPENAI_API_KEY.")
             
         if not texts:
             return []

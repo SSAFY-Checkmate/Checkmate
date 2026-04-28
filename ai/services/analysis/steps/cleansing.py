@@ -22,8 +22,8 @@ async def text_cleansing_step(state: dict) -> dict:
     # LangChain LLM 초기화 및 Structured Output 활성화
     from core.config import settings
     llm = ChatOpenAI(
-        api_key=settings.gms_key,
-        base_url="https://gms.ssafy.io/gmsapi/api.openai.com/v1",
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or "https://gms.ssafy.io/gmsapi/api.openai.com/v1",
         model="gpt-4o-mini", 
         temperature=0.0
     )

@@ -12,8 +12,8 @@ async def generate_summary_step(state: dict) -> dict:
         return state
         
     llm = ChatOpenAI(
-        api_key=settings.gms_key,
-        base_url="https://gms.ssafy.io/gmsapi/api.openai.com/v1",
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or "https://gms.ssafy.io/gmsapi/api.openai.com/v1",
         model="gpt-4o-mini", 
         temperature=0.0
     )
