@@ -56,23 +56,19 @@ class SemanticRouter:
         하나의 주장을 받아서 적절한 검색 도메인(route)을 반환합니다.
         """
         try:
-            # 1. Claim Embedding 생성
-            claim_vector = embedding_service.embed_text(claim)
+            vector_store = qdrant_service.get_vector_store(self.collection_name)
+            if not vector_store:
+                raise ValueError("Vector store not initialized")
 
-            # 2. Qdrant `route_descriptions` 컬렉션에서 검색
-            search_result = qdrant_service.client.query_points(
-                collection_name=self.collection_name,
-                query=claim_vector,
-                limit=10,
-                with_payload=True
-            )
+            # 2. Qdrant `route_descriptions` 컬렉션에서 검색 (LangChain VectorStore 활용)
+            results = vector_store.similarity_search_with_score(claim, k=10)
 
             # 3. (route_name, score) 형태의 리스트 생성
             scores = []
-            for hit in search_result.points:
-                route_name = hit.payload.get("name")
+            for doc, score in results:
+                route_name = doc.metadata.get("name")
                 if route_name:
-                    scores.append((route_name, hit.score))
+                    scores.append((route_name, score))
             
             logger.info(f"Route scores for claim '{claim[:20]}...': {scores}")
 

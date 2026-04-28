@@ -29,40 +29,40 @@ class RagSeedService:
                 with open(route_desc_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     
-                if data and isinstance(data, list):
-                    logger.info(f"Found {len(data)} items in route_descriptions.json. Upserting...")
-                    points = []
-                    
-                    # We expect items to have at least some text content.
-                    # As a generic fallback, we'll serialize the item or use a 'description' / 'text' field
-                    for item in data:
-                        text_to_embed = item.get("text") or item.get("description") or json.dumps(item, ensure_ascii=False)
-                        item_id = item.get("id")
+                    if data and isinstance(data, list):
+                        logger.info(f"Found {len(data)} items in route_descriptions.json. Upserting using LangChain...")
                         
-                        # Generate embedding
-                        embedding = embedding_service.embed_text(text_to_embed)
+                        texts = []
+                        metadatas = []
+                        ids = []
                         
-                        # Generate deterministic UUID based on route name
-                        # This prevents duplicates if /init is called multiple times
-                        route_name = item.get("name", "unknown")
-                        point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, route_name)) if not item_id else str(item_id)
+                        for item in data:
+                            text_to_embed = item.get("text") or item.get("description") or json.dumps(item, ensure_ascii=False)
+                            item_id = item.get("id")
+                            
+                            route_name = item.get("name", "unknown")
+                            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, route_name)) if not item_id else str(item_id)
+                            
+                            texts.append(text_to_embed)
+                            metadatas.append(item)
+                            ids.append(point_id)
                         
-                        points.append(
-                            PointStruct(
-                                id=point_id,
-                                vector=embedding,
-                                payload=item
-                            )
-                        )
-                    
-                    if points:
-                        success = qdrant_service.upsert_points("route_descriptions", points)
-                        results["seed_results"]["route_descriptions"] = {
-                            "status": "success" if success else "failed",
-                            "count": len(points)
-                        }
-                else:
-                    results["seed_results"]["route_descriptions"] = {"status": "skipped", "reason": "empty list"}
+                        if texts:
+                            vector_store = qdrant_service.get_vector_store("route_descriptions")
+                            if vector_store:
+                                vector_store.add_texts(
+                                    texts=texts,
+                                    metadatas=metadatas,
+                                    ids=ids
+                                )
+                                results["seed_results"]["route_descriptions"] = {
+                                    "status": "success",
+                                    "count": len(texts)
+                                }
+                            else:
+                                results["seed_results"]["route_descriptions"] = {"status": "failed", "reason": "vector store not initialized"}
+                    else:
+                        results["seed_results"]["route_descriptions"] = {"status": "skipped", "reason": "empty list"}
             except Exception as e:
                 logger.error(f"Error seeding route_descriptions: {e}")
                 results["seed_results"]["route_descriptions"] = {"status": "error", "message": str(e)}

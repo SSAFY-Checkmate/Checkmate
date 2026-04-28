@@ -1,3 +1,4 @@
+from core.config import settings
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -10,8 +11,12 @@ async def generate_summary_step(state: dict) -> dict:
         state["summary"] = "요약할 텍스트가 없습니다."
         return state
         
-    # LangChain LLM 및 프롬프트 설정 (환경 변수에 OPENAI_API_KEY가 설정되어 있어야 합니다)
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+    llm = ChatOpenAI(
+        api_key=settings.gms_key,
+        base_url="https://gms.ssafy.io/gmsapi/api.openai.com/v1",
+        model="gpt-4o-mini", 
+        temperature=0.0
+    )
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", "당신은 영상 콘텐츠 내용 요약 전문가입니다. 제공된 자막 텍스트를 바탕으로 영상의 전체적인 핵심 주제와 주요 주장을 3~5문장으로 명확하게 요약해 주세요. 불필요한 인삿말이나 수식어는 제외하고 핵심만 전달하세요."),

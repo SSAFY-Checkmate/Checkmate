@@ -55,3 +55,44 @@ async def test_semantic_routing(request: RouteRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+from services.analysis.steps.rag_fact_check import rag_fact_check_step
+from services.claimify.llm_client import LLMClient
+from services.analysis.pipeline import AnalysisPipelineService
+from typing import List
+
+class ExtractedClaim(BaseModel):
+    start_time: float
+    original_text: str
+    claim: str
+
+class PipelineTestRequest(BaseModel):
+    video_id: str = "test_video_123"
+    video_title: str = "Test Video"
+    author: str = "Test Channel"
+    extracted_claims: List[ExtractedClaim]
+
+@router.post("/fact-check/test", summary="RAG Fact-Check 전체 파이프라인 매핑 테스트", description="추출된 주장을 받아 RAG 검색, 판정을 거쳐 최종 API 응답 포맷으로 변환하는 과정을 테스트합니다.")
+async def test_rag_fact_check(request: PipelineTestRequest):
+    try:
+        # 가짜 state 생성 (추출된 데이터 가정)
+        state = {
+            "video_id": request.video_id,
+            "video_title": request.video_title,
+            "author": request.author,
+            "extracted_claims": [c.model_dump() for c in request.extracted_claims]
+        }
+        
+        # LLM 클라이언트 인스턴스화
+        llm_client = LLMClient()
+        
+        # 1. 팩트체크 스텝 실행
+        result_state = rag_fact_check_step(state, llm_client)
+        
+        # 2. 포맷팅 실행
+        pipeline = AnalysisPipelineService()
+        final_response = pipeline.format_response(result_state)
+        
+        return final_response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

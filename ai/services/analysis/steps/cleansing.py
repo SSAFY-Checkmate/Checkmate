@@ -20,7 +20,13 @@ async def text_cleansing_step(state: dict) -> dict:
         return state
 
     # LangChain LLM 초기화 및 Structured Output 활성화
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+    from core.config import settings
+    llm = ChatOpenAI(
+        api_key=settings.gms_key,
+        base_url="https://gms.ssafy.io/gmsapi/api.openai.com/v1",
+        model="gpt-4o-mini", 
+        temperature=0.0
+    )
     structured_llm = llm.with_structured_output(FactualSegmentsResponse)
     
     prompt = ChatPromptTemplate.from_messages([

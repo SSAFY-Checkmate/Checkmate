@@ -1,5 +1,5 @@
 import logging
-from openai import OpenAI
+from langchain_openai import OpenAIEmbeddings
 from core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -12,45 +12,37 @@ class EmbeddingService:
         
         if not self.api_key:
             logger.warning("GMS_KEY is not set. Embeddings might fail.")
-            self.client = None
+            self.embeddings = None
         else:
-            self.client = OpenAI(
+            # LangChain의 OpenAIEmbeddings 사용
+            self.embeddings = OpenAIEmbeddings(
                 api_key=self.api_key,
-                base_url=self.base_url
+                base_url=self.base_url,
+                model=self.model
             )
-            logger.info("Initialized EmbeddingService with GMS Gateway.")
+            logger.info("Initialized EmbeddingService with LangChain OpenAIEmbeddings.")
 
     def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text."""
-        if not self.client:
-            raise ValueError("OpenAI Client is not initialized due to missing GMS_KEY.")
+        if not self.embeddings:
+            raise ValueError("OpenAIEmbeddings is not initialized due to missing GMS_KEY.")
             
         try:
-            response = self.client.embeddings.create(
-                input=text,
-                model=self.model
-            )
-            return response.data[0].embedding
+            return self.embeddings.embed_query(text)
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             raise e
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple texts."""
-        if not self.client:
-            raise ValueError("OpenAI Client is not initialized due to missing GMS_KEY.")
+        if not self.embeddings:
+            raise ValueError("OpenAIEmbeddings is not initialized due to missing GMS_KEY.")
             
         if not texts:
             return []
 
         try:
-            response = self.client.embeddings.create(
-                input=texts,
-                model=self.model
-            )
-            # Ensure the embeddings match the order of input texts
-            embeddings = [data.embedding for data in sorted(response.data, key=lambda x: x.index)]
-            return embeddings
+            return self.embeddings.embed_documents(texts)
         except Exception as e:
             logger.error(f"Error generating embeddings: {e}")
             raise e

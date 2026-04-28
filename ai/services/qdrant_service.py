@@ -80,4 +80,23 @@ class QdrantService:
             logger.error(f"Error upserting points to {collection_name}: {e}")
             raise e
 
+    def get_vector_store(self, collection_name: str):
+        """Returns a LangChain QdrantVectorStore for the given collection."""
+        if not self.client:
+            logger.error("Qdrant client is not initialized.")
+            return None
+            
+        from langchain_qdrant import QdrantVectorStore
+        from services.embedding_service import embedding_service
+        
+        if not embedding_service.embeddings:
+            logger.error("Embedding service is not initialized.")
+            return None
+            
+        return QdrantVectorStore(
+            client=self.client,
+            collection_name=collection_name,
+            embedding=embedding_service.embeddings
+        )
+
 qdrant_service = QdrantService()
