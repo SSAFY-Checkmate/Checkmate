@@ -1,4 +1,4 @@
-package com.ssafy.a405.global.inbox.entity;
+package com.ssafy.a405.domain.inbox.entity;
 
 import com.ssafy.a405.global.common.base.BaseTimeEntity;
 import jakarta.persistence.Column;

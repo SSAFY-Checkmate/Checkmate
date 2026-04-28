@@ -3,7 +3,6 @@ package com.ssafy.a405.domain.analysis.controller;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRequest;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
-import com.ssafy.a405.domain.analysis.dto.AnalysisReportResponse;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobOrchestrator;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
@@ -17,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,7 +26,6 @@ public class AnalysisJobController {
 
 	private final AnalysisJobService analysisJobService;
 	private final AnalysisJobOrchestrator analysisJobOrchestrator;
-	private final com.ssafy.a405.domain.analysis.service.AnalysisService analysisService;
 
 	@PostMapping
 	public ResponseEntity<ApiResponseBody<AnalysisJobCreateResponse>> requestAnalysis(
@@ -51,9 +50,11 @@ public class AnalysisJobController {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.getJob(jobId)));
 	}
 
-	@GetMapping("/{jobId}/result")
-	public ResponseEntity<ApiResponseBody<AnalysisReportResponse>> getAnalysisResult(@PathVariable String jobId) {
-		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisService.getAnalysisResult(jobId)));
+	@GetMapping("/latest")
+	public ResponseEntity<ApiResponseBody<AnalysisJobGetResponse>> getLatestByYoutubeUrl(
+		@RequestParam String youtubeUrl
+	) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.getLatestJobByYoutubeUrl(youtubeUrl)));
 	}
 }
 

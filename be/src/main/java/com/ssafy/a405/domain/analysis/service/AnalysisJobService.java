@@ -8,9 +8,10 @@ import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptFailedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
 import com.ssafy.a405.domain.analysis.repository.AnalysisJobRepository;
+import com.ssafy.a405.global.util.YoutubeUrlNormalizer;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
-import com.ssafy.a405.global.event.EventEnvelope;
+import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,9 +36,32 @@ public class AnalysisJobService {
 
 	@Transactional
 	public AnalysisJob createJob(String youtubeUrl) {
-		AnalysisJob job = AnalysisJob.requested(youtubeUrl);
+		String normalized = YoutubeUrlNormalizer.normalize(youtubeUrl);
+		AnalysisJob job = AnalysisJob.requested(normalized);
 		analysisJobRepository.save(job);
 		return job;
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<AnalysisJob> findLatestByYoutubeUrl(String youtubeUrl) {
+		String raw = youtubeUrl == null ? null : youtubeUrl.trim();
+		if (raw == null || raw.isBlank()) {
+			return Optional.empty();
+		}
+
+		String normalized = YoutubeUrlNormalizer.normalize(raw);
+
+		Optional<AnalysisJob> latest = analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(normalized);
+		if (latest.isPresent()) {
+			return latest;
+		}
+
+		// Backward compatibility: previously stored rows may have un-normalized URLs.
+		if (!normalized.equals(raw)) {
+			return analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(raw);
+		}
+
+		return Optional.empty();
 	}
 
 	@Transactional(readOnly = true)
@@ -65,6 +90,13 @@ public class AnalysisJobService {
 			resultNode,
 			error
 		);
+	}
+
+	@Transactional(readOnly = true)
+	public AnalysisJobGetResponse getLatestJobByYoutubeUrl(String youtubeUrl) {
+		AnalysisJob job = findLatestByYoutubeUrl(youtubeUrl)
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+		return getJob(job.getJobId());
 	}
 
 	@Transactional

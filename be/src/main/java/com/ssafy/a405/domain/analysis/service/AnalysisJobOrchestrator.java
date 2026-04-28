@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.TranscriptRequestedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
-import com.ssafy.a405.global.event.EventEnvelope;
+import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +30,17 @@ public class AnalysisJobOrchestrator {
 	@Value("${topics.transcript.requested:transcript.requested}")
 	private String transcriptRequestedTopic;
 
+	@Value("${analysis.dedup.enabled:false}")
+	private boolean dedupEnabled;
+
 	public AnalysisJob requestAnalysisAsync(String youtubeUrl) {
+		if (dedupEnabled) {
+			AnalysisJob existing = analysisJobService.findLatestByYoutubeUrl(youtubeUrl).orElse(null);
+			if (existing != null && existing.getStatus() != AnalysisJobStatus.FAILED) {
+				return existing;
+			}
+		}
+
 		AnalysisJob job = analysisJobService.createJob(youtubeUrl);
 
 		if ("kafka".equalsIgnoreCase(pipelineMode)) {
@@ -44,6 +55,17 @@ public class AnalysisJobOrchestrator {
 	public AnalysisJobGetResponse requestAnalysisSync(String youtubeUrl) {
 		if ("kafka".equalsIgnoreCase(pipelineMode)) {
 			throw new CustomException(ErrorCode.BAD_REQUEST);
+		}
+
+		if (dedupEnabled) {
+			AnalysisJob existing = analysisJobService.findLatestByYoutubeUrl(youtubeUrl).orElse(null);
+			if (existing != null && existing.getStatus() == AnalysisJobStatus.COMPLETED) {
+				return analysisJobService.getJob(existing.getJobId());
+			}
+			if (existing != null && existing.getStatus() != AnalysisJobStatus.FAILED) {
+				// In-progress: return current status instead of blocking on a duplicate sync run.
+				return analysisJobService.getJob(existing.getJobId());
+			}
 		}
 
 		AnalysisJob job = analysisJobService.createJob(youtubeUrl);
