@@ -3,6 +3,7 @@ import { useCheckmateStore } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { ResponseModal } from "./response-modal";
+import { LoginView } from "./login-view";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
@@ -21,7 +22,8 @@ export function AnalysisDashboard() {
     closeWarning, 
     setActiveTab,
     isPanelOpen,
-    closePanel
+    closePanel,
+    isLoggedIn
   } = useCheckmateStore();
   
   const [isPressed, setIsPressed] = useState(false);
@@ -104,6 +106,15 @@ export function AnalysisDashboard() {
   };
 
   if (!isWatchPage) return null;
+
+  // 로그인하지 않은 경우 진입 차단 및 로그인 뷰 표시
+  if (!isLoggedIn) {
+    return (
+      <div style={PIXEL_STYLES.dashboardContainer}>
+        <LoginView />
+      </div>
+    );
+  }
 
   return (
     <div 
