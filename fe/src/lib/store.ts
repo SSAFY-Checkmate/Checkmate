@@ -48,8 +48,6 @@ export type AnalysisStatus =
 
 export interface User {
   name: string;
-  email: string;
-  picture: string;
 }
 
 /**
@@ -127,10 +125,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   analyzedVideos: {},
 
   // 인증 초기 상태
-  isLoggedIn: false,
+  isLoggedIn: false, // 실제 구현 시 초기화 함수에서 확인
   user: null,
 
-  // 커뮤니티 초기 데이터 (목목)
+  // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
     { id: "w1", claim: "이 약만 먹으면 일주일 만에 10kg 감량?", reporterComment: "과장 광고가 의심됩니다.", votesTrue: 12, votesFake: 85 },
     { id: "w2", claim: "내일부터 모든 세금이 0원?", reporterComment: "가짜 뉴스인 것 같아요.", votesTrue: 3, votesFake: 142 },
@@ -257,5 +255,40 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }, 800);
   },
 
-  setLoginStatus: (isLoggedIn, user = null) => set({ isLoggedIn, user }),
+  setLoginStatus: (isLoggedIn, user = null) => {
+    if (!isLoggedIn) {
+      if (typeof chrome !== "undefined" && chrome.storage) {
+        chrome.storage.local.remove("jwtToken");
+      }
+      localStorage.removeItem("jwtToken");
+    }
+    set({ isLoggedIn, user });
+  },
 }));
+
+/**
+ * 앱 로드 시 서버에 /auth/me 요청을 보내어 HttpOnly 쿠키 기반 인증 상태를 복원합니다.
+ */
+export const initializeAuth = async () => {
+  const store = useCheckmateStore.getState();
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  
+  try {
+    const response = await fetch(`${baseUrl}/auth/me`, { 
+      method: "GET",
+      credentials: "include" 
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.data && result.data.name) {
+        store.setLoginStatus(true, { name: result.data.name });
+        return;
+      }
+    }
+    store.setLoginStatus(false, null);
+  } catch (error) {
+    console.error("인증 초기화 실패:", error);
+    store.setLoginStatus(false, null);
+  }
+};

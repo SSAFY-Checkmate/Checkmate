@@ -23,7 +23,8 @@ export function AnalysisDashboard() {
     setActiveTab,
     isPanelOpen,
     closePanel,
-    isLoggedIn
+    isLoggedIn,
+    user
   } = useCheckmateStore();
   
   const [isPressed, setIsPressed] = useState(false);
@@ -127,8 +128,37 @@ export function AnalysisDashboard() {
         style={{
           ...PIXEL_STYLES.border,
           ...PIXEL_STYLES.mainCard,
+          position: "relative",
         }}
       >
+        {/* 우측 상단 유저 프로필 아바타 (구글 스타일) */}
+        {user?.name && (
+          <div 
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              backgroundColor: "#0ea5e9", // 로그인 화면과 동일한 파란색
+              color: "white",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              fontWeight: "900",
+              fontSize: "16px",
+              fontFamily: "'CheckmatePixel', sans-serif",
+              zIndex: 100,
+              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+              border: "2px solid white",
+            }}
+            title={user.name}
+          >
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+
         {isWarningVisible ? (
           /* 분석 결과 표시 상태 */
           <div style={{ display: "flex", flexDirection: "column" }}>
