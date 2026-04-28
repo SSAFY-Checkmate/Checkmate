@@ -8,7 +8,6 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
 } else {
   (window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__ = true;
-  console.log("[Checkmate] 콘텐츠 스크립트 로드됨! (v3.0 - Expandable Card)");
 
   const runCheckmate = async () => {
     const { renderDashboard } = await import("./components/checkmate/injector");

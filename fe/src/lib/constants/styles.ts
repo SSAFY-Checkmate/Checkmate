@@ -69,13 +69,13 @@ export const PIXEL_STYLES = {
     flexDirection: "column" as const,
     alignItems: "center",
     width: "100%",
-    fontFamily: "'DungGeunMo', monospace",
+    fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
     marginBottom: "24px",
   },
 
   mainCard: {
     width: "100%",
-    margin: "16px 0 0 0",
+    margin: "0 0 0 0",
     overflow: "hidden",
     display: "flex",
     flexDirection: "column" as const,

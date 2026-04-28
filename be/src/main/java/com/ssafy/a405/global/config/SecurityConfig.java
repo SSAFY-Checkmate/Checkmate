@@ -96,7 +96,9 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "http://k14a405.p.ssafy.io",
-                "https://k14a405.p.ssafy.io" // 실제 도메인 추가
+                "https://k14a405.p.ssafy.io", // 실제 도메인 추가
+                "chrome-extension://ofncopcfnmnlagnneoianbbldjglebjh",
+                "https://www.youtube.com"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
