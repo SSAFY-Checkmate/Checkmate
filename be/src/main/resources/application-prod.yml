@@ -70,3 +70,8 @@ topics:
     requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
     completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
     failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}
+
+app:
+  services:
+    parser:
+      base-url: https://k14a405.p.ssafy.io/parser
