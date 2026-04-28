@@ -191,7 +191,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false, // 영상 전환 시 서랍은 닫음
         ...cachedData,
       });
-      console.log(`[Checkmate] 영상(${id}) 캐시 복원됨:`, cachedData);
     } else {
       // 새로운 영상이면 초기화
       set({
@@ -206,7 +205,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: [],
         warningCount: 0,
       });
-      console.log(`[Checkmate] 새로운 영상(${id}) 상태 초기화됨`);
     }
   },
 
@@ -287,7 +285,6 @@ export const initializeAuth = async () => {
       }
     } else if (response.status === 401 || response.status === 403) {
       // Access Token이 만료된 경우 (401/403) Refresh Token으로 재발급 시도
-      console.log("액세스 토큰 만료됨, 재발급 시도...");
       const reissueResponse = await fetch(`${baseUrl}/auth/reissue`, {
         method: "POST",
         credentials: "include"
@@ -295,7 +292,6 @@ export const initializeAuth = async () => {
 
       if (reissueResponse.ok) {
         // 토큰 재발급 성공 시 다시 내 정보 가져오기
-        console.log("토큰 재발급 성공, 정보 재요청...");
         const retryResponse = await fetch(`${baseUrl}/auth/me`, {
           method: "GET",
           credentials: "include"

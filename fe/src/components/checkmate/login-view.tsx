@@ -93,7 +93,6 @@ export const LoginView = () => {
     // 2. 팝업창에서 보내는 로그인 성공 메시지 리스너
     const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === "OAUTH_SUCCESS") {
-        console.log("OAuth Success: fetching user profile...");
         await initializeAuth();
       }
     };
