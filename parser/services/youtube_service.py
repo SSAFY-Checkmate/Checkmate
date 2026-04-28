@@ -75,7 +75,7 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         except Exception:
             pass
             
-        ytt_api = YouTubeTranscriptApi()
+        ytt_api = YouTubeTranscriptApi(http_client=session)
         transcript_list = ytt_api.list(video_id)
 
         transcript = None
