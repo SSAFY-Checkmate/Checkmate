@@ -27,6 +27,7 @@ public class AnalysisJobService {
 	private final AnalysisJobRepository analysisJobRepository;
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
+	private final AnalysisDataMappingService analysisDataMappingService;
 
 	@Value("${topics.analysis.requested:analysis.requested}")
 	private String analysisRequestedTopic;
@@ -71,6 +72,9 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.complete(LocalDateTime.now(), resultJson);
+		
+		// Map and save to RDB entities
+		analysisDataMappingService.mapAndSaveAnalysisResult(resultJson);
 	}
 
 	@Transactional
