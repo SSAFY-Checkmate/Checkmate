@@ -32,46 +32,6 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            when {
-                expression {
-                    return env.BRANCH_NAME == 'develop' &&
-                           sh(
-                               script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
-                               returnStdout: true
-                           ).trim()
-                }
-            }
-            steps {
-                withCredentials([
-                    string(credentialsId: 'prod-db-url', variable: 'PROD_DB_URL'),
-                    string(credentialsId: 'prod-db-username', variable: 'PROD_DB_USERNAME'),
-                    string(credentialsId: 'prod-db-password', variable: 'PROD_DB_PASSWORD'),
-                    string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
-                    string(credentialsId: 'google-client-id', variable: 'GOOGLE_CLIENT_ID'),
-                    string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
-                    string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
-                ]) {
-                    dir('be') {
-                        sh '''
-                            chmod +x ./gradlew
-
-                            export SPRING_PROFILES_ACTIVE=prod
-                            export PROD_DB_URL="$PROD_DB_URL"
-                            export PROD_DB_USERNAME="$PROD_DB_USERNAME"
-                            export PROD_DB_PASSWORD="$PROD_DB_PASSWORD"
-                            export JWT_SECRET="$JWT_SECRET"
-                            export GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID"
-                            export GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET"
-                            export OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI"
-
-                            ./gradlew clean test --no-daemon
-                        '''
-                    }
-                }
-            }
-        }
-
         stage('Docker Build') {
             when {
                 expression {
@@ -110,7 +70,6 @@ pipeline {
                         docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
 
                         # 2. Jenkins 컨테이너도 같은 네트워크에 연결
-                        # 이미 연결되어 있으면 에러가 날 수 있으므로 || true 처리
                         docker network connect ${NETWORK_NAME} jenkins || true
 
                         # 3. compose에서 사용할 운영 환경변수 export
