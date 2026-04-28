@@ -9,9 +9,7 @@ COPY src ./src
 
 RUN chmod +x ./gradlew
 
-# 테스트는 Jenkinsfile에서 수행하고,
-# Dockerfile에서는 실행 가능한 jar만 생성
-RUN ./gradlew clean bootJar -x test --no-daemon
+RUN ./gradlew clean test bootJar --no-daemon
 
 RUN JAR_FILE=$(find build/libs -name "*.jar" ! -name "*plain.jar" | head -n 1) && \
     cp "$JAR_FILE" build/libs/app.jar
