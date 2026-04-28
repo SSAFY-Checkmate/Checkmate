@@ -3,9 +3,11 @@ package com.ssafy.a405.domain.analysis.controller;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRequest;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
+import com.ssafy.a405.domain.analysis.dto.AnalysisReportResponse;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobOrchestrator;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
+import com.ssafy.a405.domain.analysis.service.AnalysisService;
 import com.ssafy.a405.global.common.code.SuccessCode;
 import com.ssafy.a405.global.common.dto.ApiResponseBody;
 import jakarta.validation.Valid;
@@ -26,6 +28,7 @@ public class AnalysisJobController {
 
 	private final AnalysisJobService analysisJobService;
 	private final AnalysisJobOrchestrator analysisJobOrchestrator;
+	private final AnalysisService analysisService;
 
 	@PostMapping
 	public ResponseEntity<ApiResponseBody<AnalysisJobCreateResponse>> requestAnalysis(
@@ -56,5 +59,10 @@ public class AnalysisJobController {
 	) {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.getLatestJobByYoutubeUrl(youtubeUrl)));
 	}
+	@GetMapping("/{jobId}/result")
+	public ResponseEntity<ApiResponseBody<AnalysisReportResponse>> getAnalysisResult(@PathVariable String jobId) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisService.getAnalysisResult(jobId)));
+	}
+
 }
 
