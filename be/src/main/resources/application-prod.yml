@@ -70,8 +70,15 @@ topics:
     requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
     completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
     failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}
+  transcript:
+    requested: ${TOPIC_TRANSCRIPT_REQUESTED:transcript.requested}
+    processing: ${TOPIC_TRANSCRIPT_PROCESSING:transcript.processing}
+    completed: ${TOPIC_TRANSCRIPT_COMPLETED:transcript.completed}
+    failed: ${TOPIC_TRANSCRIPT_FAILED:transcript.failed}
 
 app:
   services:
     parser:
       base-url: https://k14a405.p.ssafy.io/parser
+    ai:
+      base-url: https://k14a405.p.ssafy.io/ai

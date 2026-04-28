@@ -74,5 +74,13 @@ public class SwaggerConfig {
                 .packagesToScan("com.ssafy.a405.domain.health")
                 .build();
     }
+
+    @Bean
+    public GroupedOpenApi analysisApi() {
+        return GroupedOpenApi.builder()
+                .group("analysis")
+                .packagesToScan("com.ssafy.a405.domain.analysis")
+                .build();
+    }
 }
 
