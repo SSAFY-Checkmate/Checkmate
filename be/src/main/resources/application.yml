@@ -58,12 +58,20 @@ oauth2:
   success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:5173/oauth2/redirect}
   redirection-base-uri: /login/oauth2/code/*
 
+app:
+  services:
+    parser:
+      base-url: http://localhost:8000
+    ai:
+      base-url: http://localhost:8001
+
 springdoc:
   swagger-ui:
     persist-authorization: true
 
 server:
   port: 8080
+
 
 outbox:
   publisher:
@@ -78,3 +86,8 @@ topics:
     requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
     completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
     failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}
+  transcript:
+    requested: ${TOPIC_TRANSCRIPT_REQUESTED:transcript.requested}
+    processing: ${TOPIC_TRANSCRIPT_PROCESSING:transcript.processing}
+    completed: ${TOPIC_TRANSCRIPT_COMPLETED:transcript.completed}
+    failed: ${TOPIC_TRANSCRIPT_FAILED:transcript.failed}
