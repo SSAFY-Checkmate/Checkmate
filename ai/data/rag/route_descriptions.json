@@ -1,0 +1,30 @@
+[
+  {
+    "name": "food_health_ad",
+    "description": "건강기능식품, 다이어트 제품, 식품 광고, 식약처 인증, 효능 과장, 체중 감량, 허위 과대광고 관련 주장"
+  },
+  {
+    "name": "health_medical",
+    "description": "질병, 치료, 예방, 의약품, 병원, 의사, 임상시험, 부작용, 의학적 효능 관련 주장"
+  },
+  {
+    "name": "policy_regulation",
+    "description": "정부 인증, 법령, 제도, 규제, 행정 기준, 공식 허가, 공공기관 기준과 관련된 주장"
+  },
+  {
+    "name": "policy_welfare",
+    "description": "정부 지원금, 복지 정책, 청년 지원, 신청 자격, 소득 기준, 지자체 정책 관련 주장"
+  },
+  {
+    "name": "news_event",
+    "description": "최근 사건, 사고, 사회 이슈, 인물 발언, 재난, 범죄, 국제 정세 관련 주장"
+  },
+  {
+    "name": "finance_investment",
+    "description": "주식, 코인, 투자 수익, 원금 보장, 수익률, 금융상품, 투자 권유 관련 주장"
+  },
+  {
+    "name": "product_commerce",
+    "description": "제품 성능, 가격, 판매 여부, 브랜드, 구매 링크, 소비자 후기, 상품 비교 관련 주장"
+  }
+]
