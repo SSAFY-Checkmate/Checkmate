@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
+import { useCheckmateStore, logoutAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { ResponseModal } from "./response-modal";
@@ -131,31 +131,47 @@ export function AnalysisDashboard() {
           position: "relative",
         }}
       >
-        {/* 우측 상단 유저 프로필 아바타 (구글 스타일) */}
+        {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
         {user?.name && (
-          <div 
-            style={{
-              position: "absolute",
-              top: "10px",
-              right: "10px",
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              backgroundColor: "#0ea5e9", // 로그인 화면과 동일한 파란색
-              color: "white",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              fontWeight: "900",
-              fontSize: "16px",
-              fontFamily: "'CheckmatePixel', sans-serif",
-              zIndex: 100,
-              boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-              border: "2px solid white",
-            }}
-            title={user.name}
-          >
-            {user.name.charAt(0).toUpperCase()}
+          <div style={{ position: "absolute", top: "10px", right: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", zIndex: 100 }}>
+            <div 
+              onClick={logoutAuth}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                backgroundColor: "#0ea5e9", // 로그인 화면과 동일한 파란색
+                color: "white",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                fontWeight: "900",
+                fontSize: "16px",
+                fontFamily: "'CheckmatePixel', sans-serif",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                border: "2px solid white",
+                cursor: "pointer",
+                transition: "transform 0.1s",
+              }}
+              title={`${user.name} (클릭하여 로그아웃)`}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <span 
+              onClick={logoutAuth}
+              style={{
+                fontSize: "10px",
+                fontFamily: "'CheckmatePixel', sans-serif",
+                color: "#71717a",
+                cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: "2px",
+              }}
+            >
+              LOGOUT
+            </span>
           </div>
         )}
 

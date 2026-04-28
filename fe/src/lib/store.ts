@@ -292,3 +292,23 @@ export const initializeAuth = async () => {
     store.setLoginStatus(false, null);
   }
 };
+
+/**
+ * 서버에 /auth/logout 요청을 보내어 HttpOnly 쿠키를 삭제하고 로그인 상태를 해제합니다.
+ */
+export const logoutAuth = async () => {
+  const store = useCheckmateStore.getState();
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  
+  try {
+    await fetch(`${baseUrl}/auth/logout`, { 
+      method: "POST",
+      credentials: "include" 
+    });
+  } catch (error) {
+    console.error("로그아웃 요청 실패:", error);
+  } finally {
+    // 백엔드 요청 성공 여부와 무관하게 프론트엔드 상태는 초기화
+    store.setLoginStatus(false, null);
+  }
+};
