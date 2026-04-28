@@ -2,7 +2,7 @@ package com.ssafy.a405.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.a405.domain.analysis.http.ParserClient;
+import com.ssafy.a405.global.http.parser.ParserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;

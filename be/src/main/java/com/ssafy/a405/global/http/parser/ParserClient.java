@@ -1,4 +1,4 @@
-package com.ssafy.a405.domain.analysis.http;
+package com.ssafy.a405.global.http.parser;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

@@ -1,6 +1,6 @@
-package com.ssafy.a405.global.inbox.repository;
+package com.ssafy.a405.domain.inbox.repository;
 
-import com.ssafy.a405.global.inbox.entity.InboxEvent;
+import com.ssafy.a405.domain.inbox.entity.InboxEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

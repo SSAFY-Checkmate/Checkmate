@@ -1,4 +1,4 @@
-package com.ssafy.a405.global.event;
+package com.ssafy.a405.domain.event;
 
 import com.fasterxml.jackson.databind.JsonNode;
 

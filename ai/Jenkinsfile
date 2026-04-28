@@ -84,7 +84,9 @@ pipeline {
                 sh """
                     docker run -d \
                     --name ${CONTAINER_NAME} \
+                    --network checkmate-net \
                     -p ${HOST_PORT}:8000 \
+                    -e QDRANT_URL=http://qdrant:6333 \
                     --restart unless-stopped \
                     ${DOCKER_IMAGE}:${BUILD_NUMBER}
                 """

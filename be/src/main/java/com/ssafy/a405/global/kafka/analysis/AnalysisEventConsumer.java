@@ -1,12 +1,12 @@
-package com.ssafy.a405.domain.analysis.kafka;
+package com.ssafy.a405.global.kafka.analysis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
-import com.ssafy.a405.global.event.EventEnvelope;
-import com.ssafy.a405.global.inbox.service.InboxService;
+import com.ssafy.a405.domain.event.EventEnvelope;
+import com.ssafy.a405.domain.inbox.service.InboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

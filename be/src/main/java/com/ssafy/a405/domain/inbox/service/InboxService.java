@@ -1,8 +1,8 @@
-package com.ssafy.a405.global.inbox.service;
+package com.ssafy.a405.domain.inbox.service;
 
-import com.ssafy.a405.global.inbox.entity.InboxEvent;
-import com.ssafy.a405.global.inbox.entity.InboxStatus;
-import com.ssafy.a405.global.inbox.repository.InboxEventRepository;
+import com.ssafy.a405.domain.inbox.entity.InboxEvent;
+import com.ssafy.a405.domain.inbox.entity.InboxStatus;
+import com.ssafy.a405.domain.inbox.repository.InboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;

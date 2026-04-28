@@ -16,14 +16,12 @@ spring:
       ack-mode: manual
       missing-topics-fatal: false
 
-  # 1. 로컬 데이터베이스 (MySQL) 설정
   datasource:
     url: jdbc:mysql://localhost:3306/checkmate?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # 2. JPA 로컬 설정
   jpa:
     hibernate:
       ddl-auto: update
@@ -60,17 +58,24 @@ oauth2:
   success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI:http://localhost:5173/oauth2/redirect}
   redirection-base-uri: /login/oauth2/code/*
 
+app:
+  services:
+    parser:
+      base-url: http://localhost:8000
+    ai:
+      base-url: http://localhost:8001
+
 springdoc:
   swagger-ui:
     persist-authorization: true
 
-# 3. 서버 설정
 server:
   port: 8080
 
+
 outbox:
   publisher:
-    enabled: false
+    enabled: ${OUTBOX_PUBLISHER_ENABLED:false}
     fixed-delay-ms: ${OUTBOX_PUBLISH_FIXED_DELAY_MS:1000}
     batch-size: ${OUTBOX_PUBLISH_BATCH_SIZE:50}
     max-attempts: ${OUTBOX_PUBLISH_MAX_ATTEMPTS:10}
@@ -81,3 +86,8 @@ topics:
     requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
     completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
     failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}
+  transcript:
+    requested: ${TOPIC_TRANSCRIPT_REQUESTED:transcript.requested}
+    processing: ${TOPIC_TRANSCRIPT_PROCESSING:transcript.processing}
+    completed: ${TOPIC_TRANSCRIPT_COMPLETED:transcript.completed}
+    failed: ${TOPIC_TRANSCRIPT_FAILED:transcript.failed}

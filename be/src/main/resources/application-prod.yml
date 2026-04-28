@@ -4,7 +4,7 @@ spring:
       on-profile: prod
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -21,6 +21,7 @@ spring:
     url: ${PROD_DB_URL}
     username: ${PROD_DB_USERNAME}
     password: ${PROD_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -49,6 +50,8 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
+  access-token-expiration-millis: ${JWT_ACCESS_TOKEN_EXPIRATION_MILLIS:1800000}
+  refresh-token-expiration-millis: ${JWT_REFRESH_TOKEN_EXPIRATION_MILLIS:1209600000}
 
 oauth2:
   success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
@@ -56,7 +59,7 @@ oauth2:
 
 outbox:
   publisher:
-    enabled: false
+    enabled: ${OUTBOX_PUBLISHER_ENABLED:false}
     fixed-delay-ms: ${OUTBOX_PUBLISH_FIXED_DELAY_MS:1000}
     batch-size: ${OUTBOX_PUBLISH_BATCH_SIZE:50}
     max-attempts: ${OUTBOX_PUBLISH_MAX_ATTEMPTS:10}
@@ -67,3 +70,15 @@ topics:
     requested: ${TOPIC_ANALYSIS_REQUESTED:analysis.requested}
     completed: ${TOPIC_ANALYSIS_COMPLETED:analysis.completed}
     failed: ${TOPIC_ANALYSIS_FAILED:analysis.failed}
+  transcript:
+    requested: ${TOPIC_TRANSCRIPT_REQUESTED:transcript.requested}
+    processing: ${TOPIC_TRANSCRIPT_PROCESSING:transcript.processing}
+    completed: ${TOPIC_TRANSCRIPT_COMPLETED:transcript.completed}
+    failed: ${TOPIC_TRANSCRIPT_FAILED:transcript.failed}
+
+app:
+  services:
+    parser:
+      base-url: https://k14a405.p.ssafy.io/parser
+    ai:
+      base-url: https://k14a405.p.ssafy.io/ai
