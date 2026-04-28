@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from core.config import settings
-from routers import llm_router, claims
+from routers import llm_router, claims, rag
 
 app = FastAPI(
     title=settings.app_name,
@@ -12,6 +12,7 @@ app = FastAPI(
 # Include routers
 app.include_router(llm_router.router)
 app.include_router(claims.router)
+app.include_router(rag.router)
 
 @app.get("/health", tags=["Health"])
 async def health_check():
