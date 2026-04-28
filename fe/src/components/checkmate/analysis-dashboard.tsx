@@ -4,6 +4,7 @@ import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { ResponseModal } from "./response-modal";
 import { LoginView } from "./login-view";
+import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
@@ -129,6 +130,12 @@ export function AnalysisDashboard() {
           ...PIXEL_STYLES.border,
           ...PIXEL_STYLES.mainCard,
           position: "relative",
+          background: "#ffffff",
+          boxShadow: "0 10px 25px rgba(0, 110, 220, 0.1), inset 0 0 0 2px rgba(14, 165, 233, 0.1)",
+          border: "4px solid #0ea5e9",
+          borderRadius: "8px",
+          padding: "16px 0 0 0", // 상단 패딩만 유지하고 나머지는 내부 컨텐츠에서 처리
+          overflow: "hidden",
         }}
       >
         {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
@@ -194,21 +201,13 @@ export function AnalysisDashboard() {
               <p style={{ fontSize: "12px", color: "#52525b", lineHeight: "1.5", margin: "0 0 12px 0" }}>
                 {warningConfig[overallVerdict].desc}
               </p>
-              <button 
-                onClick={(e) => togglePanel(e)} 
-                style={{ 
-                  ...PIXEL_STYLES.btnBase, 
-                  backgroundColor: isPanelOpen ? "#e4e4e7" : "#fde047", 
-                  color: "black",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px"
-                }}
-              >
-                {isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                {isPanelOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
+              <PixelButton
+                onClick={(e) => togglePanel(e)}
+                colorType={isPanelOpen ? "neutral" : "warning"}
+                text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
+                icon={isPanelOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                size="md"
+              />
             </div>
           </div>
         ) : (
@@ -232,31 +231,19 @@ export function AnalysisDashboard() {
 
             <div style={{ width: "100%", minHeight: "44px" }}>
               {analysisStatus === "idle" ? (
-                <button
+                <PixelButton
                   onClick={() => startAnalysis()}
-                  onMouseDown={() => setIsPressed(true)}
-                  onMouseUp={() => setIsPressed(false)}
-                  style={{
-                    ...PIXEL_STYLES.btnBase,
-                    backgroundColor: COLORS.primary,
-                    color: "white",
-                    ...(isPressed ? PIXEL_STYLES.btnActive : {}),
-                  }}
-                >
-                  팩트체크 수사 시작
-                </button>
+                  colorType="primary"
+                  text="팩트체크 수사 시작"
+                />
               ) : analysisStatus === "complete" ? (
-                <button
+                <PixelButton
                   onClick={(e) => togglePanel(e)}
-                  style={{
-                    ...PIXEL_STYLES.btnBase,
-                    backgroundColor: "#a855f7", // 보라색 버튼
-                    boxShadow: "2px 2px 0 0 rgba(0,0,0,0.3), inset -2px -2px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 0 rgba(255,255,255,0.3)",
-                    color: "white",
-                  }}
-                >
-                  리포트 다시 보기
-                </button>
+                  colorType="neutral"
+                  text={isPanelOpen ? "분석 결과 닫기" : "분석 결과 보기"}
+                  icon={isPanelOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  size="md"
+                />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#18181b" }}>
