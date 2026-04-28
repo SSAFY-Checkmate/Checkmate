@@ -245,11 +245,34 @@ export function AnalysisDashboard() {
                   size="md"
                 />
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#18181b" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                  <div style={{ 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    fontSize: "14px", 
+                    color: "#0ea5e9", // Arcade Blue
+                    fontFamily: "'CheckmatePixel', sans-serif",
+                    fontWeight: "900",
+                    textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
+                  }}>
                     <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
+                    <span>
+                      {analysisStatus === "detecting" ? "25%" : 
+                       analysisStatus === "analyzing_transcript" ? "50%" : 
+                       analysisStatus === "analyzing_claims" ? "75%" : "90%"}
+                    </span>
                   </div>
-                  <div style={{ height: "12px", width: "100%", backgroundColor: "#e4e4e7", padding: "2px", ...PIXEL_STYLES.border }}>
+                  
+                  {/* Retro Progress Bar Container */}
+                  <div style={{ 
+                    height: "20px", 
+                    width: "100%", 
+                    backgroundColor: "#1e293b", // Dark background for the gauge
+                    padding: "4px", 
+                    borderRadius: "4px",
+                    border: "2px solid #0f172a",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
+                  }}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{
@@ -258,7 +281,13 @@ export function AnalysisDashboard() {
                           analysisStatus === "analyzing_transcript" ? "50%" : 
                           analysisStatus === "analyzing_claims" ? "75%" : "90%",
                       }}
-                      style={{ height: "100%", backgroundColor: "#22c55e" }}
+                      style={{ 
+                        height: "100%", 
+                        backgroundColor: "#38bdf8", // Light blue fill
+                        boxShadow: "inset 0 -4px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.4)", // Pixel highlight effect
+                        borderRadius: "2px"
+                      }}
+                      transition={{ type: "spring", stiffness: 50, damping: 15 }}
                     />
                   </div>
                 </div>
