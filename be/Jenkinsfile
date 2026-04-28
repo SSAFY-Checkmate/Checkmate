@@ -3,13 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = "a405-backend:latest"
-        CONTAINER_NAME = "a405-backend"
-        PUBLISHER_CONTAINER_NAME = "a405-backend-publisher"
-        APP_PORT = "8080"
         NETWORK_NAME = "checkmate-net"
-
-        // 카프카 주소 명시
-        KAFKA_BOOTSTRAP_SERVERS = "kafka:9092"
+        COMPOSE_FILE = "be/docker-compose.prod.yml"
     }
 
     stages {
@@ -18,20 +13,33 @@ pipeline {
                 checkout scm
                 script {
                     echo "BRANCH_NAME=${env.BRANCH_NAME}"
+
                     if (env.BRANCH_NAME == 'develop') {
-                        def changed = sh(script: "git diff --name-only HEAD~1 HEAD || true", returnStdout: true).trim()
-                        def beChanged = sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
+                        def changed = sh(
+                            script: "git diff --name-only HEAD~1 HEAD || true",
+                            returnStdout: true
+                        ).trim()
+
+                        def beChanged = sh(
+                            script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
+                            returnStdout: true
+                        ).trim()
+
+                        echo "CHANGED_FILES=${changed}"
                         echo "BE_CHANGED_FILES=${beChanged}"
                     }
                 }
             }
         }
 
-        stage('CD Build') {
+        stage('Test') {
             when {
                 expression {
                     return env.BRANCH_NAME == 'develop' &&
-                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
+                           sh(
+                               script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
+                               returnStdout: true
+                           ).trim()
                 }
             }
             steps {
@@ -46,25 +54,44 @@ pipeline {
                 ]) {
                     dir('be') {
                         sh '''
-                            docker build \
-                              --build-arg SPRING_PROFILES_ACTIVE=prod \
-                              --build-arg PROD_DB_URL="$PROD_DB_URL" \
-                              --build-arg PROD_DB_USERNAME="$PROD_DB_USERNAME" \
-                              --build-arg PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                              -t ${IMAGE_NAME} .
+                            chmod +x ./gradlew
+
+                            export SPRING_PROFILES_ACTIVE=prod
+                            export PROD_DB_URL="$PROD_DB_URL"
+                            export PROD_DB_USERNAME="$PROD_DB_USERNAME"
+                            export PROD_DB_PASSWORD="$PROD_DB_PASSWORD"
+                            export JWT_SECRET="$JWT_SECRET"
+                            export GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID"
+                            export GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET"
+                            export OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI"
+
+                            ./gradlew clean test --no-daemon
                         '''
                     }
                 }
             }
         }
 
+        stage('Docker Build') {
+            when {
+                expression {
+                    return env.BRANCH_NAME == 'develop' &&
+                           sh(
+                               script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true",
+                               returnStdout: true
+                           ).trim()
+                }
+            }
+            steps {
+                dir('be') {
+                    sh '''
+                        docker build -t ${IMAGE_NAME} .
+                    '''
+                }
+            }
+        }
+
         stage('Deploy') {
-            // when {
-            //     expression {
-            //         return env.BRANCH_NAME == 'develop' &&
-            //                sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
-            //     }
-            // }
             when {
                 branch 'develop'
             }
@@ -79,56 +106,24 @@ pipeline {
                     string(credentialsId: 'oauth2-success-redirect-uri', variable: 'OAUTH2_SUCCESS_REDIRECT_URI')
                 ]) {
                     sh '''
-                        # 1. 네트워크 보장
+                        # 1. checkmate-net 네트워크 보장
                         docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
 
-                        # 2. 카프카를 네트워크에 연결
-                        docker network connect ${NETWORK_NAME} kafka || true
-                        docker network connect ${NETWORK_NAME} redis || true
-                        docker network connect ${NETWORK_NAME} a405-parser || true
-
-                        # 💡 3. 핵심: 젠킨스 컨테이너 자신을 네트워크에 연결 (물리적 통로 확보)
-                        # 컨테이너 이름이 'jenkins'가 맞는지 docker ps로 꼭 확인하세요.
+                        # 2. Jenkins 컨테이너도 같은 네트워크에 연결
+                        # 이미 연결되어 있으면 에러가 날 수 있으므로 || true 처리
                         docker network connect ${NETWORK_NAME} jenkins || true
 
-                        # 4. 기존 컨테이너 제거
-                        docker rm -f ${CONTAINER_NAME} || true
-                        docker rm -f ${PUBLISHER_CONTAINER_NAME} || true
+                        # 3. compose에서 사용할 운영 환경변수 export
+                        export PROD_DB_URL="$PROD_DB_URL"
+                        export PROD_DB_USERNAME="$PROD_DB_USERNAME"
+                        export PROD_DB_PASSWORD="$PROD_DB_PASSWORD"
+                        export JWT_SECRET="$JWT_SECRET"
+                        export GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID"
+                        export GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET"
+                        export OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI"
 
-                        # 5. 실행
-                        docker run -d \
-                          --name ${CONTAINER_NAME} \
-                          --network ${NETWORK_NAME} \
-                          -p ${APP_PORT}:8080 \
-                          -e SPRING_PROFILES_ACTIVE=prod \
-                          -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
-                          -e REDIS_HOST=redis \
-                          -e REDIS_PORT=6379 \
-                          -e APP_SERVICES_PARSER_BASE_URL="http://a405-parser:8000" \
-                          -e PROD_DB_URL="$PROD_DB_URL" \
-                          -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
-                          -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                          -e JWT_SECRET="$JWT_SECRET" \
-                          -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-                          -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-                          -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
-                          ${IMAGE_NAME}
-
-                        docker run -d \
-                          --name ${PUBLISHER_CONTAINER_NAME} \
-                          --network ${NETWORK_NAME} \
-                          -e SPRING_PROFILES_ACTIVE=prod,publisher \
-                          -e KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS}" \
-                          -e REDIS_HOST=redis \
-                          -e REDIS_PORT=6379 \
-                          -e PROD_DB_URL="$PROD_DB_URL" \
-                          -e PROD_DB_USERNAME="$PROD_DB_USERNAME" \
-                          -e PROD_DB_PASSWORD="$PROD_DB_PASSWORD" \
-                          -e JWT_SECRET="$JWT_SECRET" \
-                          -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
-                          -e GOOGLE_CLIENT_SECRET="$GOOGLE_CLIENT_SECRET" \
-                          -e OAUTH2_SUCCESS_REDIRECT_URI="$OAUTH2_SUCCESS_REDIRECT_URI" \
-                          ${IMAGE_NAME}
+                        # 4. docker-compose.prod.yml 기준으로 컨테이너 실행
+                        docker compose -f ${COMPOSE_FILE} up -d
                     '''
                 }
             }
@@ -136,42 +131,68 @@ pipeline {
 
         stage('Verify Deployment') {
             when {
-                expression {
-                    return env.BRANCH_NAME == 'develop' &&
-                           sh(script: "git diff --name-only HEAD~1 HEAD | grep '^be/' || true", returnStdout: true).trim()
-                }
+                branch 'develop'
             }
             steps {
                 sh '''
-                    echo "Waiting for containers to stabilize (40s)..."
+                    echo "Waiting for containers to stabilize..."
                     sleep 40
 
-                    BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null || echo "false")
+                    BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' a405-backend 2>/dev/null || echo "false")
+                    PUBLISHER_STATUS=$(docker inspect -f '{{.State.Running}}' a405-backend-publisher 2>/dev/null || echo "false")
+                    REDIS_STATUS=$(docker inspect -f '{{.State.Running}}' redis 2>/dev/null || echo "false")
+                    KAFKA_STATUS=$(docker inspect -f '{{.State.Running}}' kafka 2>/dev/null || echo "false")
+                    ZOOKEEPER_STATUS=$(docker inspect -f '{{.State.Running}}' zookeeper 2>/dev/null || echo "false")
+
+                    echo "a405-backend running: ${BACKEND_STATUS}"
+                    echo "a405-backend-publisher running: ${PUBLISHER_STATUS}"
+                    echo "redis running: ${REDIS_STATUS}"
+                    echo "kafka running: ${KAFKA_STATUS}"
+                    echo "zookeeper running: ${ZOOKEEPER_STATUS}"
+
                     if [ "$BACKEND_STATUS" != "true" ]; then
                       echo "[ERROR] Backend container is not running"
-                      docker logs --tail 100 ${CONTAINER_NAME}
+                      docker logs --tail 100 a405-backend || true
+                      exit 1
+                    fi
+
+                    if [ "$REDIS_STATUS" != "true" ]; then
+                      echo "[ERROR] Redis container is not running"
+                      docker logs --tail 100 redis || true
+                      exit 1
+                    fi
+
+                    if [ "$KAFKA_STATUS" != "true" ]; then
+                      echo "[ERROR] Kafka container is not running"
+                      docker logs --tail 100 kafka || true
                       exit 1
                     fi
 
                     echo "Checking backend HTTP response via Docker Network..."
-                    # 127.0.0.1 대신 컨테이너 이름을 사용 (네트워크 연결이 되었으므로 가능)
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${CONTAINER_NAME}:8080/health || echo "000")
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://a405-backend:8080/health || echo "000")
                     echo "Backend responded with HTTP CODE: $HTTP_CODE"
 
                     if [ "$HTTP_CODE" -eq 200 ]; then
-                      echo "✅ Health check passed!"
+                      echo "Health check passed"
                     else
-                      echo "❌ [ERROR] Health check failed with code $HTTP_CODE"
-                      docker logs --tail 100 ${CONTAINER_NAME}
+                      echo "[ERROR] Health check failed with code $HTTP_CODE"
+                      docker logs --tail 100 a405-backend || true
                       exit 1
                     fi
+
+                    echo "Checking checkmate-net containers..."
+                    docker network inspect checkmate-net --format '{{range .Containers}}{{.Name}} {{end}}'
                 '''
             }
         }
     }
 
     post {
-        success { echo 'BE pipeline success' }
-        failure { echo 'BE pipeline failed' }
+        success {
+            echo 'BE pipeline success'
+        }
+        failure {
+            echo 'BE pipeline failed'
+        }
     }
 }
