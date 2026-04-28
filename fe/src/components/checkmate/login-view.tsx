@@ -85,8 +85,12 @@ export const LoginView = () => {
     }
   };
 
-  // 팝업창에서 보내는 로그인 성공 메시지 리스너
+  // 마운트 시 인증 상태 복원 (새로고침 대응) 및 팝업창 성공 메시지 리스너
   useEffect(() => {
+    // 1. 페이지 로드 시 즉시 쿠키 기반 인증 상태 확인 (자동 로그인)
+    initializeAuth();
+
+    // 2. 팝업창에서 보내는 로그인 성공 메시지 리스너
     const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === "OAUTH_SUCCESS") {
         console.log("OAuth Success: fetching user profile...");

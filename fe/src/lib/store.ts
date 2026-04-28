@@ -285,6 +285,32 @@ export const initializeAuth = async () => {
         store.setLoginStatus(true, { name: result.data.name });
         return;
       }
+    } else if (response.status === 401 || response.status === 403) {
+      // Access Token이 만료된 경우 (401/403) Refresh Token으로 재발급 시도
+      console.log("액세스 토큰 만료됨, 재발급 시도...");
+      const reissueResponse = await fetch(`${baseUrl}/auth/reissue`, {
+        method: "POST",
+        credentials: "include"
+      });
+
+      if (reissueResponse.ok) {
+        // 토큰 재발급 성공 시 다시 내 정보 가져오기
+        console.log("토큰 재발급 성공, 정보 재요청...");
+        const retryResponse = await fetch(`${baseUrl}/auth/me`, {
+          method: "GET",
+          credentials: "include"
+        });
+
+        if (retryResponse.ok) {
+          const retryResult = await retryResponse.json();
+          if (retryResult.data && retryResult.data.name) {
+            store.setLoginStatus(true, { name: retryResult.data.name });
+            return;
+          }
+        }
+      } else {
+        console.warn("리프레시 토큰 만료, 다시 로그인해야 합니다.");
+      }
     }
     store.setLoginStatus(false, null);
   } catch (error) {
