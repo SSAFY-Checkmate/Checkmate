@@ -46,10 +46,20 @@ export type AnalysisStatus =
   | "verifying"
   | "complete";
 
+export interface User {
+  name: string;
+  email: string;
+  picture: string;
+}
+
 /**
  * Checkmate 전역 상태 스토어 인터페이스
  */
 interface CheckmateState {
+  // 인증 상태
+  isLoggedIn: boolean;
+  user: User | null;
+
   // 패널 및 모달 상태
   isPanelOpen: boolean;
   activeTab: Tab;
@@ -92,6 +102,9 @@ interface CheckmateState {
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
+  
+  // 인증 액션
+  setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
 }
 
 /**
@@ -113,7 +126,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   claims: [],
   analyzedVideos: {},
 
-  // 커뮤니티 초기 데이터 (목업)
+  // 인증 초기 상태
+  isLoggedIn: false,
+  user: null,
+
+  // 커뮤니티 초기 데이터 (목목)
   wantedCards: [
     { id: "w1", claim: "이 약만 먹으면 일주일 만에 10kg 감량?", reporterComment: "과장 광고가 의심됩니다.", votesTrue: 12, votesFake: 85 },
     { id: "w2", claim: "내일부터 모든 세금이 0원?", reporterComment: "가짜 뉴스인 것 같아요.", votesTrue: 3, votesFake: 142 },
@@ -239,4 +256,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }, 1000);
     }, 800);
   },
+
+  setLoginStatus: (isLoggedIn, user = null) => set({ isLoggedIn, user }),
 }));
