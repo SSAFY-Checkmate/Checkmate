@@ -13,13 +13,15 @@ class AnalysisPipelineService:
     def __init__(self):
         self.llm_client = LLMClient()
         
+        async def extract_claims_wrapper(state):
+            return await extract_claims_step(state, self.llm_client)
+
         # Build the LangChain pipeline using LCEL
         self.pipeline: RunnableSequence = (
             RunnableLambda(preprocess_sentences_step)
             | RunnableLambda(generate_summary_step)
             | RunnableLambda(text_cleansing_step)
-            # Pass llm_client to extract_claims_step
-            | RunnableLambda(lambda state: extract_claims_step(state, self.llm_client))
+            | RunnableLambda(extract_claims_wrapper)
             | RunnableLambda(rag_fact_check_step)
             | RunnableLambda(self.format_response)
         )
@@ -35,9 +37,9 @@ class AnalysisPipelineService:
         violations = []
         for res in state.get("fact_check_results", []):
             violations.append(Violation(
-                start_time=12.4, # Mock time
-                violation_sentence=res.get("claim", "문제가 된 발언"),
-                reason="허위 판별 근거 (Mock)"
+                start_time=res.get("start_time", 0.0), # 동적 시간 맵핑
+                violation_sentence=res.get("original_text", res.get("claim", "")), # 주장 추출 전 원본 문장
+                reason=res.get("reason", "허위 판별 근거 (Mock)") # RAG 기반 판별 근거
             ))
 
         # 만약 claims가 없으면 기본 mock 데이터 추가
