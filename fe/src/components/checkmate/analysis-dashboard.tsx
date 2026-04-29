@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useCheckmateStore, logoutAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
-import { ResponseModal } from "./response-modal";
 import { LoginView } from "./login-view";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -415,7 +414,6 @@ export function AnalysisDashboard() {
         )}
       </AnimatePresence>
 
-      <ResponseModal />
     </div>
   );
 }

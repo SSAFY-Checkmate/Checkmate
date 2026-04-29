@@ -62,7 +62,6 @@ interface CheckmateState {
   // 패널 및 모달 상태
   isPanelOpen: boolean;
   activeTab: Tab;
-  isResponseModalOpen: boolean;
 
   // 알림 팝업 상태
   isWarningVisible: boolean;
@@ -93,8 +92,6 @@ interface CheckmateState {
   openPanel: () => void;
   closePanel: () => void;
   setActiveTab: (tab: Tab) => void;
-  openResponseModal: () => void;
-  closeResponseModal: () => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
   startAnalysis: () => void;
@@ -114,7 +111,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   // 초기 상태 설정
   isPanelOpen: false,
   activeTab: "report",
-  isResponseModalOpen: false,
   isWarningVisible: false,
   warningCount: 0,
   analysisStatus: "idle",
@@ -158,8 +154,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
-  openResponseModal: () => set({ isResponseModalOpen: true }),
-  closeResponseModal: () => set({ isResponseModalOpen: false }),
   showWarning: (count) => set({ isWarningVisible: true, warningCount: count }),
   closeWarning: () => set({ isWarningVisible: false }),
 

@@ -2,7 +2,6 @@ import { useCheckmateStore } from "../../lib/store";
 import { X, FileText, Users, Play } from "lucide-react";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
-import { ResponseModal } from "./response-modal";
 import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 
 export function SidePanel() {

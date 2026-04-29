@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
 import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
@@ -193,7 +193,7 @@ function ClaimCard({ claim }: { claim: Claim }) {
 }
 
 export function ReportTab() {
-  const { trustScore, overallVerdict, summary, claims, openResponseModal } = useCheckmateStore();
+  const { trustScore, overallVerdict, summary, claims } = useCheckmateStore();
 
   const verdictConfig = {
     warning: {
@@ -308,26 +308,6 @@ export function ReportTab() {
           </div>
         )
       )}
-
-      {/* Response Action Button */}
-      <button
-        type="button"
-        onClick={openResponseModal}
-        style={{
-          ...PIXEL_STYLES.btnBase,
-          width: "100%",
-          padding: "16px",
-          fontSize: "16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-          marginTop: "8px",
-        }}
-      >
-        <Shield size={20} />
-        🚨 원터치 팩트체크 대응
-      </button>
     </div>
   );
 }
