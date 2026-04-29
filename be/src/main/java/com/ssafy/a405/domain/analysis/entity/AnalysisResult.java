@@ -44,4 +44,11 @@ public class AnalysisResult extends BaseTimeEntity {
         this.summary = summary;
         this.modelVersion = modelVersion;
     }
+
+    public void updateResult(Integer confidenceScore, TrustGrade status, String summary, String modelVersion) {
+        this.confidenceScore = confidenceScore;
+        this.status = status;
+        this.summary = summary;
+        this.modelVersion = modelVersion;
+    }
 }

@@ -2,6 +2,7 @@ package com.ssafy.a405.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.a405.domain.analysis.dto.AnalysisCheckResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisRequestedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
@@ -97,6 +98,16 @@ public class AnalysisJobService {
 		AnalysisJob job = findLatestByYoutubeUrl(youtubeUrl)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		return getJob(job.getJobId());
+	}
+
+	@Transactional(readOnly = true)
+	public AnalysisCheckResponse checkAnalysisStatus(String youtubeUrl) {
+		Optional<AnalysisJob> latest = findLatestByYoutubeUrl(youtubeUrl);
+		if (latest.isPresent()) {
+			AnalysisJob job = latest.get();
+			return new AnalysisCheckResponse(true, job.getJobId(), job.getStatus());
+		}
+		return new AnalysisCheckResponse(false, null, null);
 	}
 
 	@Transactional
