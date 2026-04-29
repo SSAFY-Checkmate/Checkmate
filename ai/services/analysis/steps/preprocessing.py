@@ -17,20 +17,21 @@ def clean_text(text: str) -> str:
 
 def preprocess_sentences_step(state: dict) -> dict:
     """Step 2: Sentence Preprocessing (Rule-based noise removal)"""
-    request: AnalyzeRequest = state.get("request")
+    segments = state.get("segments", [])
     
     cleaned_segments = []
     cleaned_content_parts = []
     
-    if request and request.segments:
-        for seg in request.segments:
-            original_text = seg.text
+    if segments:
+        for seg in segments:
+            original_text = seg.get("text", "")
+            start_time = seg.get("start_time", 0.0)
             processed = clean_text(original_text)
             
             # 필터링 후 텍스트가 의미 있게 남아있는 경우에만 리스트에 담기
             if len(processed) > 1:
                 cleaned_segments.append({
-                    "start_time": seg.start_time,
+                    "start_time": start_time,
                     "text": processed
                 })
                 cleaned_content_parts.append(processed)
