@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
+import { useCheckmateStore, logoutAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { ResponseModal } from "./response-modal";
+import { LoginView } from "./login-view";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
@@ -21,7 +22,9 @@ export function AnalysisDashboard() {
     closeWarning, 
     setActiveTab,
     isPanelOpen,
-    closePanel
+    closePanel,
+    isLoggedIn,
+    user
   } = useCheckmateStore();
   
   const [isPressed, setIsPressed] = useState(false);
@@ -105,6 +108,15 @@ export function AnalysisDashboard() {
 
   if (!isWatchPage) return null;
 
+  // 로그인하지 않은 경우 진입 차단 및 로그인 뷰 표시
+  if (!isLoggedIn) {
+    return (
+      <div style={PIXEL_STYLES.dashboardContainer}>
+        <LoginView />
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={dashboardRef}
@@ -116,8 +128,53 @@ export function AnalysisDashboard() {
         style={{
           ...PIXEL_STYLES.border,
           ...PIXEL_STYLES.mainCard,
+          position: "relative",
         }}
       >
+        {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
+        {user?.name && (
+          <div style={{ position: "absolute", top: "10px", right: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", zIndex: 100 }}>
+            <div 
+              onClick={logoutAuth}
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                backgroundColor: "#0ea5e9", // 로그인 화면과 동일한 파란색
+                color: "white",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                fontWeight: "900",
+                fontSize: "16px",
+                fontFamily: "'CheckmatePixel', sans-serif",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                border: "2px solid white",
+                cursor: "pointer",
+                transition: "transform 0.1s",
+              }}
+              title={`${user.name} (클릭하여 로그아웃)`}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <span 
+              onClick={logoutAuth}
+              style={{
+                fontSize: "10px",
+                fontFamily: "'CheckmatePixel', sans-serif",
+                color: "#71717a",
+                cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: "2px",
+              }}
+            >
+              LOGOUT
+            </span>
+          </div>
+        )}
+
         {isWarningVisible ? (
           /* 분석 결과 표시 상태 */
           <div style={{ display: "flex", flexDirection: "column" }}>

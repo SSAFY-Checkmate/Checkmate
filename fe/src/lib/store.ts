@@ -46,10 +46,18 @@ export type AnalysisStatus =
   | "verifying"
   | "complete";
 
+export interface User {
+  name: string;
+}
+
 /**
  * Checkmate 전역 상태 스토어 인터페이스
  */
 interface CheckmateState {
+  // 인증 상태
+  isLoggedIn: boolean;
+  user: User | null;
+
   // 패널 및 모달 상태
   isPanelOpen: boolean;
   activeTab: Tab;
@@ -92,6 +100,9 @@ interface CheckmateState {
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
+  
+  // 인증 액션
+  setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
 }
 
 /**
@@ -112,6 +123,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   overallVerdict: "unknown",
   claims: [],
   analyzedVideos: {},
+
+  // 인증 초기 상태
+  isLoggedIn: false, // 실제 구현 시 초기화 함수에서 확인
+  user: null,
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
@@ -176,7 +191,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false, // 영상 전환 시 서랍은 닫음
         ...cachedData,
       });
-      console.log(`[Checkmate] 영상(${id}) 캐시 복원됨:`, cachedData);
     } else {
       // 새로운 영상이면 초기화
       set({
@@ -191,7 +205,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: [],
         warningCount: 0,
       });
-      console.log(`[Checkmate] 새로운 영상(${id}) 상태 초기화됨`);
     }
   },
 
@@ -239,4 +252,85 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }, 1000);
     }, 800);
   },
+
+  setLoginStatus: (isLoggedIn, user = null) => {
+    if (!isLoggedIn) {
+      if (typeof chrome !== "undefined" && chrome.storage) {
+        chrome.storage.local.remove("jwtToken");
+      }
+      localStorage.removeItem("jwtToken");
+    }
+    set({ isLoggedIn, user });
+  },
 }));
+
+/**
+ * 앱 로드 시 서버에 /auth/me 요청을 보내어 HttpOnly 쿠키 기반 인증 상태를 복원합니다.
+ */
+export const initializeAuth = async () => {
+  const store = useCheckmateStore.getState();
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  
+  try {
+    const response = await fetch(`${baseUrl}/auth/me`, { 
+      method: "GET",
+      credentials: "include" 
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.data && result.data.name) {
+        store.setLoginStatus(true, { name: result.data.name });
+        return;
+      }
+    } else if (response.status === 401 || response.status === 403) {
+      // Access Token이 만료된 경우 (401/403) Refresh Token으로 재발급 시도
+      const reissueResponse = await fetch(`${baseUrl}/auth/reissue`, {
+        method: "POST",
+        credentials: "include"
+      });
+
+      if (reissueResponse.ok) {
+        // 토큰 재발급 성공 시 다시 내 정보 가져오기
+        const retryResponse = await fetch(`${baseUrl}/auth/me`, {
+          method: "GET",
+          credentials: "include"
+        });
+
+        if (retryResponse.ok) {
+          const retryResult = await retryResponse.json();
+          if (retryResult.data && retryResult.data.name) {
+            store.setLoginStatus(true, { name: retryResult.data.name });
+            return;
+          }
+        }
+      } else {
+        console.warn("리프레시 토큰 만료, 다시 로그인해야 합니다.");
+      }
+    }
+    store.setLoginStatus(false, null);
+  } catch (error) {
+    console.error("인증 초기화 실패:", error);
+    store.setLoginStatus(false, null);
+  }
+};
+
+/**
+ * 서버에 /auth/logout 요청을 보내어 HttpOnly 쿠키를 삭제하고 로그인 상태를 해제합니다.
+ */
+export const logoutAuth = async () => {
+  const store = useCheckmateStore.getState();
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+  
+  try {
+    await fetch(`${baseUrl}/auth/logout`, { 
+      method: "POST",
+      credentials: "include" 
+    });
+  } catch (error) {
+    console.error("로그아웃 요청 실패:", error);
+  } finally {
+    // 백엔드 요청 성공 여부와 무관하게 프론트엔드 상태는 초기화
+    store.setLoginStatus(false, null);
+  }
+};

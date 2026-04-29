@@ -5,7 +5,29 @@ import styles from "../../index.css?inline";
 /**
  * [Checkmate 유튜브 인젝터 - v3.0 단일 카드 버전]
  */
+/**
+ * [Checkmate 글로벌 폰트 주입]
+ * Shadow DOM 외부(Main Head)에 폰트를 선언하여 CSP 및 격리 문제를 해결합니다.
+ */
+const injectGlobalFont = () => {
+  const fontId = "checkmate-global-font";
+  if (document.getElementById(fontId)) return;
+
+  const style = document.createElement("style");
+  style.id = fontId;
+  style.textContent = `
+    @font-face {
+      font-family: 'CheckmatePixel';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
 export const renderDashboard = (container: HTMLElement) => {
+  injectGlobalFont(); // 폰트 먼저 주입
   const rootId = "checkmate-dashboard-root";
   if (container.querySelector(`#${rootId}`)) return;
 
@@ -21,6 +43,15 @@ export const renderDashboard = (container: HTMLElement) => {
   // 2. 스타일 주입
   const styleElement = document.createElement("style");
   styleElement.textContent = `
+    @font-face {
+      font-family: 'DungGeunMo';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    
     :host {
       all: initial !important;
       display: block !important;
@@ -28,6 +59,7 @@ export const renderDashboard = (container: HTMLElement) => {
       height: auto !important;
       position: relative !important;
       overflow: visible !important;
+      font-family: 'CheckmatePixel', sans-serif !important;
     }
     .checkmate-injected-wrapper {
       display: block !important;
@@ -35,6 +67,7 @@ export const renderDashboard = (container: HTMLElement) => {
       height: auto !important;
       pointer-events: auto !important;
       image-rendering: pixelated !important;
+      font-family: 'CheckmatePixel', sans-serif !important;
     }
     ${styles}
   `;
