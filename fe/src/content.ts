@@ -39,7 +39,51 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       if (!(window as any).__CHECKMATE_INTERVAL__) {
         (window as any).__CHECKMATE_INTERVAL__ = setInterval(() => {
           const isShortsPage = window.location.pathname.startsWith("/shorts");
+          const isWatchPage = window.location.pathname === "/watch";
           const shortsCard = document.getElementById("checkmate-shorts-card-v3.0");
+          const watchCard = document.getElementById("checkmate-watch-card-v3.0");
+
+          // 일반 영상 페이지 반응형 레이아웃 처리
+          if (isWatchPage && watchCard) {
+            const isWide = window.innerWidth >= 1016;
+            if (isWide) {
+              const sidebar = document.querySelector("#secondary-inner") || document.querySelector("#secondary");
+              if (sidebar && watchCard.parentElement !== sidebar) {
+                sidebar.prepend(watchCard);
+              }
+            } else {
+              const primaryInner = document.querySelector("#primary-inner");
+              const below = document.querySelector("#below");
+              const comments = document.querySelector("#comments");
+              const related = document.querySelector("#related");
+
+              if (primaryInner) {
+                let targetParent: Element | null = primaryInner;
+                let insertBeforeNode: Element | null = null;
+
+                if (related && primaryInner.contains(related)) {
+                  targetParent = related.parentElement;
+                  insertBeforeNode = related;
+                } else if (comments && primaryInner.contains(comments)) {
+                  targetParent = comments.parentElement;
+                  insertBeforeNode = comments;
+                } else if (below) {
+                  targetParent = below;
+                  insertBeforeNode = below.firstElementChild;
+                }
+
+                if (targetParent && watchCard.parentElement !== targetParent) {
+                  if (insertBeforeNode) {
+                    targetParent.insertBefore(watchCard, insertBeforeNode);
+                  } else {
+                    targetParent.appendChild(watchCard);
+                  }
+                } else if (targetParent && insertBeforeNode && watchCard.nextElementSibling !== insertBeforeNode) {
+                  targetParent.insertBefore(watchCard, insertBeforeNode);
+                }
+              }
+            }
+          }
 
           // 쇼츠에서 댓글창이 열려있는지 감시
           if (isShortsPage && shortsCard) {
@@ -147,6 +191,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
         container.id = "checkmate-watch-card-v3.0";
         container.className = "checkmate-root-container";
         container.style.width = "100%";
+        container.style.marginBottom = "16px"; // 간격 추가
         sidebar.prepend(container);
         renderDashboard(container);
       }
