@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Settings, Shield, Star, Award, Coffee } from "lucide-react";
+import { Settings, Shield, Star, Award, Coffee, AlertCircle, RefreshCw } from "lucide-react";
 
 const App = () => {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [isSettingsHovered, setIsSettingsHovered] = useState(false);
+  const [showRefreshModal, setShowRefreshModal] = useState(false);
 
   useEffect(() => {
     if (typeof chrome !== "undefined" && chrome.storage) {
@@ -15,10 +16,43 @@ const App = () => {
 
   const handleToggle = () => {
     const newState = !isEnabled;
+    // UI 상태는 먼저 업데이트
     setIsEnabled(newState);
+    
     if (typeof chrome !== "undefined" && chrome.storage) {
-      chrome.storage.local.set({ factCheckEnabled: newState });
+      chrome.storage.local.set({ factCheckEnabled: newState }, () => {
+        if (newState) {
+          // 콘텐츠 스크립트가 응답하는지 확인
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tabId = tabs[0]?.id;
+            if (tabId) {
+              chrome.tabs.sendMessage(tabId, { type: "PING" }, (response) => {
+                // 응답이 없으면(콘텐츠 스크립트가 주입되지 않은 상태면) 모달 표시
+                if (chrome.runtime.lastError || !response) {
+                  setShowRefreshModal(true);
+                }
+              });
+            }
+          });
+        }
+      });
     }
+  };
+
+  const handleRefresh = () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.reload(tabs[0].id);
+        window.close(); // 팝업 닫기
+      }
+    });
+  };
+
+  const handleCancelRefresh = () => {
+    // 새로고침을 취소하면 토글도 다시 끔 (작동하지 않으므로)
+    setIsEnabled(false);
+    chrome.storage.local.set({ factCheckEnabled: false });
+    setShowRefreshModal(false);
   };
 
   const fontSans = { fontFamily: "'Pretendard', -apple-system, blinkmacsystemfont, system-ui, sans-serif" };
@@ -34,6 +68,7 @@ const App = () => {
       padding: "12px",
       userSelect: "none",
       overflow: "hidden",
+      position: "relative",
       ...fontSans
     }}>
       
@@ -225,6 +260,13 @@ const App = () => {
             font-family: 'Pretendard';
             src: url('https://cdn.jsdelivr.net/gh/Project-Noornnu/pretendard-font@v1.1.0/Pretendard-ExtraBold.woff2') format('woff2');
           }
+
+          @font-face {
+            font-family: 'CheckmatePixel';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+          }
           
           @keyframes card-glint {
             0% { left: -150%; }
@@ -238,6 +280,106 @@ const App = () => {
           }
         `}</style>
       </main>
+
+      {/* 👾 픽셀 아트 스타일의 새로고침 컨펌 모달 */}
+      {showRefreshModal && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+          backdropFilter: "blur(2px)",
+          animation: "fadeIn 0.2s ease",
+          fontFamily: "'CheckmatePixel', sans-serif" // 전체 모달에 픽셀 폰트 적용
+        }}>
+          <div style={{
+            backgroundColor: "#fff",
+            width: "100%",
+            border: "4px solid #1e293b",
+            boxShadow: "4px 4px 0px #000, inset -4px -4px 0px #e2e8f0",
+            padding: "24px 16px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            position: "relative"
+          }}>
+            <div style={{ 
+              backgroundColor: "#fef2f2", 
+              width: "48px", 
+              height: "48px", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              marginBottom: "16px",
+              border: "2px solid #ef4444",
+              boxShadow: "2px 2px 0px #ef4444"
+            }}>
+              <AlertCircle size={28} color="#ef4444" />
+            </div>
+            
+            <h3 style={{ fontSize: "20px", fontWeight: "normal", color: "#1e293b", margin: "0 0 12px 0", letterSpacing: "-0.5px" }}>
+              새로고침이 필요합니다!
+            </h3>
+            
+            <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.4, margin: "0 0 24px 0", wordBreak: "keep-all" }}>
+              수사 도구를 준비하기 위해<br/>
+              페이지를 한 번 새로고침해야 합니다.<br/>
+              <span style={{ color: "#ef4444" }}>작성 중인 내용이 있다면 주의하세요!</span>
+            </p>
+
+            <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+              <button 
+                onClick={handleCancelRefresh}
+                style={{
+                  flex: 1,
+                  padding: "12px 8px",
+                  backgroundColor: "#e2e8f0",
+                  color: "#475569",
+                  border: "2px solid #94a3b8",
+                  boxShadow: "2px 2px 0px #94a3b8",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  fontFamily: "'CheckmatePixel', sans-serif"
+                }}
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleRefresh}
+                style={{
+                  flex: 1.6,
+                  padding: "12px 8px",
+                  backgroundColor: "#ef4444",
+                  color: "white",
+                  border: "2px solid #991b1b",
+                  boxShadow: "2px 2px 0px #991b1b",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  fontFamily: "'CheckmatePixel', sans-serif"
+                }}
+              >
+                <RefreshCw size={14} />
+                지금 수사 시작
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; transform: scale(0.95); }
+              to { opacity: 1; transform: scale(1); }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 };

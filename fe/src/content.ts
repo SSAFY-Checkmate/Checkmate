@@ -30,6 +30,13 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
           else stopInfection();
         }
       });
+
+      // [추가] 콘텐츠 스크립트 생존 확인용 리스너
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === "PING") {
+          sendResponse({ type: "PONG" });
+        }
+      });
     };
 
     const startInfection = () => {
