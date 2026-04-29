@@ -9,3 +9,7 @@ openai
 mcp
 nltk
 qdrant-client
+aiokafka
+redis
+langchain-qdrant
+langchain-community
