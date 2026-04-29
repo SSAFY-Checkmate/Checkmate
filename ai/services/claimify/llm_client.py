@@ -57,10 +57,11 @@ class LLMClient:
         api_key = parse_env_str("OPENAI_API_KEY", "")
         base_url = parse_env_str("OPENAI_BASE_URL", "")
         if api_key:
+            from langchain_openai import ChatOpenAI
             if base_url:
-                self.client = OpenAI(api_key=api_key, base_url=base_url)
+                self.client = ChatOpenAI(api_key=api_key, base_url=base_url, model=self.model, temperature=0.0)
             else:
-                self.client = OpenAI(api_key=api_key)
+                self.client = ChatOpenAI(api_key=api_key, model=self.model, temperature=0.0)
         else:
             self.client = None
             if self.logger:
@@ -466,43 +467,21 @@ class LLMClient:
         
         try:
             messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
+                ("system", system_prompt),
+                ("user", user_prompt),
             ]
 
-            # Use structured outputs with beta.chat.completions.parse
-            response = self.client.beta.chat.completions.parse(
-                model=self.model,
-                messages=messages,
-                response_format=response_model,
-                temperature=0.0,
-                max_tokens=2048,
-            )
+            # Use LangChain's structured outputs
+            structured_llm = self.client.with_structured_output(response_model)
+            parsed_response = structured_llm.invoke(messages)
             
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
-            
-            # Check for refusal
-            if response.choices[0].message.refusal:
-                if self.logger:
-                    self.logger.warning(f"Call #{self.call_count} refused: {response.choices[0].message.refusal}")
-                return None
-            
-            # Get the parsed response
-            parsed_response = response.choices[0].message.parsed
             
             # Log the response
             if self.logger:
                 self.logger.info(f"Structured response received in {duration:.2f}s:")
                 self.logger.info(f"Parsed response: {parsed_response}")
-                
-                # Log token usage if available
-                if hasattr(response, 'usage') and response.usage:
-                    usage = response.usage
-                    self.logger.info(f"Token usage - Prompt: {usage.prompt_tokens}, "
-                                   f"Completion: {usage.completion_tokens}, "
-                                   f"Total: {usage.total_tokens}")
-                
                 self.logger.info(f"=== END STRUCTURED CALL #{self.call_count} ===\n")
             
             return parsed_response
