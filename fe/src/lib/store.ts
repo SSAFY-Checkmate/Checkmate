@@ -96,7 +96,7 @@ interface CheckmateState {
   closeWarning: () => void;
   startAnalysis: () => void;
   startDemoAnalysis: () => void;
-  setCurrentVideo: (id: string, title: string, channel: string) => void;
+  setCurrentVideo: (id: string, title?: string, channel?: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
@@ -195,7 +195,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   /**
    * 영상 정보를 설정하고 캐시를 확인하여 상태를 복원하거나 리셋
    */
-  setCurrentVideo: (id, title, channel) => {
+  setCurrentVideo: (id, title = "", channel = "") => {
     const state = get();
     // 이미 같은 영상이면 무시
     if (state.currentVideoId === id) return;
@@ -206,8 +206,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       // 캐시된 분석 결과가 있으면 복원
       set({
         currentVideoId: id,
-        videoTitle: title || state.videoTitle,
-        channelName: channel || state.channelName,
+        videoTitle: title || (cachedData.videoTitle as string) || "",
+        channelName: channel || (cachedData.channelName as string) || "",
         isPanelOpen: false, // 영상 전환 시 서랍은 닫음
         ...cachedData,
       });
@@ -215,8 +215,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       // 새로운 영상이면 초기화
       set({
         currentVideoId: id,
-        videoTitle: title || state.videoTitle,
-        channelName: channel || state.channelName,
+        videoTitle: title, // 빈 문자열 혹은 전달된 값
+        channelName: channel, // 빈 문자열 혹은 전달된 값
         analysisStatus: "idle",
         overallVerdict: "unknown",
         trustScore: 0,
@@ -249,6 +249,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       const mockData = MOCK_ANALYSIS_RESULTS.warn;
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
+        videoTitle: "데모: 검증되지 않은 다이어트 보조제의 진실",
+        channelName: "건강정보 팩트체크",
         overallVerdict: mockData.verdict,
         trustScore: mockData.score,
         summary: "이 영상은 검증되지 않은 다이어트 보조제에 대해 심각한 과장 광고를 포함하고 있을 가능성이 높습니다. 영상 내용의 신뢰도가 낮으므로 각별한 주의가 필요합니다.",
@@ -328,8 +330,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         votesFake: 0,
       }));
 
+      const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
+        videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
+        channelName: youtubeInfo.channelName || data.channelName || get().channelName,
         overallVerdict: mappedVerdict,
         trustScore: resultObj.confidenceScore || 0,
         summary: resultObj.summary || "", // 요약 내용 추가
