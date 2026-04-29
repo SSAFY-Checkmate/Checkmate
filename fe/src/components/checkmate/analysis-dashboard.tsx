@@ -36,22 +36,7 @@ export function AnalysisDashboard() {
     return window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
   }, []);
 
-  // Click outside to close (외부 클릭 시 대시보드 닫기)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Shadow DOM 환경을 고려하여 composedPath() 사용
-      const path = event.composedPath();
-      if (
-        isPanelOpen &&
-        dashboardRef.current &&
-        !path.includes(dashboardRef.current)
-      ) {
-        closePanel();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isPanelOpen, closePanel]);
+  // Click outside to close 기능 제거 (명시적으로 버튼을 클릭해야만 닫힘)
 
   const togglePanel = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -118,10 +103,67 @@ export function AnalysisDashboard() {
     );
   }
 
+  const getTheme = () => {
+    if (analysisStatus !== "complete") {
+      return {
+        border: "#0ea5e9",
+        shadowHover: "rgba(14, 165, 233, 0.1)",
+        shadowOuter: "rgba(0, 110, 220, 0.1)",
+        bgLight: "#e0f2fe",
+        iconShadow: "#0284c7",
+        textShadowColor: "#1e3a8a",
+        titleColor: "#22d3ee",
+        descColor: "#334155",
+      };
+    }
+    switch (overallVerdict) {
+      case "warning":
+        return {
+          border: "#ef4444",
+          shadowHover: "rgba(239, 68, 68, 0.1)",
+          shadowOuter: "rgba(220, 38, 38, 0.1)",
+          bgLight: "#fee2e2",
+          iconShadow: "#dc2626",
+          textShadowColor: "#7f1d1d",
+          titleColor: "#f87171",
+          descColor: "#991b1b",
+        };
+      case "safe":
+        return {
+          border: "#22c55e",
+          shadowHover: "rgba(34, 197, 94, 0.1)",
+          shadowOuter: "rgba(22, 163, 74, 0.1)",
+          bgLight: "#dcfce7",
+          iconShadow: "#16a34a",
+          textShadowColor: "#14532d",
+          titleColor: "#4ade80",
+          descColor: "#166534",
+        };
+      case "unknown":
+      default:
+        return {
+          border: "#f59e0b",
+          shadowHover: "rgba(245, 158, 11, 0.1)",
+          shadowOuter: "rgba(217, 119, 6, 0.1)",
+          bgLight: "#fef3c7",
+          iconShadow: "#d97706",
+          textShadowColor: "#78350f",
+          titleColor: "#fbbf24",
+          descColor: "#92400e",
+        };
+    }
+  };
+
+  const theme = getTheme();
+  const pixelFont = "'CheckmatePixel', sans-serif";
+
   return (
     <div 
       ref={dashboardRef}
-      style={PIXEL_STYLES.dashboardContainer}
+      style={{
+        ...PIXEL_STYLES.dashboardContainer,
+        fontFamily: pixelFont
+      }}
     >
       {/* --- 상단 메인 카드 영역 --- */}
       <div
@@ -131,11 +173,16 @@ export function AnalysisDashboard() {
           ...PIXEL_STYLES.mainCard,
           position: "relative",
           background: "#ffffff",
-          boxShadow: "0 10px 25px rgba(0, 110, 220, 0.1), inset 0 0 0 2px rgba(14, 165, 233, 0.1)",
-          border: "4px solid #0ea5e9",
+          boxShadow: `0 10px 25px ${theme.shadowOuter}, inset 0 0 0 2px ${theme.shadowHover}`,
+          border: `4px solid ${theme.border}`,
           borderRadius: "8px",
-          padding: "16px 0 0 0", // 상단 패딩만 유지하고 나머지는 내부 컨텐츠에서 처리
+          padding: "16px", 
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: "100%",
+          gap: "16px",
         }}
       >
         {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
@@ -182,38 +229,93 @@ export function AnalysisDashboard() {
           </div>
         )}
 
-        {isWarningVisible ? (
-          /* 분석 결과 표시 상태 */
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={PIXEL_STYLES.warningHeader(warningConfig[overallVerdict].gradient)}>
-              <div style={PIXEL_STYLES.warningIconContainer}>
+        {analysisStatus === "complete" ? (
+          /* 분석 결과 표시 상태 (로그인 오류 화면 톤앤매너) */
+          <>
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "4px",
+                borderRadius: "4px",
+                boxShadow: `0 4px 0 ${theme.iconShadow}`,
+                marginTop: "16px"
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: theme.bgLight,
+                  border: `2px solid ${theme.border}`,
+                  borderRadius: "2px",
+                  padding: "12px",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: "64px",
+                  height: "64px"
+                }}
+              >
                 {(() => {
                   const Icon = warningConfig[overallVerdict].icon;
-                  return <Icon size={32} color="white" />;
+                  return <Icon size={40} color={theme.border} />;
                 })()}
               </div>
-              <h3 style={{ fontSize: "15px", margin: 0, color: "white", fontWeight: "bold" }}>
-                [{warningConfig[overallVerdict].prefix}] {warningConfig[overallVerdict].title}
-              </h3>
             </div>
-            
-            <div style={{ padding: "16px", backgroundColor: "#fafafa", textAlign: "center" }}>
-              <p style={{ fontSize: "12px", color: "#52525b", lineHeight: "1.5", margin: "0 0 12px 0" }}>
-                {warningConfig[overallVerdict].desc}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "center" }}>
+              <h2
+                style={{
+                  fontSize: "24px",
+                  margin: 0,
+                  color: theme.titleColor,
+                  fontWeight: "900",
+                  fontFamily: pixelFont,
+                  letterSpacing: "2px",
+                  textShadow: `
+                    2px 0 0 ${theme.textShadowColor},
+                    -2px 0 0 ${theme.textShadowColor},
+                    0 2px 0 ${theme.textShadowColor},
+                    0 -2px 0 ${theme.textShadowColor},
+                    2px 2px 0 ${theme.textShadowColor},
+                    -2px -2px 0 ${theme.textShadowColor},
+                    2px -2px 0 ${theme.textShadowColor},
+                    -2px 2px 0 ${theme.textShadowColor}
+                  `,
+                }}
+              >
+                {warningConfig[overallVerdict].prefix}
+              </h2>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: theme.descColor,
+                  lineHeight: "1.5",
+                  margin: 0,
+                  fontWeight: "bold",
+                  fontFamily: pixelFont,
+                }}
+              >
+                {warningConfig[overallVerdict].title}
+                <br />
+                <span style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", display: "inline-block" }}>
+                  {warningConfig[overallVerdict].desc}
+                </span>
               </p>
+            </div>
+
+            <div style={{ width: "100%", marginTop: "8px" }}>
               <PixelButton
                 onClick={(e) => togglePanel(e)}
-                colorType={isPanelOpen ? "neutral" : "warning"}
+                colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
                 text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                icon={isPanelOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                icon={isPanelOpen ? <ChevronUp size={20} color="#1e293b" strokeWidth={3} /> : <ChevronDown size={20} color="#ffffff" strokeWidth={3} />}
                 size="md"
               />
             </div>
-          </div>
+          </>
         ) : (
           /* 분석 대기/진행 상태 */
-          <div style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-            <div style={{ position: "relative", cursor: "pointer" }} onClick={() => startAnalysis()}>
+          <>
+            <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
               <PixelCharacter size="lg" />
               <AnimatePresence>
                 {analysisStatus !== "idle" && (
@@ -221,28 +323,20 @@ export function AnalysisDashboard() {
                     initial={{ x: -40, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    style={{ position: "absolute", bottom: "-2px", right: "-10px" }}
+                    style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
                   >
-                    <PixelOfficer size="sm" mood={analysisStatus === "complete" ? "happy" : "thinking"} />
+                    <PixelOfficer size="sm" mood="thinking" />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            <div style={{ width: "100%", minHeight: "44px" }}>
+            <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
               {analysisStatus === "idle" ? (
                 <PixelButton
                   onClick={() => startAnalysis()}
                   colorType="primary"
                   text="팩트체크 수사 시작"
-                />
-              ) : analysisStatus === "complete" ? (
-                <PixelButton
-                  onClick={(e) => togglePanel(e)}
-                  colorType="neutral"
-                  text={isPanelOpen ? "분석 결과 닫기" : "분석 결과 보기"}
-                  icon={isPanelOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  size="md"
                 />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
@@ -250,8 +344,8 @@ export function AnalysisDashboard() {
                     display: "flex", 
                     justifyContent: "space-between", 
                     fontSize: "14px", 
-                    color: "#0ea5e9", // Arcade Blue
-                    fontFamily: "'CheckmatePixel', sans-serif",
+                    color: "#0ea5e9",
+                    fontFamily: pixelFont,
                     fontWeight: "900",
                     textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
                   }}>
@@ -267,7 +361,7 @@ export function AnalysisDashboard() {
                   <div style={{ 
                     height: "20px", 
                     width: "100%", 
-                    backgroundColor: "#1e293b", // Dark background for the gauge
+                    backgroundColor: "#1e293b", 
                     padding: "4px", 
                     borderRadius: "4px",
                     border: "2px solid #0f172a",
@@ -283,8 +377,8 @@ export function AnalysisDashboard() {
                       }}
                       style={{ 
                         height: "100%", 
-                        backgroundColor: "#38bdf8", // Light blue fill
-                        boxShadow: "inset 0 -4px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.4)", // Pixel highlight effect
+                        backgroundColor: "#38bdf8",
+                        boxShadow: "inset 0 -4px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.4)",
                         borderRadius: "2px"
                       }}
                       transition={{ type: "spring", stiffness: 50, damping: 15 }}
@@ -293,7 +387,7 @@ export function AnalysisDashboard() {
                 </div>
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
 

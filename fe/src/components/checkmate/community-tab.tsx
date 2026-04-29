@@ -71,6 +71,7 @@ export function CommunityTab() {
             <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px 0" }}>{card.reporterComment}</p>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
+                type="button"
                 onClick={() => voteOnCard(card.id, "true")}
                 style={{
                   ...STYLES.voteButton,
@@ -83,6 +84,7 @@ export function CommunityTab() {
                 진실 {card.votesTrue}
               </button>
               <button
+                type="button"
                 onClick={() => voteOnCard(card.id, "fake")}
                 style={{
                   ...STYLES.voteButton,
@@ -136,6 +138,7 @@ export function CommunityTab() {
             style={STYLES.chatInput}
           />
           <button
+            type="button"
             onClick={handleSend}
             style={{
               backgroundColor: "#3b82f6",
