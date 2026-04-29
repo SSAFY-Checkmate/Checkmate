@@ -95,6 +95,7 @@ interface CheckmateState {
   showWarning: (count: number) => void;
   closeWarning: () => void;
   startAnalysis: () => void;
+  startDemoAnalysis: () => void;
   setCurrentVideo: (id: string, title: string, channel: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
@@ -225,6 +226,47 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: [],
         warningCount: 0,
       });
+    }
+  },
+
+  /**
+   * 데모 분석 요청 (목업 데이터 사용, API 호출 안함)
+   */
+  startDemoAnalysis: async () => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+
+    set({ analysisStatus: "detecting", isWarningVisible: false });
+
+    try {
+      // UX를 위한 시뮬레이션 지연
+      setTimeout(() => set({ analysisStatus: "analyzing_transcript" }), 800);
+      setTimeout(() => set({ analysisStatus: "analyzing_claims" }), 1600);
+      setTimeout(() => set({ analysisStatus: "verifying" }), 2400);
+
+      await new Promise((resolve) => setTimeout(resolve, 3200));
+
+      const mockData = MOCK_ANALYSIS_RESULTS.warn;
+      const finalState = {
+        analysisStatus: "complete" as AnalysisStatus,
+        overallVerdict: mockData.verdict,
+        trustScore: mockData.score,
+        summary: "이 영상은 검증되지 않은 다이어트 보조제에 대해 심각한 과장 광고를 포함하고 있을 가능성이 높습니다. 영상 내용의 신뢰도가 낮으므로 각별한 주의가 필요합니다.",
+        isWarningVisible: mockData.verdict === "warning",
+        warningCount: mockData.warningCount,
+        claims: mockData.claims,
+      };
+
+      set((state) => ({
+        ...finalState,
+        analyzedVideos: {
+          ...state.analyzedVideos,
+          [videoId]: finalState,
+        },
+      }));
+    } catch (error) {
+      console.error("데모 분석 중 오류 발생:", error);
+      set({ analysisStatus: "error" });
     }
   },
 
