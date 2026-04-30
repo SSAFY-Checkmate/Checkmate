@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, Long> {
     Optional<AnalysisResult> findFirstByVideoYtVideoIdOrderByCreatedAtDesc(String ytVideoId);
+    Optional<AnalysisResult> findByVideoId(Long videoId);
 }

@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface ViolationDetailRepository extends JpaRepository<ViolationDetail, Long> {
     List<ViolationDetail> findByAnalysisResultId(Long analysisResultId);
+    void deleteByAnalysisResultId(Long analysisResultId);
 }

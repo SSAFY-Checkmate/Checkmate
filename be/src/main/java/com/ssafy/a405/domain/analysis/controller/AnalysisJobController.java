@@ -1,5 +1,6 @@
 package com.ssafy.a405.domain.analysis.controller;
 
+import com.ssafy.a405.domain.analysis.dto.AnalysisCheckResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRequest;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
@@ -58,6 +59,13 @@ public class AnalysisJobController {
 		@RequestParam String youtubeUrl
 	) {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.getLatestJobByYoutubeUrl(youtubeUrl)));
+	}
+
+	@GetMapping("/check")
+	public ResponseEntity<ApiResponseBody<AnalysisCheckResponse>> checkAnalysis(
+		@RequestParam String youtubeUrl
+	) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.checkAnalysisStatus(youtubeUrl)));
 	}
 	@GetMapping("/{jobId}/result")
 	public ResponseEntity<ApiResponseBody<AnalysisReportResponse>> getAnalysisResult(@PathVariable String jobId) {
