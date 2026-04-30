@@ -9,6 +9,9 @@ from services.analysis.schemas import AnalyzeRequest
 from services.analysis.pipeline import AnalysisPipelineService
 from services.analysis.kafka_schemas import EventEnvelope, AnalysisRequestedPayload, AnalysisFailedPayload
 
+def now_utc_iso_z() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+
 # Initialize Redis and Pipeline Service
 redis_client = redis.from_url(settings.redis_url, decode_responses=True)
 analysis_service = AnalysisPipelineService()
@@ -61,11 +64,16 @@ async def process_message(producer: AIOKafkaProducer, msg_value: str, envelope_d
         response = await analysis_service.run(analyze_request)
         end_time = datetime.datetime.now(datetime.timezone.utc)
         
+        # 응답 유효성 검증 및 실패 방어
+        if not response or not response.data:
+            raise ValueError("Analysis response or data is null")
+            
         # 누락된 필드(channel_id, elapsed_ms) 채우기
-        if response and response.data:
-            if not response.data.channel_id:
-                response.data.channel_id = analyze_request.channel_id
-            response.data.elapsed_ms = int((end_time - start_time).total_seconds() * 1000)
+        if not response.data.channel_id:
+            response.data.channel_id = analyze_request.channel_id
+            
+        # elapsed_ms: 큐에서 꺼낸 후, 워커 내부 파이프라인의 순수 처리 시간만을 의미함
+        response.data.elapsed_ms = int((end_time - start_time).total_seconds() * 1000)
         
         # Publish completed (by_alias=True로 카멜케이스 적용)
         completed_payload = response.data.model_dump(by_alias=True)
@@ -79,7 +87,7 @@ async def process_message(producer: AIOKafkaProducer, msg_value: str, envelope_d
             eventId=str(uuid.uuid4()),
             eventType=settings.topic_analysis_completed,
             eventVersion=1,
-            occurredAt=datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            occurredAt=now_utc_iso_z(),
             traceId=envelope.traceId,
             aggregateId=job_id,
             payload=completed_payload
@@ -108,7 +116,7 @@ async def process_message(producer: AIOKafkaProducer, msg_value: str, envelope_d
                     eventId=str(uuid.uuid4()),
                     eventType=settings.topic_analysis_failed,
                     eventVersion=1,
-                    occurredAt=datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+                    occurredAt=now_utc_iso_z(),
                     traceId=envelope.traceId if 'envelope' in locals() else None,
                     aggregateId=failed_job_id,
                     payload=failed_payload.model_dump()
