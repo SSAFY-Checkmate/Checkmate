@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "Auth", description = "Authentication API")
+@Tag(name = "인증", description = "인증 및 사용자 세션 관리 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
@@ -32,7 +32,7 @@ public class AuthController {
     private final AccessTokenCookieProvider accessTokenCookieProvider;
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
 
-    @Operation(summary = "Reissue token", description = "Reissues tokens using the HttpOnly refresh token cookie.")
+    @Operation(summary = "토큰 재발급", description = "HttpOnly 리프레시 토큰 쿠키를 사용해 액세스 토큰과 리프레시 토큰을 재발급합니다.")
     @PostMapping("/reissue")
     public ResponseEntity<ApiResponseBody<Void>> reissue(
             @CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME, required = false) String refreshTokenCookie
@@ -46,7 +46,7 @@ public class AuthController {
                 .body(ApiResponseBody.onSuccess(SuccessCode.OK));
     }
 
-    @Operation(summary = "Current user", description = "Returns the current authenticated user.")
+    @Operation(summary = "현재 사용자 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
     @GetMapping("/me")
     public ResponseEntity<ApiResponseBody<CurrentUserResponse>> me(
             @AuthenticationPrincipal CustomUserDetail userDetail
@@ -57,7 +57,7 @@ public class AuthController {
         ));
     }
 
-    @Operation(summary = "Logout", description = "Deletes the saved refresh token and expires the refresh token cookie.")
+    @Operation(summary = "로그아웃", description = "저장된 리프레시 토큰을 삭제하고 리프레시 토큰 쿠키를 만료시킵니다.")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponseBody<Void>> logout(
             @AuthenticationPrincipal CustomUserDetail userDetail
