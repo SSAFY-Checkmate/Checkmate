@@ -1,7 +1,6 @@
 INSERT IGNORE INTO `Users` (`id`, `email`, `name`, `google_sub_id`, `created_at`, `updated_at`) VALUES
   (1001, 'swagger-user1@checkmate.local', '스웨거유저1', 'swagger-google-sub-1001', '2026-04-30 09:00:00', '2026-04-30 09:00:00'),
   (1002, 'swagger-user2@checkmate.local', '스웨거유저2', 'swagger-google-sub-1002', '2026-04-30 09:01:00', '2026-04-30 09:01:00'),
-  (1003, 'swagger-user3@checkmate.local', '스웨거유저3', 'swagger-google-sub-1003', '2026-04-30 09:02:00', '2026-04-30 09:02:00');
 
 INSERT IGNORE INTO `Channels` (`id`, `channel_name`, `trust_grade`, `total_violation_count`, `yt_channel_id`, `created_at`, `updated_at`) VALUES
   (2001, '체크메이트 뉴스', 'WARNING', 4, 'swagger-channel-2001', '2026-04-30 09:10:00', '2026-04-30 09:10:00'),
