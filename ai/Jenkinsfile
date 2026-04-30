@@ -111,6 +111,8 @@ pipeline {
                     -e SAMPLING_MAX_TOKENS_DISAMBIGUATION="${SAMPLING_MAX_TOKENS_DISAMBIGUATION}" \
                     -e SAMPLING_MAX_TOKENS_DECOMPOSITION="${SAMPLING_MAX_TOKENS_DECOMPOSITION}" \
                     -e SAMPLING_MAX_RETRIES="${SAMPLING_MAX_RETRIES}" \
+                    -e KAFKA_BOOTSTRAP_SERVERS="kafka:9092" \
+                    -e REDIS_URL="redis://redis:6379/0" \
                     --restart unless-stopped \
                     ${DOCKER_IMAGE}:${BUILD_NUMBER}
                 """
