@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "a405-ai"
         CONTAINER_NAME = "a405-ai"
+        CONTAINER_NAME_WORKER = "a405-ai-worker"
         HOST_PORT = "8088"
         
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
@@ -81,8 +82,12 @@ pipeline {
                 }
             }
             steps {
-                sh "docker stop ${CONTAINER_NAME} || true"
-                sh "docker rm ${CONTAINER_NAME} || true"
+                dir('ai') {
+                    sh "docker compose -f docker-compose.prod.yml down || true"
+                }
+                // Fallback to ensure containers are removed
+                sh "docker rm -f ${CONTAINER_NAME} || true"
+                sh "docker rm -f ${CONTAINER_NAME_WORKER} || true"
             }
         }
 
@@ -94,28 +99,9 @@ pipeline {
                 }
             }
             steps {
-                sh """
-                    docker run -d \
-                    --name ${CONTAINER_NAME} \
-                    --network checkmate-net \
-                    -p ${HOST_PORT}:8000 \
-                    -e QDRANT_URL=http://qdrant:6333 \
-                    -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
-                    -e OPENAI_BASE_URL="${OPENAI_BASE_URL}" \
-                    -e EMBEDDING_MODEL="${EMBEDDING_MODEL}" \
-                    -e LLM_MODEL="${LLM_MODEL}" \
-                    -e ENABLE_WEB_SEARCH="${ENABLE_WEB_SEARCH}" \
-                    -e LOG_LLM_CALLS="${LOG_LLM_CALLS}" \
-                    -e LOG_OUTPUT="${LOG_OUTPUT}" \
-                    -e SAMPLING_MAX_TOKENS_SELECTION="${SAMPLING_MAX_TOKENS_SELECTION}" \
-                    -e SAMPLING_MAX_TOKENS_DISAMBIGUATION="${SAMPLING_MAX_TOKENS_DISAMBIGUATION}" \
-                    -e SAMPLING_MAX_TOKENS_DECOMPOSITION="${SAMPLING_MAX_TOKENS_DECOMPOSITION}" \
-                    -e SAMPLING_MAX_RETRIES="${SAMPLING_MAX_RETRIES}" \
-                    -e KAFKA_BOOTSTRAP_SERVERS="kafka:9092" \
-                    -e REDIS_URL="redis://redis:6379/0" \
-                    --restart unless-stopped \
-                    ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                """
+                dir('ai') {
+                    sh "docker compose -f docker-compose.prod.yml up -d"
+                }
             }
         }
 
