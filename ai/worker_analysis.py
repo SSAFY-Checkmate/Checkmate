@@ -57,17 +57,29 @@ async def process_message(producer: AIOKafkaProducer, msg_value: str, envelope_d
         
         # Run Pipeline
         print(f"Starting AnalysisPipelineService for Job {job_id}")
+        start_time = datetime.datetime.now(datetime.timezone.utc)
         response = await analysis_service.run(analyze_request)
+        end_time = datetime.datetime.now(datetime.timezone.utc)
         
-        # Publish completed
-        completed_payload = response.data.model_dump()
+        # 누락된 필드(channel_id, elapsed_ms) 채우기
+        if response and response.data:
+            if not response.data.channel_id:
+                response.data.channel_id = analyze_request.channel_id
+            response.data.elapsed_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # Publish completed (by_alias=True로 카멜케이스 적용)
+        completed_payload = response.data.model_dump(by_alias=True)
         completed_payload["jobId"] = job_id
+        
+        # 위반 사항이 없을 경우 null 대신 빈 배열([]) 보장
+        if completed_payload.get("violations") is None:
+            completed_payload["violations"] = []
         
         completed_envelope = EventEnvelope(
             eventId=str(uuid.uuid4()),
             eventType=settings.topic_analysis_completed,
             eventVersion=1,
-            occurredAt=datetime.datetime.utcnow().isoformat() + "Z",
+            occurredAt=datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
             traceId=envelope.traceId,
             aggregateId=job_id,
             payload=completed_payload
@@ -96,7 +108,7 @@ async def process_message(producer: AIOKafkaProducer, msg_value: str, envelope_d
                     eventId=str(uuid.uuid4()),
                     eventType=settings.topic_analysis_failed,
                     eventVersion=1,
-                    occurredAt=datetime.datetime.utcnow().isoformat() + "Z",
+                    occurredAt=datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
                     traceId=envelope.traceId if 'envelope' in locals() else None,
                     aggregateId=failed_job_id,
                     payload=failed_payload.model_dump()
