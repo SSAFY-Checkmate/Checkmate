@@ -36,4 +36,8 @@ public class Reaction extends BaseTimeEntity {
         this.user = user;
         this.reactionType = reactionType;
     }
+
+    public void updateReactionType(Boolean reactionType) {
+        this.reactionType = reactionType;
+    }
 }
