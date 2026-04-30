@@ -1,3 +1,7 @@
+import asyncio
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -7,11 +11,35 @@ from api.endpoints import router as transcript_router
 
 load_dotenv()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Optional: run Kafka transcript worker in-process with the API server.
+    # Enable with: RUN_TRANSCRIPT_WORKER=true
+    run_worker = os.getenv("RUN_TRANSCRIPT_WORKER", "false").lower() in ("1", "true", "yes", "y")
+    task = None
+    if run_worker:
+        from worker_transcript import main as worker_main
+        task = asyncio.create_task(worker_main())
+        print("[parser] Transcript worker started (in-process).")
+
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            print("[parser] Transcript worker stopped (in-process).")
+
 app = FastAPI(
     title="YouTube Transcript Extraction API",
     description="FastAPI service for extracting and cleaning YouTube transcripts with STT Fallback",
     version="1.1.0",
-    root_path="/parser"
+    root_path="/parser",
+    lifespan=lifespan,
 )
 
 @app.get("/health")
