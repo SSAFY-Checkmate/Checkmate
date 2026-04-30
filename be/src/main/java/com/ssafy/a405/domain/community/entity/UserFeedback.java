@@ -40,4 +40,9 @@ public class UserFeedback extends BaseTimeEntity {
         this.reason = reason;
         this.isCorrect = isCorrect;
     }
+
+    public void updateFeedback(String reason, Boolean isCorrect) {
+        this.reason = reason;
+        this.isCorrect = isCorrect;
+    }
 }

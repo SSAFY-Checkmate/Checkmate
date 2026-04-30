@@ -10,6 +10,10 @@ spring:
     listener:
       auto-startup: false
 
+  sql:
+    init:
+      mode: never
+
 server:
   port: 0
 
