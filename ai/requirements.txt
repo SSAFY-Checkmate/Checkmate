@@ -13,3 +13,4 @@ aiokafka
 redis
 langchain-qdrant
 langchain-community
+ddgs
