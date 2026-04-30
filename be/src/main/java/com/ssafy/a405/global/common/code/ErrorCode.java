@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode implements BaseCode {
 
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication is required."),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "You do not have permission to access this resource."),
 
     // ===== Common =====
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
