@@ -53,36 +53,73 @@ function TrustMeter({ score }: { score: number }) {
   const filledBars = Math.round((score / 100) * bars);
 
   const getBarColor = (i: number) => {
-    if (i >= filledBars) return "#e4e4e7"; // bg-muted
+    if (i >= filledBars) return "#cbd5e1"; // 비활성화된 바 (회색)
     if (score < 30) return COLORS.destructive;
     if (score < 60) return COLORS.warning;
     return COLORS.success;
   };
 
+  const getBarShadow = (i: number) => {
+    if (i >= filledBars) return "#94a3b8"; 
+    if (score < 30) return "#991b1b"; // 진한 빨강
+    if (score < 60) return "#d97706"; // 진한 주황
+    return "#16a34a"; // 진한 초록
+  };
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <span style={{ fontSize: "14px", color: "#64748b" }}>신뢰도:</span>
-      <div style={{ display: "flex", gap: "2px" }}>
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      gap: "6px", 
+      width: "100%", 
+      maxWidth: "240px",
+      padding: "10px",
+      backgroundColor: "#f8fafc",
+      ...PIXEL_STYLES.border,
+      border: "2px solid #94a3b8",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
+        <span style={{ fontSize: "14px", fontWeight: "900", color: "#475569", letterSpacing: "1px" }}>
+          TRUST SCORE
+        </span>
+        <span
+          style={{
+            fontSize: "16px",
+            fontWeight: "900",
+            color: score < 30 ? COLORS.destructive : score < 60 ? COLORS.warning : COLORS.success,
+            textShadow: "1px 1px 0 rgba(0,0,0,0.1)"
+          }}
+        >
+          {score}%
+        </span>
+      </div>
+      
+      {/* 게이지 본체 */}
+      <div style={{ 
+        display: "flex", 
+        gap: "4px", 
+        backgroundColor: "#1e293b", 
+        padding: "6px",
+        boxShadow: "inset 0 4px 0 rgba(0,0,0,0.4)",
+        border: "2px solid #475569"
+      }}>
         {Array.from({ length: bars }).map((_, i) => (
           <div
             key={i}
             style={{
-              width: "12px",
-              height: "16px",
+              flex: 1,
+              height: "14px",
               backgroundColor: getBarColor(i),
+              position: "relative",
+              // 픽셀 입체감 효과
+              boxShadow: i < filledBars ? `
+                inset 2px 2px 0 rgba(255,255,255,0.4), 
+                inset -2px -2px 0 ${getBarShadow(i)}
+              ` : "none",
             }}
           />
         ))}
       </div>
-      <span
-        style={{
-          fontSize: "14px",
-          fontWeight: "bold",
-          color: score < 30 ? COLORS.destructive : score < 60 ? COLORS.warning : COLORS.success,
-        }}
-      >
-        {score}%
-      </span>
     </div>
   );
 }

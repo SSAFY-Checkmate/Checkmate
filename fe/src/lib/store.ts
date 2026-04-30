@@ -240,11 +240,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
     try {
       // UX를 위한 시뮬레이션 지연
-      setTimeout(() => set({ analysisStatus: "analyzing_transcript" }), 800);
-      setTimeout(() => set({ analysisStatus: "analyzing_claims" }), 1600);
-      setTimeout(() => set({ analysisStatus: "verifying" }), 2400);
+      await new Promise((r) => setTimeout(r, 1000));
+      set({ analysisStatus: "analyzing_transcript" });
+      await new Promise((r) => setTimeout(r, 1000));
+      set({ analysisStatus: "analyzing_claims" });
+      await new Promise((r) => setTimeout(r, 1000));
+      set({ analysisStatus: "verifying" });
 
-      await new Promise((resolve) => setTimeout(resolve, 3200));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const mockData = MOCK_ANALYSIS_RESULTS.warn;
       const finalState = {
@@ -279,18 +282,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const videoId = get().currentVideoId;
     if (!videoId) return;
 
+    // 1단계: 감지 시작
     set({ analysisStatus: "detecting", isWarningVisible: false });
 
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
-      // UX를 위한 시뮬레이션 지연 (실제 API 대기 시간과 병행)
-      setTimeout(() => set({ analysisStatus: "analyzing_transcript" }), 1000);
-      setTimeout(() => set({ analysisStatus: "analyzing_claims" }), 2000);
-      setTimeout(() => set({ analysisStatus: "verifying" }), 3000);
-
-      const response = await fetch(`${baseUrl}/analysis/sync`, {
+      // API 요청 시작 (결과는 나중에 기다림)
+      const apiPromise = fetch(`${baseUrl}/analysis/sync`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -298,6 +298,16 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         credentials: "include",
         body: JSON.stringify({ youtubeUrl: targetUrl }),
       });
+
+      // 시각적 피드백을 위해 각 단계별 최소 대기 시간 부여
+      await new Promise((r) => setTimeout(r, 800));
+      set({ analysisStatus: "analyzing_transcript" });
+
+      await new Promise((r) => setTimeout(r, 800));
+      set({ analysisStatus: "analyzing_claims" });
+
+      // API 응답 대기
+      const response = await apiPromise;
 
       if (!response.ok) {
         throw new Error(`API 오류: ${response.status}`);
@@ -310,11 +320,50 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }
 
       const data = responseData.data;
-      const resultObj = data.result?.analysis?.analysisResult || {};
-      console.log("Parsed result:", resultObj);
-      console.log("Data:", data);
 
-      // 백엔드 응답(trustGrade) 매핑: SAFE/GOOD -> safe, WARNING/DANGER -> warning 등
+      // [추가] 분석 실패(FAILED) 케이스 처리
+      if (data.status === "FAILED") {
+        // DOM에서 직접 타이틀과 채널명 추출 (유튜브 레이아웃 대응)
+        const scrapedTitle = 
+          document.querySelector('h1.ytd-watch-metadata')?.textContent?.trim() || 
+          document.querySelector('yt-formatted-string.ytd-video-primary-info-renderer')?.textContent?.trim() || 
+          document.querySelector('yt-formatted-string.ytd-reel-player-header-renderer')?.textContent?.trim() ||
+          "알 수 없는 영상";
+        
+        const scrapedChannel = 
+          document.querySelector('#text.ytd-channel-name a')?.textContent?.trim() || 
+          document.querySelector('.ytd-video-owner-renderer #channel-name')?.textContent?.trim() || 
+          "알 수 없는 채널";
+
+        const failState = {
+          analysisStatus: "complete" as AnalysisStatus,
+          videoTitle: scrapedTitle,
+          channelName: scrapedChannel,
+          overallVerdict: "unknown" as Verdict,
+          trustScore: 0,
+          summary: "데이터 분석을 허용하지 않는 영상입니다. 하단의 버튼을 눌러 커뮤니티에서 직접 진위를 투표해 보세요!",
+          isWarningVisible: false,
+          warningCount: 0,
+          claims: [],
+        };
+
+        set((state) => ({
+          ...failState,
+          analyzedVideos: {
+            ...state.analyzedVideos,
+            [videoId]: failState,
+          },
+        }));
+        return;
+      }
+
+      // 검증 단계 연출
+      set({ analysisStatus: "verifying" });
+      await new Promise((r) => setTimeout(r, 1000));
+
+      const resultObj = data.result?.analysis?.analysisResult || {};
+      
+      // 백엔드 응답(trustGrade) 매핑
       let mappedVerdict: Verdict = "unknown";
       if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
       else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
@@ -337,7 +386,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         channelName: youtubeInfo.channelName || data.channelName || get().channelName,
         overallVerdict: mappedVerdict,
         trustScore: resultObj.confidenceScore || 0,
-        summary: resultObj.summary || "", // 요약 내용 추가
+        summary: resultObj.summary || "",
         isWarningVisible: mappedVerdict === "warning",
         warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
         claims: claims,

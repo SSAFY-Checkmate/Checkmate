@@ -297,7 +297,7 @@ export function AnalysisDashboard() {
                 {warningConfig[overallVerdict].title}
                 <br />
                 <span style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", display: "inline-block" }}>
-                  {warningConfig[overallVerdict].desc}
+                  {useCheckmateStore.getState().summary || warningConfig[overallVerdict].desc}
                 </span>
               </p>
             </div>
@@ -392,32 +392,59 @@ export function AnalysisDashboard() {
                     </span>
                   </div>
                   
-                  {/* Retro Progress Bar Container */}
+                  {/* Retro Segmented Progress Bar */}
                   <div style={{ 
-                    height: "20px", 
+                    height: "24px", 
                     width: "100%", 
-                    backgroundColor: "#1e293b", 
+                    backgroundColor: "#0f172a", 
                     padding: "4px", 
-                    borderRadius: "4px",
-                    border: "2px solid #0f172a",
-                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
+                    border: "3px solid #475569",
+                    boxShadow: "inset 0 4px 0 rgba(0,0,0,0.5), 2px 2px 0 rgba(255,255,255,0.1)",
+                    display: "flex",
+                    gap: "3px",
+                    position: "relative",
+                    overflow: "hidden"
                   }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{
-                        width:
-                          analysisStatus === "detecting" ? "25%" : 
-                          analysisStatus === "analyzing_transcript" ? "50%" : 
-                          analysisStatus === "analyzing_claims" ? "75%" : "90%",
-                      }}
-                      style={{ 
-                        height: "100%", 
-                        backgroundColor: "#38bdf8",
-                        boxShadow: "inset 0 -4px 0 rgba(0, 0, 0, 0.2), inset 0 2px 0 rgba(255, 255, 255, 0.4)",
-                        borderRadius: "2px"
-                      }}
-                      transition={{ type: "spring", stiffness: 50, damping: 15 }}
-                    />
+                    {Array.from({ length: 15 }).map((_, i) => {
+                      const progress = 
+                        analysisStatus === "detecting" ? 25 : 
+                        analysisStatus === "analyzing_transcript" ? 50 : 
+                        analysisStatus === "analyzing_claims" ? 75 : 95;
+                      
+                      const isFilled = (i + 1) <= (progress / 100) * 15;
+                      
+                      return (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ 
+                            opacity: isFilled ? 1 : 0.2, 
+                            scale: isFilled ? 1 : 0.9,
+                            backgroundColor: isFilled ? "#38bdf8" : "#1e293b" 
+                          }}
+                          style={{
+                            flex: 1,
+                            height: "100%",
+                            boxShadow: isFilled ? "inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 #0369a1" : "none",
+                            position: "relative"
+                          }}
+                        >
+                          {/* 스캐닝 광택 효과 애니메이션 */}
+                          {isFilled && (
+                            <motion.div
+                              animate={{ x: ["-100%", "200%"] }}
+                              transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: i * 0.1 }}
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                                pointerEvents: "none"
+                              }}
+                            />
+                          )}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
