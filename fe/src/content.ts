@@ -30,6 +30,13 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
           else stopInfection();
         }
       });
+
+      // [추가] 콘텐츠 스크립트 생존 확인용 리스너
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === "PING") {
+          sendResponse({ type: "PONG" });
+        }
+      });
     };
 
     const startInfection = () => {
@@ -39,7 +46,51 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       if (!(window as any).__CHECKMATE_INTERVAL__) {
         (window as any).__CHECKMATE_INTERVAL__ = setInterval(() => {
           const isShortsPage = window.location.pathname.startsWith("/shorts");
+          const isWatchPage = window.location.pathname === "/watch";
           const shortsCard = document.getElementById("checkmate-shorts-card-v3.0");
+          const watchCard = document.getElementById("checkmate-watch-card-v3.0");
+
+          // 일반 영상 페이지 반응형 레이아웃 처리
+          if (isWatchPage && watchCard) {
+            const isWide = window.innerWidth >= 1016;
+            if (isWide) {
+              const sidebar = document.querySelector("#secondary-inner") || document.querySelector("#secondary");
+              if (sidebar && watchCard.parentElement !== sidebar) {
+                sidebar.prepend(watchCard);
+              }
+            } else {
+              const primaryInner = document.querySelector("#primary-inner");
+              const below = document.querySelector("#below");
+              const comments = document.querySelector("#comments");
+              const related = document.querySelector("#related");
+
+              if (primaryInner) {
+                let targetParent: Element | null = primaryInner;
+                let insertBeforeNode: Element | null = null;
+
+                if (related && primaryInner.contains(related)) {
+                  targetParent = related.parentElement;
+                  insertBeforeNode = related;
+                } else if (comments && primaryInner.contains(comments)) {
+                  targetParent = comments.parentElement;
+                  insertBeforeNode = comments;
+                } else if (below) {
+                  targetParent = below;
+                  insertBeforeNode = below.firstElementChild;
+                }
+
+                if (targetParent && watchCard.parentElement !== targetParent) {
+                  if (insertBeforeNode) {
+                    targetParent.insertBefore(watchCard, insertBeforeNode);
+                  } else {
+                    targetParent.appendChild(watchCard);
+                  }
+                } else if (targetParent && insertBeforeNode && watchCard.nextElementSibling !== insertBeforeNode) {
+                  targetParent.insertBefore(watchCard, insertBeforeNode);
+                }
+              }
+            }
+          }
 
           // 쇼츠에서 댓글창이 열려있는지 감시
           if (isShortsPage && shortsCard) {
@@ -90,40 +141,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       }
 
       if (videoId) {
-        // DOM이 업데이트될 때까지 기다리면서 제목과 채널명을 찾는 재시도 함수
-        const fetchVideoInfo = (attempts = 0) => {
-          if (attempts > 10) {
-            // 10번 시도(약 5초) 후에도 못 찾으면 일단 기본값으로 세팅
-            useCheckmateStore
-              .getState()
-              .setCurrentVideo(videoId!, document.title.replace(" - YouTube", ""), "알 수 없는 채널");
-            return;
-          }
-
-          let titleEl: Element | null = null;
-          let channelEl: Element | null = null;
-
-          if (isWatchPage) {
-            titleEl = document.querySelector("h1.ytd-watch-metadata yt-formatted-string");
-            channelEl = document.querySelector("#owner ytd-channel-name yt-formatted-string a");
-          } else if (isShortsPage) {
-            titleEl = document.querySelector("ytd-reel-video-renderer[is-active] h2.title");
-            channelEl = document.querySelector(
-              "ytd-reel-video-renderer[is-active] ytd-channel-name yt-formatted-string a",
-            );
-          }
-
-          if (titleEl && titleEl.textContent && channelEl && channelEl.textContent) {
-            const title = titleEl.textContent.trim();
-            const channel = channelEl.textContent.trim();
-            useCheckmateStore.getState().setCurrentVideo(videoId!, title, channel);
-          } else {
-            // DOM이 아직 안 그려졌다면 500ms 후 재시도
-            setTimeout(() => fetchVideoInfo(attempts + 1), 500);
-          }
-        };
-
-        fetchVideoInfo();
+        useCheckmateStore.getState().setCurrentVideo(videoId);
       }
 
       if (isWatchPage) {
@@ -147,6 +165,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
         container.id = "checkmate-watch-card-v3.0";
         container.className = "checkmate-root-container";
         container.style.width = "100%";
+        container.style.marginBottom = "16px"; // 간격 추가
         sidebar.prepend(container);
         renderDashboard(container);
       }

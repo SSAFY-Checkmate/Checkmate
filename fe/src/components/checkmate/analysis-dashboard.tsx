@@ -2,8 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useCheckmateStore, logoutAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
-import { ResponseModal } from "./response-modal";
 import { LoginView } from "./login-view";
+import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
@@ -14,6 +14,7 @@ import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
 export function AnalysisDashboard() {
   const { 
     startAnalysis, 
+    startDemoAnalysis,
     analysisStatus, 
     overallVerdict, 
     openPanel, 
@@ -35,22 +36,7 @@ export function AnalysisDashboard() {
     return window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
   }, []);
 
-  // Click outside to close (외부 클릭 시 대시보드 닫기)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Shadow DOM 환경을 고려하여 composedPath() 사용
-      const path = event.composedPath();
-      if (
-        isPanelOpen &&
-        dashboardRef.current &&
-        !path.includes(dashboardRef.current)
-      ) {
-        closePanel();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isPanelOpen, closePanel]);
+  // Click outside to close 기능 제거 (명시적으로 버튼을 클릭해야만 닫힘)
 
   const togglePanel = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -117,10 +103,67 @@ export function AnalysisDashboard() {
     );
   }
 
+  const getTheme = () => {
+    if (analysisStatus !== "complete") {
+      return {
+        border: "#0ea5e9",
+        shadowHover: "rgba(14, 165, 233, 0.1)",
+        shadowOuter: "rgba(0, 110, 220, 0.1)",
+        bgLight: "#e0f2fe",
+        iconShadow: "#0284c7",
+        textShadowColor: "#1e3a8a",
+        titleColor: "#22d3ee",
+        descColor: "#334155",
+      };
+    }
+    switch (overallVerdict) {
+      case "warning":
+        return {
+          border: "#ef4444",
+          shadowHover: "rgba(239, 68, 68, 0.1)",
+          shadowOuter: "rgba(220, 38, 38, 0.1)",
+          bgLight: "#fee2e2",
+          iconShadow: "#dc2626",
+          textShadowColor: "#7f1d1d",
+          titleColor: "#f87171",
+          descColor: "#991b1b",
+        };
+      case "safe":
+        return {
+          border: "#22c55e",
+          shadowHover: "rgba(34, 197, 94, 0.1)",
+          shadowOuter: "rgba(22, 163, 74, 0.1)",
+          bgLight: "#dcfce7",
+          iconShadow: "#16a34a",
+          textShadowColor: "#14532d",
+          titleColor: "#4ade80",
+          descColor: "#166534",
+        };
+      case "unknown":
+      default:
+        return {
+          border: "#f59e0b",
+          shadowHover: "rgba(245, 158, 11, 0.1)",
+          shadowOuter: "rgba(217, 119, 6, 0.1)",
+          bgLight: "#fef3c7",
+          iconShadow: "#d97706",
+          textShadowColor: "#78350f",
+          titleColor: "#fbbf24",
+          descColor: "#92400e",
+        };
+    }
+  };
+
+  const theme = getTheme();
+  const pixelFont = "'CheckmatePixel', sans-serif";
+
   return (
     <div 
       ref={dashboardRef}
-      style={PIXEL_STYLES.dashboardContainer}
+      style={{
+        ...PIXEL_STYLES.dashboardContainer,
+        fontFamily: pixelFont
+      }}
     >
       {/* --- 상단 메인 카드 영역 --- */}
       <div
@@ -129,6 +172,17 @@ export function AnalysisDashboard() {
           ...PIXEL_STYLES.border,
           ...PIXEL_STYLES.mainCard,
           position: "relative",
+          background: "#ffffff",
+          boxShadow: `0 10px 25px ${theme.shadowOuter}, inset 0 0 0 2px ${theme.shadowHover}`,
+          border: `4px solid ${theme.border}`,
+          borderRadius: "8px",
+          padding: "16px", 
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: "100%",
+          gap: "16px",
         }}
       >
         {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
@@ -175,46 +229,93 @@ export function AnalysisDashboard() {
           </div>
         )}
 
-        {isWarningVisible ? (
-          /* 분석 결과 표시 상태 */
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={PIXEL_STYLES.warningHeader(warningConfig[overallVerdict].gradient)}>
-              <div style={PIXEL_STYLES.warningIconContainer}>
-                {(() => {
-                  const Icon = warningConfig[overallVerdict].icon;
-                  return <Icon size={32} color="white" />;
-                })()}
-              </div>
-              <h3 style={{ fontSize: "15px", margin: 0, color: "white", fontWeight: "bold" }}>
-                [{warningConfig[overallVerdict].prefix}] {warningConfig[overallVerdict].title}
-              </h3>
-            </div>
-            
-            <div style={{ padding: "16px", backgroundColor: "#fafafa", textAlign: "center" }}>
-              <p style={{ fontSize: "12px", color: "#52525b", lineHeight: "1.5", margin: "0 0 12px 0" }}>
-                {warningConfig[overallVerdict].desc}
-              </p>
-              <button 
-                onClick={(e) => togglePanel(e)} 
-                style={{ 
-                  ...PIXEL_STYLES.btnBase, 
-                  backgroundColor: isPanelOpen ? "#e4e4e7" : "#fde047", 
-                  color: "black",
+        {analysisStatus === "complete" ? (
+          /* 분석 결과 표시 상태 (로그인 오류 화면 톤앤매너) */
+          <>
+            <div
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "4px",
+                borderRadius: "4px",
+                boxShadow: `0 4px 0 ${theme.iconShadow}`,
+                marginTop: "16px"
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: theme.bgLight,
+                  border: `2px solid ${theme.border}`,
+                  borderRadius: "2px",
+                  padding: "12px",
                   display: "flex",
-                  alignItems: "center",
                   justifyContent: "center",
-                  gap: "8px"
+                  alignItems: "center",
+                  width: "64px",
+                  height: "64px"
                 }}
               >
-                {isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                {isPanelOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
+                {(() => {
+                  const Icon = warningConfig[overallVerdict].icon;
+                  return <Icon size={40} color={theme.border} />;
+                })()}
+              </div>
             </div>
-          </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "center" }}>
+              <h2
+                style={{
+                  fontSize: "24px",
+                  margin: 0,
+                  color: theme.titleColor,
+                  fontWeight: "900",
+                  fontFamily: pixelFont,
+                  letterSpacing: "2px",
+                  textShadow: `
+                    2px 0 0 ${theme.textShadowColor},
+                    -2px 0 0 ${theme.textShadowColor},
+                    0 2px 0 ${theme.textShadowColor},
+                    0 -2px 0 ${theme.textShadowColor},
+                    2px 2px 0 ${theme.textShadowColor},
+                    -2px -2px 0 ${theme.textShadowColor},
+                    2px -2px 0 ${theme.textShadowColor},
+                    -2px 2px 0 ${theme.textShadowColor}
+                  `,
+                }}
+              >
+                {warningConfig[overallVerdict].prefix}
+              </h2>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: theme.descColor,
+                  lineHeight: "1.5",
+                  margin: 0,
+                  fontWeight: "bold",
+                  fontFamily: pixelFont,
+                }}
+              >
+                {warningConfig[overallVerdict].title}
+                <br />
+                <span style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", display: "inline-block" }}>
+                  {useCheckmateStore.getState().summary || warningConfig[overallVerdict].desc}
+                </span>
+              </p>
+            </div>
+
+            <div style={{ width: "100%", marginTop: "8px" }}>
+              <PixelButton
+                onClick={(e) => togglePanel(e)}
+                colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
+                text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
+                icon={isPanelOpen ? <ChevronUp size={20} color="#1e293b" strokeWidth={3} /> : <ChevronDown size={20} color="#ffffff" strokeWidth={3} />}
+                size="md"
+              />
+            </div>
+          </>
         ) : (
           /* 분석 대기/진행 상태 */
-          <div style={{ padding: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-            <div style={{ position: "relative", cursor: "pointer" }} onClick={() => startAnalysis()}>
+          <>
+            <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
               <PixelCharacter size="lg" />
               <AnimatePresence>
                 {analysisStatus !== "idle" && (
@@ -222,62 +323,133 @@ export function AnalysisDashboard() {
                     initial={{ x: -40, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    style={{ position: "absolute", bottom: "-2px", right: "-10px" }}
+                    style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
                   >
-                    <PixelOfficer size="sm" mood={analysisStatus === "complete" ? "happy" : "thinking"} />
+                    <PixelOfficer size="sm" mood="thinking" />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            <div style={{ width: "100%", minHeight: "44px" }}>
+            <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
               {analysisStatus === "idle" ? (
-                <button
-                  onClick={() => startAnalysis()}
-                  onMouseDown={() => setIsPressed(true)}
-                  onMouseUp={() => setIsPressed(false)}
-                  style={{
-                    ...PIXEL_STYLES.btnBase,
-                    backgroundColor: COLORS.primary,
-                    color: "white",
-                    ...(isPressed ? PIXEL_STYLES.btnActive : {}),
-                  }}
-                >
-                  팩트체크 수사 시작
-                </button>
-              ) : analysisStatus === "complete" ? (
-                <button
-                  onClick={(e) => togglePanel(e)}
-                  style={{
-                    ...PIXEL_STYLES.btnBase,
-                    backgroundColor: "#a855f7", // 보라색 버튼
-                    boxShadow: "2px 2px 0 0 rgba(0,0,0,0.3), inset -2px -2px 0 0 rgba(0,0,0,0.2), inset 2px 2px 0 0 rgba(255,255,255,0.3)",
-                    color: "white",
-                  }}
-                >
-                  리포트 다시 보기
-                </button>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#18181b" }}>
-                    <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
-                  </div>
-                  <div style={{ height: "12px", width: "100%", backgroundColor: "#e4e4e7", padding: "2px", ...PIXEL_STYLES.border }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{
-                        width:
-                          analysisStatus === "detecting" ? "25%" : 
-                          analysisStatus === "analyzing_transcript" ? "50%" : 
-                          analysisStatus === "analyzing_claims" ? "75%" : "90%",
-                      }}
-                      style={{ height: "100%", backgroundColor: "#22c55e" }}
+                <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                  <div style={{ flex: 1 }}>
+                    <PixelButton
+                      onClick={() => startAnalysis()}
+                      colorType="primary"
+                      text="팩트체크 수사 시작"
                     />
+                  </div>
+                  <button
+                    onClick={() => startDemoAnalysis()}
+                    title="API를 호출하지 않고 목업 데이터로 데모를 실행합니다"
+                    style={{
+                      backgroundColor: "#e2e8f0",
+                      border: "2px solid #94a3b8",
+                      borderRadius: "6px",
+                      padding: "0 12px",
+                      cursor: "pointer",
+                      fontFamily: pixelFont,
+                      fontWeight: "bold",
+                      color: "#475569",
+                      boxShadow: "0 4px 0 #94a3b8",
+                      transition: "all 0.1s",
+                      flexShrink: 0,
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = "translateY(4px)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = "translateY(0px)";
+                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0px)";
+                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
+                    }}
+                  >
+                    데모
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                  <div style={{ 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    fontSize: "14px", 
+                    color: "#0ea5e9",
+                    fontFamily: pixelFont,
+                    fontWeight: "900",
+                    textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
+                  }}>
+                    <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
+                    <span>
+                      {analysisStatus === "detecting" ? "25%" : 
+                       analysisStatus === "analyzing_transcript" ? "50%" : 
+                       analysisStatus === "analyzing_claims" ? "75%" : "90%"}
+                    </span>
+                  </div>
+                  
+                  {/* Retro Segmented Progress Bar */}
+                  <div style={{ 
+                    height: "24px", 
+                    width: "100%", 
+                    backgroundColor: "#0f172a", 
+                    padding: "4px", 
+                    border: "3px solid #475569",
+                    boxShadow: "inset 0 4px 0 rgba(0,0,0,0.5), 2px 2px 0 rgba(255,255,255,0.1)",
+                    display: "flex",
+                    gap: "3px",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}>
+                    {Array.from({ length: 15 }).map((_, i) => {
+                      const progress = 
+                        analysisStatus === "detecting" ? 25 : 
+                        analysisStatus === "analyzing_transcript" ? 50 : 
+                        analysisStatus === "analyzing_claims" ? 75 : 95;
+                      
+                      const isFilled = (i + 1) <= (progress / 100) * 15;
+                      
+                      return (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ 
+                            opacity: isFilled ? 1 : 0.2, 
+                            scale: isFilled ? 1 : 0.9,
+                            backgroundColor: isFilled ? "#38bdf8" : "#1e293b" 
+                          }}
+                          style={{
+                            flex: 1,
+                            height: "100%",
+                            boxShadow: isFilled ? "inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 #0369a1" : "none",
+                            position: "relative"
+                          }}
+                        >
+                          {/* 스캐닝 광택 효과 애니메이션 */}
+                          {isFilled && (
+                            <motion.div
+                              animate={{ x: ["-100%", "200%"] }}
+                              transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: i * 0.1 }}
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                                pointerEvents: "none"
+                              }}
+                            />
+                          )}
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -305,7 +477,6 @@ export function AnalysisDashboard() {
         )}
       </AnimatePresence>
 
-      <ResponseModal />
     </div>
   );
 }
