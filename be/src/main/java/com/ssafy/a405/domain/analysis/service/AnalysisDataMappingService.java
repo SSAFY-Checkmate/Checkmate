@@ -41,8 +41,11 @@ public class AnalysisDataMappingService {
             JsonNode transcriptNode = root.path("transcript");
             JsonNode analysisNode = root.path("analysis").path("analysisResult");
 
-            if (transcriptNode.isMissingNode() || analysisNode.isMissingNode()) {
-                log.warn("Missing transcript or analysis node in resultJson");
+            boolean legacyShape = !(transcriptNode.isMissingNode() || analysisNode.isMissingNode());
+            if (!legacyShape) {
+                // Kafka mode typically stores the analysis.completed payload directly (final result shape),
+                // which does not include "transcript"/"analysis" wrapper nodes.
+                mapAndSaveFromFinalPayload(root);
                 return;
             }
 
@@ -133,5 +136,78 @@ public class AnalysisDataMappingService {
         } catch (Exception e) {
             log.error("Failed to map and save AnalysisResult. resultJson={}", resultJson, e);
         }
+    }
+
+    private void mapAndSaveFromFinalPayload(JsonNode root) {
+        // Expected payload fields (recommended): videoId, videoTitle, channelId, channelName, trustGrade, confidenceScore, summary, violations[]
+        String videoIdStr = root.path("videoId").asText(null);
+        if (videoIdStr == null || videoIdStr.isBlank()) {
+            log.warn("Missing videoId in final payload resultJson");
+            return;
+        }
+
+        String channelIdStr = root.path("channelId").asText(null);
+        if (channelIdStr == null || channelIdStr.isBlank()) {
+            // Channel.ytChannelId is non-null in RDB schema; without it we cannot persist consistently.
+            log.warn("Missing channelId in final payload for videoId={}. Skipping RDB mapping.", videoIdStr);
+            return;
+        }
+
+        String channelName = root.path("channelName").asText("");
+        Channel channel = channelRepository.findByYtChannelId(channelIdStr)
+            .orElseGet(() -> channelRepository.save(Channel.builder()
+                .ytChannelId(channelIdStr)
+                .channelName(channelName)
+                .trustGrade(TrustGrade.UNKNOWN)
+                .totalViolationCount(0)
+                .build()));
+
+        String videoTitle = root.path("videoTitle").asText("");
+        Video video = videoRepository.findByYtVideoId(videoIdStr)
+            .orElseGet(() -> videoRepository.save(Video.builder()
+                .ytVideoId(videoIdStr)
+                .title(videoTitle)
+                .channel(channel)
+                .build()));
+
+        String trustGradeStr = root.path("trustGrade").asText("UNKNOWN");
+        TrustGrade trustGrade;
+        try {
+            trustGrade = TrustGrade.valueOf(trustGradeStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            trustGrade = TrustGrade.UNKNOWN;
+        }
+
+        Integer confidenceScore = root.path("confidenceScore").isMissingNode() ? null : root.path("confidenceScore").asInt();
+        String summary = root.path("summary").asText("");
+
+        // Kafka mock/worker payload currently doesn't carry modelVersion; keep a sensible default.
+        String modelVersion = root.path("modelVersion").asText("unknown");
+
+        AnalysisResult analysisResult = analysisResultRepository.save(AnalysisResult.builder()
+            .video(video)
+            .status(trustGrade)
+            .confidenceScore(confidenceScore == null ? 0 : confidenceScore)
+            .summary(summary)
+            .modelVersion(modelVersion)
+            .build());
+
+        JsonNode violationsNode = root.path("violations");
+        if (violationsNode.isArray()) {
+            for (JsonNode vNode : violationsNode) {
+                Integer startTime = vNode.path("startTime").isMissingNode() ? null : vNode.path("startTime").asInt();
+                String violationSentence = vNode.path("violationSentence").asText("");
+                String reason = vNode.path("reason").asText("");
+
+                violationDetailRepository.save(ViolationDetail.builder()
+                    .analysisResult(analysisResult)
+                    .startTime(startTime)
+                    .violationSentence(violationSentence)
+                    .reason(reason)
+                    .build());
+            }
+        }
+
+        log.info("Successfully mapped and saved AnalysisResult(final payload) for videoId={}", videoIdStr);
     }
 }

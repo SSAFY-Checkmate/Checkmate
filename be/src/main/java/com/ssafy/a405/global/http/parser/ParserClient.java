@@ -14,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -130,9 +131,17 @@ public class ParserClient {
 		@JsonProperty("channel_id") String channelId,
 		String language,
 		String content,
+		List<Segment> segments,
 		String status,
 		@JsonProperty("is_whisper") Boolean isWhisper,
 		@JsonProperty("processing_time") Double processingTime
+	) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record Segment(
+		@JsonProperty("start_time") Double startTime,
+		String text
 	) {
 	}
 }

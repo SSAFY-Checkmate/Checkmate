@@ -2,6 +2,7 @@ package com.ssafy.a405.domain.analysis.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.a405.global.http.ai.AiClient;
 import com.ssafy.a405.global.http.parser.ParserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ public class AnalysisHttpPipelineService {
 
 	private final AnalysisJobService analysisJobService;
 	private final ParserClient parserClient;
+	private final AiClient aiClient;
 	private final ObjectMapper objectMapper;
 
 	@Async
@@ -69,20 +71,11 @@ public class AnalysisHttpPipelineService {
 		analysisJobService.applyProcessing(jobId);
 
 		log.info("[PIPELINE] analyze.request jobId={}", jobId);
-		JsonNode analysisNode = parserClient.analyzeTranscript(
-			ParserClient.AnalysisRequest.fromTranscript(transcript)
-		);
-		log.info("[PIPELINE] analyze.ok jobId={} trust={} score={} model={}",
+		JsonNode analysisNode = aiClient.analyze(transcript);
+		log.info("[PIPELINE] analyze.ok jobId={} trust={} score={}",
 			jobId,
-			analysisNode.at("/analysisResult/trustGrade").isMissingNode()
-				? analysisNode.at("/trustGrade").asText(null)
-				: analysisNode.at("/analysisResult/trustGrade").asText(null),
-			analysisNode.at("/analysisResult/confidenceScore").isMissingNode()
-				? (analysisNode.at("/confidenceScore").isMissingNode() ? null : analysisNode.at("/confidenceScore").asInt())
-				: analysisNode.at("/analysisResult/confidenceScore").asInt(),
-			analysisNode.at("/analysisResult/modelVersion").isMissingNode()
-				? analysisNode.at("/modelVersion").asText(null)
-				: analysisNode.at("/analysisResult/modelVersion").asText(null)
+			analysisNode.at("/data/trustGrade").asText(null),
+			analysisNode.at("/data/confidenceScore").isMissingNode() ? null : analysisNode.at("/data/confidenceScore").asInt()
 		);
 
 		Map<String, Object> combined = new LinkedHashMap<>();

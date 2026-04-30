@@ -15,6 +15,7 @@ import com.ssafy.a405.global.common.exception.CustomException;
 import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AnalysisJobService {
 
@@ -174,6 +176,7 @@ public class AnalysisJobService {
 			job.getJobId(),
 			objectMapper.valueToTree(analysisPayload)
 		);
+		log.info("analysis.requested enqueued. topic={} jobId={} artifactKey={}", analysisRequestedTopic, job.getJobId(), payload.artifactKey());
 		outboxService.enqueue(analysisRequestedTopic, job.getJobId(), analysisRequested);
 	}
 
