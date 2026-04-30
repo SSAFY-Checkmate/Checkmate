@@ -10,12 +10,14 @@ import com.ssafy.a405.global.common.exception.CustomException;
 import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AnalysisJobOrchestrator {
 
@@ -84,6 +86,8 @@ public class AnalysisJobOrchestrator {
 			job.getJobId(),
 			objectMapper.valueToTree(payload)
 		);
+		// Actual Kafka publish is done by Outbox publisher.
+		log.info("transcript.requested enqueued. topic={} jobId={}", transcriptRequestedTopic, job.getJobId());
 		outboxService.enqueue(transcriptRequestedTopic, job.getJobId(), envelope);
 	}
 }

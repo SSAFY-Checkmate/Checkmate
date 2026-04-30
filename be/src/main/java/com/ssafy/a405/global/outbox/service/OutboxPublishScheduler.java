@@ -52,6 +52,7 @@ public class OutboxPublishScheduler {
 					.send(event.getTopic(), event.getMessageKey(), event.getPayload())
 					.get(sendTimeoutMs, TimeUnit.MILLISECONDS);
 				event.markSent(LocalDateTime.now());
+				log.info("Outbox published. eventId={} topic={} key={}", event.getEventId(), event.getTopic(), event.getMessageKey());
 			} catch (Exception e) {
 				String msg = e.getMessage();
 				event.markFailed(msg, maxAttempts);
