@@ -3,10 +3,12 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 class Segment(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     start_time: float
     text: str
 
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     video_id: str
     title: Optional[str] = None
     author: Optional[str] = None
@@ -37,6 +39,7 @@ class AnalyzeData(BaseModel):
     elapsed_ms: Optional[int] = None
 
 class AnalyzeResponse(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     status: int
     message: str
     data: Optional[AnalyzeData] = None
