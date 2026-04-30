@@ -70,6 +70,8 @@ pipeline {
             steps {
                 sh "docker stop ${CONTAINER_NAME} || true"
                 sh "docker rm ${CONTAINER_NAME} || true"
+                sh "docker stop a405-parser-transcript-worker || true"
+                sh "docker rm a405-parser-transcript-worker || true"
             }
         }
 
@@ -85,6 +87,7 @@ pipeline {
                     string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY'),
                     string(credentialsId: 'DECODO_PROXY_URL', variable: 'DECODO_PROXY_URL')
                 ]) {
+                    // API 서버 컨테이너 실행
                     sh """
                         docker run -d \
                         --name ${CONTAINER_NAME} \
@@ -94,6 +97,25 @@ pipeline {
                         -e PROXY_URL="${DECODO_PROXY_URL}" \
                         --restart unless-stopped \
                         ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                    """
+                    
+                    // 워커 컨테이너 실행
+                    sh """
+                        docker run -d \
+                        --name a405-parser-transcript-worker \
+                        --network checkmate-net \
+                        -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+                        -e KAFKA_GROUP_ID=parser-transcript-worker \
+                        -e TOPIC_TRANSCRIPT_REQUESTED=transcript.requested \
+                        -e TOPIC_TRANSCRIPT_COMPLETED=transcript.completed \
+                        -e TOPIC_TRANSCRIPT_FAILED=transcript.failed \
+                        -e REDIS_HOST=redis \
+                        -e REDIS_PORT=6379 \
+                        -e GMS_KEY="${GMS_KEY}" \
+                        -e USE_RESIDENTIAL_PROXY="true" \
+                        -e PROXY_URL="${DECODO_PROXY_URL}" \
+                        --restart unless-stopped \
+                        ${DOCKER_IMAGE}:${BUILD_NUMBER} python worker_transcript.py
                     """
                 }
             }
