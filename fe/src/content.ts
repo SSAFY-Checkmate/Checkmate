@@ -92,6 +92,19 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
             }
           }
 
+          // 영상 ID 변경 감지 (쇼츠 스크롤 대응)
+          let currentId: string | null = null;
+          if (isWatchPage) {
+            currentId = new URLSearchParams(window.location.search).get("v");
+          } else if (isShortsPage) {
+            currentId = window.location.pathname.split("/").pop() || null;
+          }
+
+          const storeId = useCheckmateStore.getState().currentVideoId;
+          if (currentId && currentId !== storeId) {
+            runInjections();
+          }
+
           // 쇼츠에서 댓글창이 열려있는지 감시
           if (isShortsPage && shortsCard) {
             let isPanelOpen = false;
@@ -137,7 +150,8 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       if (isWatchPage) {
         videoId = new URLSearchParams(window.location.search).get("v");
       } else if (isShortsPage) {
-        videoId = "shorts-" + window.location.pathname.split("/").pop();
+        // 쇼츠의 경우 경로에서 영상 ID 추출
+        videoId = window.location.pathname.split("/").pop() || null;
       }
 
       if (videoId) {
@@ -171,29 +185,53 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       }
     };
 
+    /**
+     * Shadow DOM 내부까지 탐색하여 요소를 찾는 헬퍼 함수
+     */
+    const findElementInShadows = (selector: string, root: Element | ShadowRoot = document.documentElement): Element | null => {
+      const el = (root as any).querySelector(selector);
+      if (el) return el;
+      
+      const all = (root as any).querySelectorAll("*");
+      for (const node of all) {
+        if (node.shadowRoot) {
+          const found = findElementInShadows(selector, node.shadowRoot);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
     const injectToShortsPage = () => {
-      // 쇼츠 컨테이너가 렌더링되었는지 확인
-      const shortsContainer = document.querySelector("ytd-shorts");
-      if (!shortsContainer) return;
+      // 활성화된 쇼츠의 오버레이 렌더러 탐색
+      const activeOverlay = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer"))
+        .find(el => (el as HTMLElement).getBoundingClientRect().width > 0);
+      
+      if (!activeOverlay) return;
 
-      // 이미 주입되어 있으면 무시 (React가 상태 변경을 감지해서 알아서 업데이트함)
-      if (document.getElementById("checkmate-shorts-card-v3.0")) return;
+      // 사용자님이 알려주신 #button-bar 또는 #actions를 타겟팅
+      const targetContainer = activeOverlay.querySelector("#button-bar") 
+                           || activeOverlay.querySelector("#actions")
+                           || findElementInShadows("#button-bar", activeOverlay)
+                           || findElementInShadows("#actions", activeOverlay);
 
-      document.querySelectorAll(".checkmate-root-container").forEach((el) => el.remove());
+      if (!targetContainer) return;
+
+      // 이미 주입되어 있으면 무시
+      if (targetContainer.querySelector(".checkmate-shorts-button-v3")) return;
+
+      // 기존 잔재 청소
+      document.querySelectorAll(".checkmate-shorts-button-v3").forEach(el => el.remove());
 
       const container = document.createElement("div");
-      container.id = "checkmate-shorts-card-v3.0";
-      container.className = "checkmate-root-container";
+      container.className = "checkmate-shorts-button-v3 checkmate-root-container";
+      container.style.width = "100%";
+      container.style.display = "flex";
+      container.style.justifyContent = "center";
+      container.style.marginBottom = "12px"; // 순정 버튼 사이 간격과 유사하게 조정
 
-      // 화면(body) 기준으로 고정하여 유튜브 Polymer DOM 에러(댓글창 안 닫힘 등) 방지
-      container.style.position = "fixed";
-      container.style.top = "50px";
-      container.style.left = "calc(50% + 350px)"; // 비디오 중심에서 우측으로 350px 이동
-      container.style.width = "320px";
-      container.style.zIndex = "9999"; 
-      container.style.transition = "opacity 0.2s ease"; // 부드러운 숨김 애니메이션
-
-      document.body.appendChild(container);
+      // 타겟 컨테이너의 맨 위에 삽입 (좋아요 버튼 위쪽)
+      targetContainer.prepend(container);
       renderDashboard(container);
     };
 

@@ -12,15 +12,9 @@ import { PIXEL_STYLES } from "../../lib/constants/styles";
 export function AnalysisDashboard() {
   const { isLoggedIn } = useCheckmateStore();
   
-  const isWatchPage = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.location.pathname === "/watch" || window.location.pathname.startsWith("/shorts");
-  }, []);
-
-  const isShorts = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.location.pathname.startsWith("/shorts");
-  }, []);
+  // URL이 바뀔 때마다 다시 계산되도록 window.location.pathname을 직접 참조하거나 의존성에 추가
+  const isShorts = window.location.pathname.startsWith("/shorts");
+  const isWatchPage = window.location.pathname === "/watch" || isShorts;
 
   if (!isWatchPage) return null;
 

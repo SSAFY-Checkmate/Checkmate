@@ -48,7 +48,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   );
 }
 
-function TrustMeter({ score }: { score: number }) {
+export function TrustMeter({ score }: { score: number }) {
   const bars = 10;
   const filledBars = Math.round((score / 100) * bars);
 

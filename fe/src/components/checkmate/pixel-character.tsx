@@ -4,11 +4,12 @@
 type PixelCharacterProps = {
   className?: string;
   mood?: "neutral" | "alert" | "happy" | "thinking"; // 사라졌던 mood 속성 복구
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 };
 
 export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) => {
   const sizes = {
+    xs: "32px",
     sm: "48px",
     md: "96px",
     lg: "240px",
@@ -40,6 +41,7 @@ export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) 
 
 export const PixelOfficer = ({ size = "sm", mood = "neutral" }: PixelCharacterProps) => {
   const sizes = {
+    xs: "32px",
     sm: "40px",
     md: "64px",
     lg: "96px",
