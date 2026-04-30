@@ -1,6 +1,10 @@
 # Frontend Async Analysis Flow (Kafka Mode)
 
-이 문서는 `app.pipeline.mode=kafka` 환경에서 프론트가 **해야 하는 작업만** 정리한다.
+이 문서는 프론트가 **Kafka 비동기 분석 플로우**에서 해야 하는 작업만 정리한다.
+
+Endpoint rule (BE contract):
+- `POST /analysis`: Kafka async
+- `POST /analysis/sync`: HTTP sync (Kafka 사용 여부와 무관)
 
 Base Path: `/analysis`
 
@@ -165,7 +169,5 @@ Response (200):
 
 ## 5) 주의사항
 
-- `app.pipeline.mode=kafka`에서는 `POST /analysis/sync`가 실패(400)하도록 되어 있으므로, 프론트는 async + polling 플로우만 사용한다.
 - `GET /analysis/{jobId}`의 `data.result`는 `analysis_job.result_json`을 JSON으로 파싱한 값이다. 따라서 워커가 `analysis.completed` 이벤트의 `payload`를 어떤 형태로 보내는지에 따라 스키마가 바뀔 수 있다.
   - 현재 권장(final payload) 형태: `jobId/videoId/videoTitle/channelId/channelName/trustGrade/confidenceScore/summary/violations/elapsedMs`
-

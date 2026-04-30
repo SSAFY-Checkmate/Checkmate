@@ -5,8 +5,6 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.TranscriptRequestedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
 import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
-import com.ssafy.a405.global.common.code.ErrorCode;
-import com.ssafy.a405.global.common.exception.CustomException;
 import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +24,6 @@ public class AnalysisJobOrchestrator {
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
 
-	@Value("${app.pipeline.mode:http}")
-	private String pipelineMode;
-
 	@Value("${topics.transcript.requested:transcript.requested}")
 	private String transcriptRequestedTopic;
 
@@ -44,21 +39,14 @@ public class AnalysisJobOrchestrator {
 		}
 
 		AnalysisJob job = analysisJobService.createJob(youtubeUrl);
-
-		if ("kafka".equalsIgnoreCase(pipelineMode)) {
-			enqueueTranscriptRequested(job);
-		} else {
-			analysisHttpPipelineService.run(job.getJobId());
-		}
+		// Endpoint contract: POST /analysis is always Kafka async mode.
+		// Outbox publisher is responsible for the actual Kafka publish.
+		enqueueTranscriptRequested(job);
 
 		return job;
 	}
 
 	public AnalysisJobGetResponse requestAnalysisSync(String youtubeUrl) {
-		if ("kafka".equalsIgnoreCase(pipelineMode)) {
-			throw new CustomException(ErrorCode.BAD_REQUEST);
-		}
-
 		if (dedupEnabled) {
 			AnalysisJob existing = analysisJobService.findLatestByYoutubeUrl(youtubeUrl).orElse(null);
 			if (existing != null && existing.getStatus() == AnalysisJobStatus.COMPLETED) {
@@ -71,6 +59,7 @@ public class AnalysisJobOrchestrator {
 		}
 
 		AnalysisJob job = analysisJobService.createJob(youtubeUrl);
+		// Endpoint contract: POST /analysis/sync is always HTTP sync mode (even when the system also uses Kafka).
 		analysisHttpPipelineService.runSync(job.getJobId());
 		return analysisJobService.getJob(job.getJobId());
 	}
