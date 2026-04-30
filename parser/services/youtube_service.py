@@ -3,7 +3,13 @@ import re
 import requests
 from fastapi import HTTPException
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
+from youtube_transcript_api._errors import (
+    TranscriptsDisabled,
+    NoTranscriptFound,
+    VideoUnavailable,
+    RequestBlocked,
+    IpBlocked,
+)
 
 from core.text_processor import clean_transcript_text
 from services.stt_engine import run_stt_fallback
