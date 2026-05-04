@@ -104,26 +104,6 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
           if (currentId && currentId !== storeId) {
             runInjections();
           }
-
-          // 쇼츠에서 댓글창이 열려있는지 감시
-          if (isShortsPage && shortsCard) {
-            let isPanelOpen = false;
-            // 화면 내의 모든 패널을 확인
-            const panels = document.querySelectorAll('ytd-engagement-panel-section-list-renderer[visibility="ENGAGEMENT_PANEL_VISIBILITY_EXPANDED"]');
-            
-            panels.forEach(panel => {
-              if (window.getComputedStyle(panel).display !== "none" && panel.getBoundingClientRect().width > 0) {
-                isPanelOpen = true; // 열려있는 패널 발견!
-              }
-            });
-            
-            if (isPanelOpen) {
-              // 투명하게 만드는 것이 아니라 아예 화면에서 지워버림 (클릭 방해 0%)
-              shortsCard.style.display = "none";
-            } else {
-              shortsCard.style.display = "block";
-            }
-          }
         }, 500); // 0.5초 간격으로 가볍게 체크
       }
 
@@ -224,11 +204,13 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       document.querySelectorAll(".checkmate-shorts-button-v3").forEach(el => el.remove());
 
       const container = document.createElement("div");
+      container.id = "checkmate-shorts-card-v3.0";
       container.className = "checkmate-shorts-button-v3 checkmate-root-container";
       container.style.width = "100%";
       container.style.display = "flex";
       container.style.justifyContent = "center";
       container.style.marginBottom = "12px"; // 순정 버튼 사이 간격과 유사하게 조정
+      container.style.zIndex = "10";
 
       // 타겟 컨테이너의 맨 위에 삽입 (좋아요 버튼 위쪽)
       targetContainer.prepend(container);

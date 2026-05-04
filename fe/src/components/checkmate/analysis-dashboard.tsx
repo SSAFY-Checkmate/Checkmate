@@ -12,13 +12,15 @@ import { PIXEL_STYLES } from "../../lib/constants/styles";
 export function AnalysisDashboard() {
   const { isLoggedIn } = useCheckmateStore();
   
-  // URL이 바뀔 때마다 다시 계산되도록 window.location.pathname을 직접 참조하거나 의존성에 추가
   const isShorts = window.location.pathname.startsWith("/shorts");
   const isWatchPage = window.location.pathname === "/watch" || isShorts;
 
   if (!isWatchPage) return null;
 
-  // 로그인하지 않은 경우 공통 로그인 뷰 표시
+  // [개선] 쇼츠의 경우 로그인 여부와 상관없이 항상 ShortsDashboard(동그란 버튼)를 먼저 보여줍니다.
+  if (isShorts) return <ShortsDashboard />;
+
+  // 로그인하지 않은 경우 공통 로그인 뷰 표시 (롱폼 등 일반 영상용)
   if (!isLoggedIn) {
     return (
       <div style={PIXEL_STYLES.dashboardContainer}>
@@ -27,6 +29,5 @@ export function AnalysisDashboard() {
     );
   }
 
-  // 영상 타입에 따른 대시보드 분기
-  return isShorts ? <ShortsDashboard /> : <LongFormDashboard />;
+  return <LongFormDashboard />;
 }
