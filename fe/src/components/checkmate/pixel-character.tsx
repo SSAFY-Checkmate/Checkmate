@@ -3,12 +3,14 @@
  */
 type PixelCharacterProps = {
   className?: string;
-  mood?: "neutral" | "alert" | "happy" | "thinking"; // 사라졌던 mood 속성 복구
-  size?: "sm" | "md" | "lg";
+  mood?: "neutral" | "alert" | "happy" | "thinking";
+  size?: "xs" | "sm" | "md" | "lg";
+  isWalking?: boolean;
 };
 
 export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) => {
   const sizes = {
+    xs: "32px",
     sm: "48px",
     md: "96px",
     lg: "240px",
@@ -38,19 +40,21 @@ export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) 
   );
 };
 
-export const PixelOfficer = ({ size = "sm", mood = "neutral" }: PixelCharacterProps) => {
+export const PixelOfficer = ({ size = "sm", mood = "neutral", isWalking = false }: PixelCharacterProps) => {
   const sizes = {
+    xs: "32px",
     sm: "40px",
     md: "64px",
     lg: "96px",
   };
 
-  // mood에 따라 다른 애니메이션이나 상태를 보여줄 수 있으나, 
-  // 현재는 기본 sheriff.gif를 사용하되 타입 에러를 해결합니다.
+  // 분석 중(isWalking)일 때만 GIF를 사용하고, 평소에는 정지 이미지를 사용합니다.
+  const imgSrc = isWalking ? "sheriff.gif" : "sheriff_stop.png";
+
   return (
     <img
-      src={chrome.runtime?.getURL ? chrome.runtime.getURL("sheriff.gif") : "/sheriff.gif"}
-      alt={`Officer (${mood})`}
+      src={chrome.runtime?.getURL ? chrome.runtime.getURL(imgSrc) : `/${imgSrc}`}
+      alt={`Officer (${isWalking ? "walking" : "standing"})`}
       style={{
         width: sizes[size],
         height: "auto",

@@ -23,7 +23,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["logo.jpg", "police-station.png", "sheriff.gif", "pixel-warning.png"],
+      "resources": ["logo.jpg", "police-station.png", "sheriff.gif", "sheriff_stop.png", "pixel-warning.png"],
       "matches": ["<all_urls>"]
     }
   ]
