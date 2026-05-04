@@ -16,16 +16,22 @@ export function AnalysisDashboard() {
   useEffect(() => {
     initializeAuth();
   }, [setLoginStatus]);
+
+  // SSR 환경이나 브라우저 객체가 없는 환경에서의 방어 로직
+  if (typeof window === "undefined") return null;
   
   const isShorts = window.location.pathname.startsWith("/shorts");
   const isWatchPage = window.location.pathname === "/watch" || isShorts;
 
   if (!isWatchPage) return null;
 
-  // [개선] 쇼츠의 경우 로그인 여부와 상관없이 항상 ShortsDashboard(동그란 버튼)를 먼저 보여줍니다.
+  // [쇼츠 정책]
+  // - 공간 협소 및 빠른 전환을 고려하여 로그아웃 상태에서도 동그란 버튼은 항상 노출합니다.
+  // - 실제 분석 버튼 클릭 시점에 로그인 여부를 체크하여 모달을 띄웁니다 (ShortsDashboard 내부 처리).
   if (isShorts) return <ShortsDashboard />;
 
-  // 로그인하지 않은 경우 공통 로그인 뷰 표시 (롱폼 등 일반 영상용)
+  // [롱폼 정책]
+  // - 로그인하지 않은 경우 대시보드 진입을 차단하고 로그인 전용 뷰를 표시합니다. (일반 영상용)
   if (!isLoggedIn) {
     return (
       <div style={PIXEL_STYLES.dashboardContainer}>
