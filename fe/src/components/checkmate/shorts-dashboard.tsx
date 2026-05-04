@@ -111,12 +111,38 @@ export function ShortsDashboard() {
 
             {/* 수사관 캐릭터 (앞으로 배치) */}
             <div style={{ zIndex: 1, position: "relative", display: "flex" }}>
-              <PixelOfficer 
-                size="xs" 
-                mood={analysisStatus === "complete" ? "happy" : "thinking"} 
-                isWalking={analysisStatus !== "idle" && analysisStatus !== "complete"}
+              <PixelOfficer
+                size="xs"
+                mood={analysisStatus === "complete" ? "happy" : analysisStatus === "error" ? "thinking" : "thinking"}
+                isWalking={analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error"}
               />
             </div>
+
+            {/* 분석 에러 시 빨간 느낌표 표시 */}
+            {analysisStatus === "error" && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: [0, 1.2, 1], opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  position: "absolute",
+                  top: "0px",
+                  right: "0px",
+                  backgroundColor: "#ef4444",
+                  borderRadius: "50%",
+                  width: "18px",
+                  height: "18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid white",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                  zIndex: 10,
+                }}
+              >
+                <span style={{ color: "white", fontSize: "12px", fontWeight: "bold", fontFamily: pixelFont }}>!</span>
+              </motion.div>
+            )}
 
             {/* 완료 시 나타났다 사라지는 체크 애니메이션 */}
             <AnimatePresence>

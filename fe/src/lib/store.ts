@@ -256,11 +256,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         channelName: "건강정보 팩트체크",
         overallVerdict: mockData.verdict,
         trustScore: mockData.score,
-        summary: "이 영상은 검증되지 않은 다이어트 보조제에 대해 심각한 과장 광고를 포함하고 있을 가능성이 높습니다. 영상 내용의 신뢰도가 낮으므로 각별한 주의가 필요합니다.",
+        summary:
+          "이 영상은 검증되지 않은 다이어트 보조제에 대해 심각한 과장 광고를 포함하고 있을 가능성이 높습니다. 영상 내용의 신뢰도가 낮으므로 각별한 주의가 필요합니다.",
         isWarningVisible: mockData.verdict === "warning",
         warningCount: mockData.warningCount,
         claims: mockData.claims,
       };
+
+      // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
+      if (get().currentVideoId !== videoId) return;
 
       set((state) => ({
         ...finalState,
@@ -288,6 +292,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
+    // 60초 타임아웃 설정 (영상이 길거나 서버 부하가 있을 경우 고려)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     try {
       // API 요청 시작 (결과는 나중에 기다림)
       const apiPromise = fetch(`${baseUrl}/analysis/sync`, {
@@ -297,6 +305,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         },
         credentials: "include",
         body: JSON.stringify({ youtubeUrl: targetUrl }),
+        signal: controller.signal,
       });
 
       // 시각적 피드백을 위해 각 단계별 최소 대기 시간 부여
@@ -308,12 +317,23 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       // API 응답 대기
       const response = await apiPromise;
+      
+      // [추가] 401 Unauthorized 처리: 토큰 만료 시 재발급 시도
+      if (response.status === 401) {
+        await initializeAuth();
+        // 재발급 후 로그인 상태가 되었다면 분석 다시 시도
+        if (get().isLoggedIn) {
+          return get().startAnalysis();
+        }
+        throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      }
 
       if (!response.ok) {
         throw new Error(`API 오류: ${response.status}`);
       }
 
       const responseData = await response.json();
+      console.log(responseData);
 
       if (responseData.status !== 200 || !responseData.data) {
         throw new Error(responseData.message || "분석 요청 실패");
@@ -323,16 +343,27 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       // [추가] 분석 실패(FAILED) 케이스 처리
       if (data.status === "FAILED") {
-        // DOM에서 직접 타이틀과 채널명 추출 (유튜브 레이아웃 대응)
-        const scrapedTitle = 
-          document.querySelector('h1.ytd-watch-metadata')?.textContent?.trim() || 
-          document.querySelector('yt-formatted-string.ytd-video-primary-info-renderer')?.textContent?.trim() || 
-          document.querySelector('yt-formatted-string.ytd-reel-player-header-renderer')?.textContent?.trim() ||
+        // 활성화된 쇼츠 오버레이를 먼저 찾습니다.
+        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer"))
+          .find(el => (el as HTMLElement).getBoundingClientRect().width > 0);
+
+        // DOM에서 직접 타이틀과 채널명 추출 (쇼츠/롱폼 레이아웃 대응)
+        const scrapedTitle =
+          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
+          activeReel?.querySelector("h2.ytd-reel-player-header-renderer")?.textContent?.trim() ||
+          document.querySelector("h1.ytd-watch-metadata")?.textContent?.trim() ||
+          document.querySelector("yt-formatted-string.ytd-video-primary-info-renderer")?.textContent?.trim() ||
+          document.title.replace(" - YouTube", "").trim() ||
           "알 수 없는 영상";
-        
-        const scrapedChannel = 
-          document.querySelector('#text.ytd-channel-name a')?.textContent?.trim() || 
-          document.querySelector('.ytd-video-owner-renderer #channel-name')?.textContent?.trim() || 
+
+        const scrapedChannel =
+          activeReel?.querySelector("#channel-name yt-formatted-string")?.textContent?.trim() ||
+          activeReel?.querySelector("#channel-name a")?.textContent?.trim() ||
+          activeReel?.querySelector('a[href^="/@"]')?.textContent?.trim() ||
+          activeReel?.querySelector(".ytd-reel-player-header-renderer #text")?.textContent?.trim() ||
+          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
+          document.querySelector("#text.ytd-channel-name a")?.textContent?.trim() ||
+          document.querySelector(".ytd-video-owner-renderer #channel-name")?.textContent?.trim() ||
           "알 수 없는 채널";
 
         const failState = {
@@ -346,6 +377,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           warningCount: 0,
           claims: [],
         };
+
+        // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
+        if (get().currentVideoId !== videoId) return;
 
         set((state) => ({
           ...failState,
@@ -362,7 +396,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       await new Promise((r) => setTimeout(r, 1000));
 
       const resultObj = data.result?.analysis?.analysisResult || {};
-      
+
       // 백엔드 응답(trustGrade) 매핑
       let mappedVerdict: Verdict = "unknown";
       if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
@@ -392,6 +426,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: claims,
       };
 
+      // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
+      if (get().currentVideoId !== videoId) return;
+
       set((state) => ({
         ...finalState,
         analyzedVideos: {
@@ -405,9 +442,13 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         analysisStatus: "error",
         overallVerdict: "unknown",
         trustScore: 0,
-        summary: "",
+        summary: error instanceof Error && error.name === "AbortError" 
+          ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요." 
+          : "",
         isWarningVisible: false,
       });
+    } finally {
+      clearTimeout(timeoutId);
     }
   },
 
