@@ -101,7 +101,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
           }
 
           const storeId = useCheckmateStore.getState().currentVideoId;
-          if (currentId && currentId !== storeId) {
+          if (currentId && (currentId !== storeId || (isShortsPage && !shortsCard))) {
             runInjections();
           }
         }, 500); // 0.5초 간격으로 가볍게 체크
