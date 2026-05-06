@@ -52,11 +52,25 @@ class AnalysisPipelineService:
         score_sum = 0
         valid_claims = 0
         
+        grouped_violations = {}
         for fc in fact_check_results:
+            orig = fc.get("original_text", fc.get("claim", ""))
+            start = fc.get("start_time", 0.0)
+            claim = fc.get("claim", "")
+            reason = fc.get("explanation", "")
+            
+            if orig not in grouped_violations:
+                grouped_violations[orig] = {
+                    "start_time": start,
+                    "reasons": []
+                }
+            grouped_violations[orig]["reasons"].append(f"[주장] {claim}\n[판정 결과] {reason}")
+            
+        for orig, data in grouped_violations.items():
             violations.append(Violation(
-                start_time=fc.get("start_time", 0.0),
-                violation_sentence=fc.get("original_text", fc.get("claim", "")),
-                reason=fc.get("explanation", "")
+                start_time=data["start_time"],
+                violation_sentence=orig,
+                reason="\n\n".join(data["reasons"])
             ))
             status = fc.get("status", "")
             if status == "REFUTED":
