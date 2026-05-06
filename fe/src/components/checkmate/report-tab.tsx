@@ -1,4 +1,4 @@
-import { useState } from "react";
+
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
 import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
@@ -74,8 +74,8 @@ export function TrustMeter({ score }: { score: number }) {
       width: "100%", 
       maxWidth: "240px",
       padding: "10px",
-      backgroundColor: "#f8fafc",
       ...PIXEL_STYLES.border,
+      backgroundColor: "#f8fafc",
       border: "2px solid #94a3b8",
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
@@ -135,8 +135,8 @@ function ClaimCard({ claim }: { claim: Claim }) {
     <div
       style={{
         padding: "16px",
-        backgroundColor: bgColor,
         ...PIXEL_STYLES.border,
+        backgroundColor: bgColor,
         border: `3px solid ${borderColor}`,
         boxShadow: isWarning 
           ? "inset 0 0 0 2px rgba(239, 68, 68, 0.2), 0 4px 6px rgba(0,0,0,0.1)"
@@ -265,9 +265,9 @@ export function ReportTab() {
         style={{
           padding: "16px",
           textAlign: "center",
+          ...PIXEL_STYLES.border,
           backgroundColor: bgColor,
           border: `2px solid ${borderColor}`,
-          ...PIXEL_STYLES.border,
           boxShadow: `inset 0 0 0 2px ${bgColor}, ${PIXEL_STYLES.border.boxShadow.trim()}`,
         }}
       >
@@ -294,8 +294,8 @@ export function ReportTab() {
           </h4>
           <div style={{ 
             padding: "16px", 
-            backgroundColor: "#f8fafc", 
             ...PIXEL_STYLES.border,
+            backgroundColor: "#f8fafc",
             border: "2px solid #cbd5e1",
             lineHeight: "1.6",
             fontSize: "14px",

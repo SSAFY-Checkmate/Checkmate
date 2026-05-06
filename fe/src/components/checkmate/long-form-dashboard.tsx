@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useCheckmateStore, logoutAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
@@ -22,7 +22,7 @@ export function LongFormDashboard() {
     setActiveTab,
     isPanelOpen,
     closePanel,
-    isLoggedIn,
+
     user,
     summary
   } = useCheckmateStore();
