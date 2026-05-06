@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useCheckmateStore, initializeAuth } from "../../lib/store";
+import { initializeAuth } from "../../lib/store";
 
 const OAuthRedirect = () => {
-  const setLoginStatus = useCheckmateStore((state) => state.setLoginStatus);
+
 
   useEffect(() => {
     const handleRedirect = async () => {
