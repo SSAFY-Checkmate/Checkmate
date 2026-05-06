@@ -52,26 +52,8 @@ class AnalysisPipelineService:
         score_sum = 0
         valid_claims = 0
         
-        grouped_violations = {}
+        # 1. 점수/카운트 계산
         for fc in fact_check_results:
-            orig = fc.get("original_text", fc.get("claim", ""))
-            start = fc.get("start_time", 0.0)
-            claim = fc.get("claim", "")
-            reason = fc.get("explanation", "")
-            
-            if orig not in grouped_violations:
-                grouped_violations[orig] = {
-                    "start_time": start,
-                    "reasons": []
-                }
-            grouped_violations[orig]["reasons"].append(f"[주장] {claim}\n[판정 결과] {reason}")
-            
-        for orig, data in grouped_violations.items():
-            violations.append(Violation(
-                start_time=data["start_time"],
-                violation_sentence=orig,
-                reason="\n\n".join(data["reasons"])
-            ))
             status = fc.get("status", "")
             if status == "REFUTED":
                 has_refuted = True
@@ -85,7 +67,30 @@ class AnalysisPipelineService:
                 has_supported = True
                 score_sum += 100
                 valid_claims += 1
-            # NOT_ENOUGH_INFO는 점수(모수)에 포함하지 않음
+        
+        # 2. Violation 그룹핑
+        grouped_violations = {}
+        for fc in fact_check_results:
+            orig = fc.get("original_text", fc.get("claim", ""))
+            start = fc.get("start_time", 0.0)
+            claim = fc.get("claim", "")
+            reason = fc.get("explanation", "")
+            
+            key = (orig, start)
+            if key not in grouped_violations:
+                grouped_violations[key] = {
+                    "start_time": start,
+                    "violation_sentence": orig,
+                    "reasons": []
+                }
+            grouped_violations[key]["reasons"].append(f"- **[주장]** {claim}\n  **[판정 결과]** {reason}")
+            
+        for key, data in grouped_violations.items():
+            violations.append(Violation(
+                start_time=data["start_time"],
+                violation_sentence=data["violation_sentence"],
+                reason="\n\n".join(data["reasons"])
+            ))
                 
         # 1. 세심한 종합 점수 계산 (비율 기반)
         if valid_claims > 0:
