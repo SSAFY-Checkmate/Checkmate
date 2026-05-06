@@ -14,3 +14,4 @@ redis
 langchain-qdrant
 langchain-community
 ddgs
+langsmith
