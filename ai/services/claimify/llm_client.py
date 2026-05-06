@@ -360,7 +360,7 @@ class LLMClient:
                 print("ERROR: No LLM access available (neither MCP sampling nor OpenAI API)", file=sys.stderr)
             return None
         
-        return self._make_openai_request(system_prompt, user_prompt, response_model, stage)
+        return await self._make_openai_request_async(system_prompt, user_prompt, response_model, stage)
 
     def make_structured_request(
         self, 
@@ -479,6 +479,73 @@ class LLMClient:
             duration = (end_time - start_time).total_seconds()
             
             # Log the response
+            if self.logger:
+                self.logger.info(f"Structured response received in {duration:.2f}s:")
+                self.logger.info(f"Parsed response: {parsed_response}")
+                self.logger.info(f"=== END STRUCTURED CALL #{self.call_count} ===\n")
+            
+            return parsed_response
+            
+        except Exception as e:
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            
+            error_msg = f"Error during structured LLM API call: {e}"
+            if self.logger:
+                self.logger.error(f"Structured call #{self.call_count} failed after {duration:.2f}s: {error_msg}")
+                self.logger.error(f"=== END STRUCTURED CALL #{self.call_count} (ERROR) ===\n")
+            else:
+                print(error_msg, file=sys.stderr)
+            
+            return None 
+
+    async def _make_openai_request_async(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_model: Type[T],
+        stage: str
+    ) -> Optional[T]:
+        """
+        Async version - Makes a request to OpenAI API with structured outputs.
+        Uses ainvoke to prevent blocking the asyncio event loop.
+        """
+        if not self.supports_structured_outputs():
+            raise ValueError(
+                f"Model {self.model} does not support structured outputs. "
+                f"Please use a compatible model like gpt-4o-2024-08-06, gpt-4o-mini, or gpt-4o."
+            )
+        
+        if self.logger:
+            self.logger.info(f"Using OpenAI API fallback for {stage} stage (async)")
+        
+        # Always log to stderr for visibility
+        print(f"[{stage}] ✓ Using OpenAI API (model: {self.model}) (async)", file=sys.stderr)
+        
+        self.call_count += 1
+        start_time = datetime.now()
+        
+        if self.logger:
+            self.logger.info(f"=== STRUCTURED LLM CALL #{self.call_count} - STAGE: {stage.upper()} ===")
+            self.logger.info(f"Provider: {self.provider}, Model: {self.model}")
+            self.logger.info(f"Response Model: {response_model.__name__}")
+            
+            system_first_sentence = system_prompt.split('.')[0] + '.' if '.' in system_prompt else system_prompt[:100] + '...'
+            self.logger.info(f"System Prompt ({len(system_prompt)} chars): {system_first_sentence}")
+            self.logger.info(f"User Prompt ({len(user_prompt)} chars): {user_prompt}")
+        
+        try:
+            messages = [
+                ("system", system_prompt),
+                ("user", user_prompt),
+            ]
+
+            structured_llm = self.client.with_structured_output(response_model)
+            parsed_response = await structured_llm.ainvoke(messages)
+            
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            
             if self.logger:
                 self.logger.info(f"Structured response received in {duration:.2f}s:")
                 self.logger.info(f"Parsed response: {parsed_response}")
