@@ -1,13 +1,13 @@
 import json
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 from services.analysis.steps.semantic_router import semantic_router
 from services.analysis.steps.evidence_retriever import evidence_retriever
 
 class FactCheckResult(BaseModel):
     claim: str = Field(..., description="검증 대상이 된 원래의 주장")
     thought_process: str = Field(..., description="판정 전, 증거의 신뢰도를 평가하고 편향 개입 여부를 스스로 묻는 자기 성찰 과정")
-    status: str = Field(..., description="판정 결과 (SUPPORTED, PARTIALLY_SUPPORTED, REFUTED, NOT_ENOUGH_INFO 중 하나)")
+    status: Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "REFUTED", "NOT_ENOUGH_INFO"] = Field(..., description="판정 결과")
     explanation: str = Field(..., description="최종 사용자를 위한 간결한 판정 근거 설명")
 
 import asyncio
@@ -35,8 +35,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
     if not evidence_text.strip():
         evidence_text = "검색된 관련 근거가 없습니다."
 
-        # 3. LLM Verification
-        system_prompt = """당신은 주어진 증거에 기반하여 진실을 규명하는 유연하고 합리적인 수석 검증관(Chief Fact-Checker)입니다.
+    # 3. LLM Verification
+    system_prompt = """당신은 주어진 증거에 기반하여 진실을 규명하는 유연하고 합리적인 수석 검증관(Chief Fact-Checker)입니다.
 
 [임무]
 주어진 증거(Evidence) 자료들을 종합적으로 분석하여, 사용자의 주장(Claim)이 사실인지 거짓인지 합리적으로 판정하십시오.
@@ -46,6 +46,7 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
 2. [웹 검색 결과] 태그가 붙은 증거 역시 중요한 팩트체크 수단입니다. 내용이 상식적이고 일관성이 있다면 신뢰할 수 있는 증거로 적극 인정하십시오.
 3. 웹 검색 결과와 공식 문서가 정면으로 충돌할 경우에만 공식 문서를 우선하십시오.
 4. 증거의 텍스트가 주장과 "토씨 하나까지 완벽히" 일치하지 않더라도, 문맥상 핵심 의미가 상통한다면 사실로 인정하는 유연함을 발휘하십시오.
+5. 만약 [검색된 증거]가 사실상 비어 있거나, "검색된 관련 근거가 없습니다."와 같은 문구만 포함한다면, status는 반드시 "NOT_ENOUGH_INFO"로 설정해야 합니다.
 
 [자기 성찰 및 메타 인지 (Reflexion)]
 판정을 내리기 전, 다음 질문에 대한 답을 작성하며 스스로 성찰하십시오:
@@ -64,7 +65,7 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
 - "thought_process"에는 위 자기 성찰 질문에 대한 상세한 내부 사고 과정을 한국어로 작성하세요.
 - "explanation"에는 최종 사용자에게 보여줄 2~4문장 정도의 간결한 설명만 작성하세요."""
         
-        user_prompt = f"""[검증할 주장]
+    user_prompt = f"""[검증할 주장]
 {claim}
 
 [검색된 증거]

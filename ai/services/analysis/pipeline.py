@@ -75,6 +75,7 @@ class AnalysisPipelineService:
             start = fc.get("start_time", 0.0)
             claim = fc.get("claim", "")
             reason = fc.get("explanation", "")
+            status = fc.get("status", "UNKNOWN")
             
             key = (orig, start)
             if key not in grouped_violations:
@@ -83,7 +84,7 @@ class AnalysisPipelineService:
                     "violation_sentence": orig,
                     "reasons": []
                 }
-            grouped_violations[key]["reasons"].append(f"- **[주장]** {claim}\n  **[판정 결과]** {reason}")
+            grouped_violations[key]["reasons"].append(f"- **[주장]** {claim}\n  **[판정]** {status}\n  **[설명]** {reason}")
             
         for key, data in grouped_violations.items():
             violations.append(Violation(
