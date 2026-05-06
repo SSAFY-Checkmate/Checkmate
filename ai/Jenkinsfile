@@ -3,12 +3,12 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "a405-ai"
-        CONTAINER_NAME = "a405-ai"
-        CONTAINER_NAME_WORKER = "a405-ai-worker"
-        HOST_PORT = "8088"
-        
+        NETWORK_NAME = "checkmate-net"
+        COMPOSE_FILE = "ai/docker-compose.prod.yml"
+        HOST_IP = "172.26.5.216"
+
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
-        
+
         OPENAI_BASE_URL = 'https://gms.ssafy.io/gmsapi/api.openai.com/v1'
         EMBEDDING_MODEL = 'text-embedding-3-small'
         LLM_MODEL = 'gpt-4o-mini'
@@ -30,7 +30,9 @@ pipeline {
         }
 
         stage('Detect AI Changes') {
-            when { branch 'develop' }
+            when {
+                branch 'develop'
+            }
             steps {
                 script {
                     def changedFiles = sh(
@@ -62,36 +64,18 @@ pipeline {
                 }
             }
             steps {
-                script {
-                    dir('ai') {
-                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
-                        sh """
-                            docker build --no-cache \
-                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Stop Old Container') {
-            when {
-                allOf {
-                    branch 'develop'
-                    expression { env.SKIP_AI_DEPLOY != "true" }
-                }
-            }
-            steps {
                 dir('ai') {
-                    sh "docker compose -f docker-compose.prod.yml down || true"
+                    sh '''
+                        set -e
+
+                        docker build \
+                          -t ${DOCKER_IMAGE}:latest .
+                    '''
                 }
-                // Fallback to ensure containers are removed
-                sh "docker rm -f ${CONTAINER_NAME} || true"
-                sh "docker rm -f ${CONTAINER_NAME_WORKER} || true"
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy Blue-Green') {
             when {
                 allOf {
                     branch 'develop'
@@ -99,13 +83,67 @@ pipeline {
                 }
             }
             steps {
-                dir('ai') {
-                    sh "docker compose -f docker-compose.prod.yml up -d"
+                sshagent(credentials: ['host-ssh-key']) {
+                    sh '''
+                        set -e
+
+                        # 1. checkmate-net 네트워크 보장
+                        docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
+
+                        # 2. Jenkins 컨테이너도 같은 네트워크에 연결
+                        docker network connect ${NETWORK_NAME} jenkins || true
+
+                        # 3. worker compose에서 사용할 환경변수 export
+                        export OPENAI_API_KEY="${OPENAI_API_KEY}"
+                        export OPENAI_BASE_URL="${OPENAI_BASE_URL}"
+                        export EMBEDDING_MODEL="${EMBEDDING_MODEL}"
+                        export LLM_MODEL="${LLM_MODEL}"
+                        export ENABLE_WEB_SEARCH="${ENABLE_WEB_SEARCH}"
+                        export LOG_LLM_CALLS="${LOG_LLM_CALLS}"
+                        export LOG_OUTPUT="${LOG_OUTPUT}"
+                        export SAMPLING_MAX_TOKENS_SELECTION="${SAMPLING_MAX_TOKENS_SELECTION}"
+                        export SAMPLING_MAX_TOKENS_DISAMBIGUATION="${SAMPLING_MAX_TOKENS_DISAMBIGUATION}"
+                        export SAMPLING_MAX_TOKENS_DECOMPOSITION="${SAMPLING_MAX_TOKENS_DECOMPOSITION}"
+                        export SAMPLING_MAX_RETRIES="${SAMPLING_MAX_RETRIES}"
+
+                        # 4. AI worker 실행
+                        # 주의: ai/docker-compose.prod.yml에서는 a405-ai API 서비스가 제거되어 있어야 함
+                        # a405-ai-worker만 compose로 관리하는 것을 권장
+                        docker compose -f ${COMPOSE_FILE} up -d
+
+                        # 5. Blue-Green 스크립트를 host 서버로 복사
+                        scp -o StrictHostKeyChecking=no \
+                          ai/deploy-ai-bluegreen.sh \
+                          ubuntu@${HOST_IP}:/home/ubuntu/deploy-ai-bluegreen.sh
+
+                        # 6. host 서버에서 AI API Blue-Green 배포 실행
+                        ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<EOF
+export OPENAI_API_KEY='${OPENAI_API_KEY}'
+export OPENAI_BASE_URL='${OPENAI_BASE_URL}'
+export EMBEDDING_MODEL='${EMBEDDING_MODEL}'
+export LLM_MODEL='${LLM_MODEL}'
+export ENABLE_WEB_SEARCH='${ENABLE_WEB_SEARCH}'
+export LOG_LLM_CALLS='${LOG_LLM_CALLS}'
+export LOG_OUTPUT='${LOG_OUTPUT}'
+export SAMPLING_MAX_TOKENS_SELECTION='${SAMPLING_MAX_TOKENS_SELECTION}'
+export SAMPLING_MAX_TOKENS_DISAMBIGUATION='${SAMPLING_MAX_TOKENS_DISAMBIGUATION}'
+export SAMPLING_MAX_TOKENS_DECOMPOSITION='${SAMPLING_MAX_TOKENS_DECOMPOSITION}'
+export SAMPLING_MAX_RETRIES='${SAMPLING_MAX_RETRIES}'
+
+export QDRANT_URL='http://qdrant:6333'
+export KAFKA_BOOTSTRAP_SERVERS='kafka:9092'
+export REDIS_HOST='redis'
+export REDIS_PORT='6379'
+
+chmod +x /home/ubuntu/deploy-ai-bluegreen.sh
+bash /home/ubuntu/deploy-ai-bluegreen.sh
+EOF
+                    '''
                 }
             }
         }
 
-        stage('Health Check') {
+        stage('Verify Deployment') {
             when {
                 allOf {
                     branch 'develop'
@@ -113,9 +151,58 @@ pipeline {
                 }
             }
             steps {
-                retry(5) {
-                    sleep(time: 5, unit: 'SECONDS')
-                    sh "curl -f --max-time 10 http://k14a405.p.ssafy.io/ai/health"
+                sshagent(credentials: ['host-ssh-key']) {
+                    sh '''
+                        set -e
+
+                        echo "Waiting for AI containers to stabilize..."
+                        sleep 10
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<'EOF'
+set -e
+
+ACTIVE_COLOR=$(cat /home/ubuntu/ai-active-color)
+AI_CONTAINER="a405-ai-${ACTIVE_COLOR}"
+
+AI_STATUS=$(docker inspect -f '{{.State.Running}}' ${AI_CONTAINER} 2>/dev/null || echo "false")
+WORKER_STATUS=$(docker inspect -f '{{.State.Running}}' a405-ai-worker 2>/dev/null || echo "false")
+
+echo "${AI_CONTAINER} running: ${AI_STATUS}"
+echo "a405-ai-worker running: ${WORKER_STATUS}"
+
+if [ "$AI_STATUS" != "true" ]; then
+  echo "[ERROR] AI API container is not running"
+  docker logs --tail 150 ${AI_CONTAINER} || true
+  exit 1
+fi
+
+if [ "$WORKER_STATUS" != "true" ]; then
+  echo "[WARN] AI worker container is not running"
+  docker logs --tail 150 a405-ai-worker || true
+fi
+
+echo "Checking AI HTTP response via Nginx..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://k14a405.p.ssafy.io/ai/health || echo "000")
+echo "AI responded with HTTP CODE: $HTTP_CODE"
+
+if [ "$HTTP_CODE" = "200" ]; then
+  echo "AI health check passed"
+else
+  echo "[ERROR] AI health check failed with code $HTTP_CODE"
+  docker logs --tail 150 ${AI_CONTAINER} || true
+  exit 1
+fi
+
+echo "Checking AI active color..."
+cat /home/ubuntu/ai-active-color
+
+echo "Checking AI upstream..."
+sudo cat /etc/nginx/conf.d/ai-upstream.conf
+
+echo "Checking AI containers..."
+docker ps --format "table {{.Names}}\\t{{.Ports}}" | grep a405-ai
+EOF
+                    '''
                 }
             }
         }
@@ -128,17 +215,19 @@ pipeline {
                 }
             }
             steps {
-                sh 'docker image prune -f'
+                sh '''
+                    docker image prune -f
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "AI deployment successful! (Build: ${env.BUILD_NUMBER})"
+            echo "AI pipeline success! (Build: ${env.BUILD_NUMBER})"
         }
         failure {
-            echo "AI deployment failed!"
+            echo "AI pipeline failed!"
         }
     }
 }
