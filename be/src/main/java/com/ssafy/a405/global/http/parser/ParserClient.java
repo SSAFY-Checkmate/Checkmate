@@ -78,7 +78,7 @@ public class ParserClient {
 		String url = baseUrl + "/v1/analyze-transcript";
 		HttpRequest req = HttpRequest.newBuilder()
 			.uri(URI.create(url))
-			.timeout(Duration.ofSeconds(120))
+			.timeout(Duration.ofSeconds(300))
 			.header("Content-Type", "application/json; charset=utf-8")
 			.header("Accept", "application/json")
 			.POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
