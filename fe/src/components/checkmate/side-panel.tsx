@@ -1,16 +1,15 @@
 import { useCheckmateStore } from "../../lib/store";
-import { X, FileText, Users, Play } from "lucide-react";
+import { FileText, Users, Play } from "lucide-react";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
-import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
+
 
 export function SidePanel() {
   const { 
     activeTab, 
     setActiveTab,
     videoTitle,
-    channelName,
-    closePanel
+    channelName
   } = useCheckmateStore();
 
   return (

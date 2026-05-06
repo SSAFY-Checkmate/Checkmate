@@ -3,7 +3,7 @@ import tempfile
 import requests
 from typing import Optional
 from fastapi import HTTPException
-from core.text_processor import clean_transcript_text
+from core.text_processor import clean_transcript_text, process_and_merge_segments
 
 
 def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str]) -> dict:
@@ -88,14 +88,14 @@ def run_stt_fallback(video_id: str, title: Optional[str], author: Optional[str])
 
             cleaned_text = clean_transcript_text(raw_text)
 
-            segments = []
+            raw_segments = []
             for seg in result_json.get("segments", []):
-                c_text = clean_transcript_text(seg.get("text", "")).strip()
-                if c_text:
-                    segments.append({
-                        "start_time": seg.get("start", 0.0),
-                        "text": c_text
-                    })
+                raw_segments.append({
+                    "start_time": seg.get("start", 0.0),
+                    "text": seg.get("text", "")
+                })
+
+            segments = process_and_merge_segments(raw_segments)
 
             return {
                 "video_id": video_id,

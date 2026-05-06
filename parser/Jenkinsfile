@@ -3,8 +3,9 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "a405-parser"
-        CONTAINER_NAME = "a405-parser"
-        HOST_PORT = "8089"
+        CONTAINER_NAME_WORKER = "a405-parser-transcript-worker"
+        NETWORK_NAME = "checkmate-net"
+        HOST_IP = "172.26.5.216"
     }
 
     stages {
@@ -16,7 +17,9 @@ pipeline {
         }
 
         stage('Detect Parser Changes') {
-            when { branch 'develop' }
+            when {
+                branch 'develop'
+            }
             steps {
                 script {
                     def changedFiles = sh(
@@ -48,34 +51,18 @@ pipeline {
                 }
             }
             steps {
-                script {
-                    dir('parser') {
-                        sh "docker rmi ${DOCKER_IMAGE}:${BUILD_NUMBER} || true"
-                        sh """
-                            docker build --no-cache \
-                            -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
-                        """
-                    }
+                dir('parser') {
+                    sh '''
+                        set -e
+
+                        docker build \
+                          -t ${DOCKER_IMAGE}:latest .
+                    '''
                 }
             }
         }
 
-        stage('Stop Old Container') {
-            when {
-                allOf {
-                    branch 'develop'
-                    expression { env.SKIP_PARSER_DEPLOY != "true" }
-                }
-            }
-            steps {
-                sh "docker stop ${CONTAINER_NAME} || true"
-                sh "docker rm ${CONTAINER_NAME} || true"
-                sh "docker stop a405-parser-transcript-worker || true"
-                sh "docker rm a405-parser-transcript-worker || true"
-            }
-        }
-
-        stage('Deploy') {
+        stage('Deploy Blue-Green') {
             when {
                 allOf {
                     branch 'develop'
@@ -87,36 +74,51 @@ pipeline {
                     string(credentialsId: 'GMS_KEY', variable: 'GMS_KEY'),
                     string(credentialsId: 'DECODO_PROXY_URL', variable: 'DECODO_PROXY_URL')
                 ]) {
-                    // API 서버 컨테이너 실행
-                    sh """
-                        docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p ${HOST_PORT}:8000 \
-                        -e GMS_KEY="${GMS_KEY}" \
-                        -e USE_RESIDENTIAL_PROXY="true" \
-                        -e PROXY_URL="${DECODO_PROXY_URL}" \
-                        --restart unless-stopped \
-                        ${DOCKER_IMAGE}:${BUILD_NUMBER}
-                    """
-                    
-                    // 워커 컨테이너 실행
-                    sh """
-                        docker run -d \
-                        --name a405-parser-transcript-worker \
-                        --network checkmate-net \
-                        -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
-                        -e KAFKA_GROUP_ID=parser-transcript-worker \
-                        -e TOPIC_TRANSCRIPT_REQUESTED=transcript.requested \
-                        -e TOPIC_TRANSCRIPT_COMPLETED=transcript.completed \
-                        -e TOPIC_TRANSCRIPT_FAILED=transcript.failed \
-                        -e REDIS_HOST=redis \
-                        -e REDIS_PORT=6379 \
-                        -e GMS_KEY="${GMS_KEY}" \
-                        -e USE_RESIDENTIAL_PROXY="true" \
-                        -e PROXY_URL="${DECODO_PROXY_URL}" \
-                        --restart unless-stopped \
-                        ${DOCKER_IMAGE}:${BUILD_NUMBER} python worker_transcript.py
-                    """
+                    sshagent(credentials: ['host-ssh-key']) {
+                        sh '''
+                            set -e
+
+                            # 1. checkmate-net 네트워크 보장
+                            docker network inspect ${NETWORK_NAME} >/dev/null 2>&1 || docker network create ${NETWORK_NAME}
+
+                            # 2. Jenkins 컨테이너도 같은 네트워크에 연결
+                            docker network connect ${NETWORK_NAME} jenkins || true
+
+                            # 3. Parser transcript worker 재실행
+                            docker rm -f ${CONTAINER_NAME_WORKER} || true
+
+                            docker run -d \
+                              --name ${CONTAINER_NAME_WORKER} \
+                              --network ${NETWORK_NAME} \
+                              -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+                              -e KAFKA_GROUP_ID=parser-transcript-worker \
+                              -e TOPIC_TRANSCRIPT_REQUESTED=transcript.requested \
+                              -e TOPIC_TRANSCRIPT_COMPLETED=transcript.completed \
+                              -e TOPIC_TRANSCRIPT_FAILED=transcript.failed \
+                              -e REDIS_HOST=redis \
+                              -e REDIS_PORT=6379 \
+                              -e GMS_KEY="${GMS_KEY}" \
+                              -e USE_RESIDENTIAL_PROXY="true" \
+                              -e PROXY_URL="${DECODO_PROXY_URL}" \
+                              --restart unless-stopped \
+                              ${DOCKER_IMAGE}:latest python worker_transcript.py
+
+                            # 4. Blue-Green 스크립트를 host 서버로 복사
+                            scp -o StrictHostKeyChecking=no \
+                              parser/deploy-parser-bluegreen.sh \
+                              ubuntu@${HOST_IP}:/home/ubuntu/deploy-parser-bluegreen.sh
+
+                            # 5. host 서버에서 Parser API Blue-Green 배포 실행
+                            ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<EOF
+export GMS_KEY='${GMS_KEY}'
+export USE_RESIDENTIAL_PROXY='true'
+export PROXY_URL='${DECODO_PROXY_URL}'
+
+chmod +x /home/ubuntu/deploy-parser-bluegreen.sh
+bash /home/ubuntu/deploy-parser-bluegreen.sh
+EOF
+                        '''
+                    }
                 }
             }
         }
@@ -129,14 +131,28 @@ pipeline {
                 }
             }
             steps {
-                sh """
-                    docker exec ${CONTAINER_NAME} sh -c 'echo USE_RESIDENTIAL_PROXY=\$USE_RESIDENTIAL_PROXY'
-                    docker exec ${CONTAINER_NAME} sh -c 'test -n "\$PROXY_URL" && echo PROXY_URL is set || echo PROXY_URL is missing'
-                """
+                sshagent(credentials: ['host-ssh-key']) {
+                    sh '''
+                        set -e
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<'EOF'
+set -e
+
+ACTIVE_COLOR=$(cat /home/ubuntu/parser-active-color)
+PARSER_CONTAINER="a405-parser-${ACTIVE_COLOR}"
+
+docker exec ${PARSER_CONTAINER} sh -c 'echo USE_RESIDENTIAL_PROXY=$USE_RESIDENTIAL_PROXY'
+docker exec ${PARSER_CONTAINER} sh -c 'test -n "$PROXY_URL" && echo PROXY_URL is set || echo PROXY_URL is missing'
+
+docker exec a405-parser-transcript-worker sh -c 'echo USE_RESIDENTIAL_PROXY=$USE_RESIDENTIAL_PROXY'
+docker exec a405-parser-transcript-worker sh -c 'test -n "$PROXY_URL" && echo WORKER_PROXY_URL is set || echo WORKER_PROXY_URL is missing'
+EOF
+                    '''
+                }
             }
         }
 
-        stage('Health Check') {
+        stage('Verify Deployment') {
             when {
                 allOf {
                     branch 'develop'
@@ -144,9 +160,59 @@ pipeline {
                 }
             }
             steps {
-                retry(5) {
-                    sleep(time: 5, unit: 'SECONDS')
-                    sh "curl -f --max-time 10 http://k14a405.p.ssafy.io/parser/health"
+                sshagent(credentials: ['host-ssh-key']) {
+                    sh '''
+                        set -e
+
+                        echo "Waiting for parser containers to stabilize..."
+                        sleep 10
+
+                        ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<'EOF'
+set -e
+
+ACTIVE_COLOR=$(cat /home/ubuntu/parser-active-color)
+PARSER_CONTAINER="a405-parser-${ACTIVE_COLOR}"
+
+PARSER_STATUS=$(docker inspect -f '{{.State.Running}}' ${PARSER_CONTAINER} 2>/dev/null || echo "false")
+WORKER_STATUS=$(docker inspect -f '{{.State.Running}}' a405-parser-transcript-worker 2>/dev/null || echo "false")
+
+echo "${PARSER_CONTAINER} running: ${PARSER_STATUS}"
+echo "a405-parser-transcript-worker running: ${WORKER_STATUS}"
+
+if [ "$PARSER_STATUS" != "true" ]; then
+  echo "[ERROR] Parser API container is not running"
+  docker logs --tail 150 ${PARSER_CONTAINER} || true
+  exit 1
+fi
+
+if [ "$WORKER_STATUS" != "true" ]; then
+  echo "[ERROR] Parser worker container is not running"
+  docker logs --tail 150 a405-parser-transcript-worker || true
+  exit 1
+fi
+
+echo "Checking Parser HTTP response via Nginx..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://k14a405.p.ssafy.io/parser/health || echo "000")
+echo "Parser responded with HTTP CODE: $HTTP_CODE"
+
+if [ "$HTTP_CODE" = "200" ]; then
+  echo "Parser health check passed"
+else
+  echo "[ERROR] Parser health check failed with code $HTTP_CODE"
+  docker logs --tail 150 ${PARSER_CONTAINER} || true
+  exit 1
+fi
+
+echo "Checking Parser active color..."
+cat /home/ubuntu/parser-active-color
+
+echo "Checking Parser upstream..."
+sudo cat /etc/nginx/conf.d/parser-upstream.conf
+
+echo "Checking Parser containers..."
+docker ps --format "table {{.Names}}\\t{{.Ports}}" | grep a405-parser
+EOF
+                    '''
                 }
             }
         }
@@ -159,18 +225,22 @@ pipeline {
                 }
             }
             steps {
-                sh 'docker image prune -f'
+                sh '''
+                    docker image prune -f
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "Parser deployment successful! (Build: ${env.BUILD_NUMBER})"
+            echo "Parser pipeline success! (Build: ${env.BUILD_NUMBER})"
         }
         failure {
-            echo "Parser deployment failed!"
-            sh "docker logs --tail 100 ${CONTAINER_NAME} || true"
+            echo "Parser pipeline failed!"
+            sh '''
+                docker logs --tail 100 a405-parser-transcript-worker || true
+            '''
         }
     }
 }

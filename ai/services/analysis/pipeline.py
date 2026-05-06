@@ -16,8 +16,8 @@ class AnalysisPipelineService:
         async def extract_claims_wrapper(state):
             return await extract_claims_step(state, self.llm_client)
 
-        def rag_fact_check_wrapper(state):
-            return rag_fact_check_step(state, self.llm_client)
+        async def rag_fact_check_wrapper(state):
+            return await rag_fact_check_step(state, self.llm_client)
 
         def log_step(state, step_name):
             print(f"\n==========================================")
