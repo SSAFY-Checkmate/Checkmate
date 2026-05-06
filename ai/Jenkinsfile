@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "a405-ai"
+        CONTAINER_NAME_WORKER = "a405-ai-worker"
         NETWORK_NAME = "checkmate-net"
         COMPOSE_FILE = "ai/docker-compose.prod.yml"
         HOST_IP = "172.26.5.216"
