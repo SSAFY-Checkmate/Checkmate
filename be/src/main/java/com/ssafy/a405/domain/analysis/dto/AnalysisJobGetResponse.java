@@ -8,6 +8,7 @@ public record AnalysisJobGetResponse(
 	AnalysisJobStatus status,
 	String youtubeUrl,
 	JsonNode result,
+	Long analysisId,
 	ErrorInfo error
 ) {
 	public record ErrorInfo(
@@ -16,4 +17,3 @@ public record AnalysisJobGetResponse(
 	) {
 	}
 }
-

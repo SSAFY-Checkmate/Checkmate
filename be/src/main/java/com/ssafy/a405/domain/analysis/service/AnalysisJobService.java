@@ -8,7 +8,9 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisRequestedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptFailedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.repository.AnalysisJobRepository;
+import com.ssafy.a405.domain.analysis.repository.AnalysisResultRepository;
 import com.ssafy.a405.global.util.YoutubeUrlNormalizer;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
@@ -30,6 +32,7 @@ import java.util.Optional;
 public class AnalysisJobService {
 
 	private final AnalysisJobRepository analysisJobRepository;
+	private final AnalysisResultRepository analysisResultRepository;
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
 	private final AnalysisDataMappingService analysisDataMappingService;
@@ -86,11 +89,52 @@ public class AnalysisJobService {
 			error = new AnalysisJobGetResponse.ErrorInfo(job.getErrorCode(), job.getErrorMessage());
 		}
 
+		Long analysisId = null;
+		if (job.getStatus() == AnalysisJobStatus.COMPLETED) {
+			String ytVideoId = null;
+			
+			// 1. JSON 파싱 시도 (다양한 경로 확인)
+			if (resultNode != null) {
+				if (resultNode.path("analysis").path("youtubeInfo").has("videoId")) {
+					ytVideoId = resultNode.path("analysis").path("youtubeInfo").path("videoId").asText(null);
+				} else if (resultNode.path("transcript").has("video_id")) {
+					ytVideoId = resultNode.path("transcript").path("video_id").asText(null);
+				} else if (resultNode.path("transcript").has("videoId")) {
+					ytVideoId = resultNode.path("transcript").path("videoId").asText(null);
+				} else if (resultNode.has("videoId")) {
+					ytVideoId = resultNode.path("videoId").asText(null);
+				}
+			}
+
+			// 2. 파싱된 ID로 조회
+			if (ytVideoId != null && !ytVideoId.isBlank()) {
+				analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(ytVideoId)
+					.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
+					.orElse(null);
+			}
+			
+			// 3. Fallback: URL 정규화를 통해 직접 조회 (가장 확실한 방법)
+			if (analysisId == null && job.getYoutubeUrl() != null) {
+				try {
+					String normalizedId = YoutubeUrlNormalizer.normalize(job.getYoutubeUrl());
+					analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(normalizedId)
+						.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
+						.orElse(null);
+					log.info("[AnalysisJob] Fallback URL lookup success: ytVideoId={} -> analysisId={}", normalizedId, analysisId);
+				} catch (Exception e) {
+					log.warn("[AnalysisJob] Fallback lookup failed for url={}", job.getYoutubeUrl());
+				}
+			}
+			
+			log.info("[AnalysisJob] Final analysisId for jobId={}: {}", jobId, analysisId);
+		}
+
 		return new AnalysisJobGetResponse(
 			job.getJobId(),
 			job.getStatus(),
 			job.getYoutubeUrl(),
 			resultNode,
+			analysisId,
 			error
 		);
 	}
