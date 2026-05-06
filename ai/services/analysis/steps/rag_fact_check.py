@@ -48,7 +48,7 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
 4. 증거의 텍스트가 주장과 "토씨 하나까지 완벽히" 일치하지 않더라도, 문맥상 핵심 의미가 상통한다면 사실로 인정하는 유연함을 발휘하십시오.
 
 [자기 성찰 및 메타 인지 (Reflexion)]
-판정을 내리기 전, 'thought_process' 필드에 다음 질문에 대한 답을 작성하며 스스로 성찰하십시오:
+판정을 내리기 전, 다음 질문에 대한 답을 작성하며 스스로 성찰하십시오:
 - "나의 판정은 내 외부 지식이 아닌, 제공된 증거에 기반하고 있는가?"
 - "지나치게 깐깐한 잣대를 들이대어 충분히 합리적인 주장을 기각하고 있지는 않은가?"
 - "도출하려는 결론에 논리적 비약은 없는가?"
@@ -57,7 +57,12 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
 - SUPPORTED: 주장의 핵심 내용이 증거에 의해 합리적으로 뒷받침됨
 - PARTIALLY_SUPPORTED: 주장의 핵심은 사실이나, 일부 세부 수치나 조건이 다르거나 과장됨
 - REFUTED: 주장의 핵심 내용이 신뢰할 수 있는 증거와 명백히 충돌함
-- NOT_ENOUGH_INFO: 제공된 증거만으로는 주장의 사실 여부를 합리적으로 추론하기 어려움"""
+- NOT_ENOUGH_INFO: 제공된 증거만으로는 주장의 사실 여부를 합리적으로 추론하기 어려움
+
+[출력 규칙]
+- 당신의 응답은 JSON 스키마(FactCheckResult)에 맞춰야 합니다.
+- "thought_process"에는 위 자기 성찰 질문에 대한 상세한 내부 사고 과정을 한국어로 작성하세요.
+- "explanation"에는 최종 사용자에게 보여줄 2~4문장 정도의 간결한 설명만 작성하세요."""
         
         user_prompt = f"""[검증할 주장]
 {claim}
