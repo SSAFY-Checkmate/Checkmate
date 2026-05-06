@@ -48,6 +48,7 @@ export type AnalysisStatus =
   | "error";
 
 export interface User {
+  id: number;
   name: string;
 }
 
@@ -83,7 +84,7 @@ interface CheckmateState {
   claims: Claim[];
 
   // 커뮤니티 데이터
-  communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null };
+  communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null; userReactionId: number | null };
   wantedCards: WantedCard[];
   chatMessages: ChatMessage[];
 
@@ -128,7 +129,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   summary: "",
   analysisId: null,
   claims: [],
-  communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null },
+  communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
 
   // 인증 초기 상태
@@ -236,14 +237,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false,
         claims: [],
         warningCount: 0,
-        communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null },
+        communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
       });
     }
   },
 
   fetchReactions: async (analysisId) => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-    console.log(`[Reaction] Fetching reactions for analysisId: ${analysisId}`);
+    const currentUser = get().user;
+
     try {
       const res = await fetch(`${baseUrl}/community/reactions?analysisId=${analysisId}`, {
         method: "GET",
@@ -254,8 +256,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         const reactions = body.data;
         const trueVotes = reactions.filter((r: any) => r.reactionType === true).length;
         const fakeVotes = reactions.filter((r: any) => r.reactionType === false).length;
-        console.log(`[Reaction] Success: true=${trueVotes}, fake=${fakeVotes}`);
-        set({ communityVotes: { trueVotes, fakeVotes, userVote: null } });
+
+        // 현재 사용자의 반응 찾기
+        const myReaction = currentUser
+          ? reactions.find((r: any) => r.userId === currentUser.id || r.userName === currentUser.name)
+          : null;
+
+        set({
+          communityVotes: {
+            trueVotes,
+            fakeVotes,
+            userVote: myReaction ? myReaction.reactionType : null,
+            userReactionId: myReaction ? myReaction.id : null,
+          },
+        });
       }
     } catch (err) {
       console.error("[Reaction] Fetch failed", err);
@@ -264,41 +278,38 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
   postReaction: async (analysisId, reactionType) => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+    const { isLoggedIn, communityVotes, fetchReactions } = get();
 
-    if (!get().isLoggedIn) {
-      console.warn("[Reaction] Cannot vote: Not logged in");
-      return;
-    }
+    if (!isLoggedIn) return;
 
-    console.log(`[Reaction] Posting reaction: id=${analysisId}, type=${reactionType}`);
-
-    // 데모 모드 (999) 처리: 서버 요청 대신 로컬 상태 즉시 업데이트
-    if (analysisId === 999) {
-      set((state) => ({
-        communityVotes: {
-          ...state.communityVotes,
-          trueVotes: reactionType ? state.communityVotes.trueVotes + 1 : state.communityVotes.trueVotes,
-          fakeVotes: !reactionType ? state.communityVotes.fakeVotes + 1 : state.communityVotes.fakeVotes,
-          userVote: reactionType,
-        },
-      }));
-      return;
-    }
+    const userReactionId = communityVotes.userReactionId;
 
     try {
-      const res = await fetch(`${baseUrl}/community/reactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId, reactionType }),
-        credentials: "include",
-      });
+      let res;
+      if (userReactionId) {
+        // 이미 반응이 있으면 수정 (PUT)
+        res = await fetch(`${baseUrl}/community/reactions/${userReactionId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reactionType }),
+          credentials: "include",
+        });
+      } else {
+        // 반응이 없으면 신규 등록 (POST)
+        res = await fetch(`${baseUrl}/community/reactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysisId, reactionType }),
+          credentials: "include",
+        });
+      }
+
       const body = await res.json();
-      console.log("[Reaction] Post response:", body);
       if (body.status === 201 || body.status === 200) {
-        get().fetchReactions(analysisId);
+        fetchReactions(analysisId);
       }
     } catch (err) {
-      console.error("[Reaction] Post failed", err);
+      console.error("[Reaction] Operation failed", err);
     }
   },
 
@@ -335,7 +346,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: mockData.claims,
         analysisId: 999, // 데모용 ID 부여
         isLoggedIn: true, // 데모 테스트를 위해 로그인 상태 활성화
-        communityVotes: { trueVotes: 42, fakeVotes: 12, userVote: null }, // 초기 투표값 설정
+        communityVotes: { trueVotes: 42, fakeVotes: 12, userVote: null, userReactionId: null }, // 초기 투표값 설정
       };
 
       if (get().currentVideoId !== videoId) return;
@@ -677,7 +688,7 @@ export const initializeAuth = async () => {
     if (response.ok) {
       const result = await response.json();
       if (result.data && result.data.name) {
-        store.setLoginStatus(true, { name: result.data.name });
+        store.setLoginStatus(true, { id: result.data.id, name: result.data.name });
         return;
       }
     } else if (response.status === 401 || response.status === 403) {
@@ -697,7 +708,7 @@ export const initializeAuth = async () => {
         if (retryResponse.ok) {
           const retryResult = await retryResponse.json();
           if (retryResult.data && retryResult.data.name) {
-            store.setLoginStatus(true, { name: retryResult.data.name });
+            store.setLoginStatus(true, { id: retryResult.data.id, name: retryResult.data.name });
             return;
           }
         }

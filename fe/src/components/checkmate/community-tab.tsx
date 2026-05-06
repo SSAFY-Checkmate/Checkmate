@@ -92,7 +92,7 @@ export function CommunityTab() {
     useCheckmateStore();
   const [newMsg, setNewMsg] = useState("");
 
-  const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null };
+  const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null };
   const totalVotes = votes.trueVotes + votes.fakeVotes;
   const truePercent = totalVotes > 0 ? Math.round((votes.trueVotes / totalVotes) * 100) : 50;
   const fakePercent = 100 - truePercent;
