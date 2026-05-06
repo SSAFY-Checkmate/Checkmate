@@ -55,11 +55,9 @@ pipeline {
                     sh '''
                         set -e
 
-                        docker rmi ${DOCKER_IMAGE}:latest || true
-
-                        docker build --no-cache \
-                          --build-arg VITE_API_URL=${VITE_API_URL} \
-                          -t ${DOCKER_IMAGE}:latest .
+                        docker build \
+                        --build-arg VITE_API_URL=${VITE_API_URL} \
+                        -t ${DOCKER_IMAGE}:latest .
                     '''
                 }
             }
