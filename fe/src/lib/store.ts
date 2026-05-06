@@ -95,6 +95,7 @@ interface CheckmateState {
   showWarning: (count: number) => void;
   closeWarning: () => void;
   startAnalysis: () => void;
+  startAnalysisSync: () => void;
   startDemoAnalysis: () => void;
   setCurrentVideo: (id: string, title?: string, channel?: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
@@ -164,11 +165,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       wantedCards: state.wantedCards.map((card) =>
         card.id === cardId
           ? {
-              ...card,
-              userVote: vote,
-              votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
-              votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
-            }
+            ...card,
+            userVote: vote,
+            votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
+            votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
+          }
           : card,
       ),
     })),
@@ -178,11 +179,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       claims: state.claims.map((claim) =>
         claim.id === claimId
           ? {
-              ...claim,
-              userVote: vote,
-              votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
-              votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
-            }
+            ...claim,
+            userVote: vote,
+            votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
+            votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
+          }
           : claim,
       ),
     })),
@@ -293,12 +294,22 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     // 60초 타임아웃 설정 (영상이 길거나 서버 부하가 있을 경우 고려)
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+    const doFetch = async (input: RequestInfo | URL, init: RequestInit) => {
+      const res = await fetch(input, init);
+      if (res.status !== 401) return res;
+      await initializeAuth();
+      if (!get().isLoggedIn) return res;
+      return fetch(input, init);
+    };
 
     try {
       // API 요청 시작 (결과는 나중에 기다림)
-      const apiPromise = fetch(`${baseUrl}/analysis/sync`, {
+      const apiPromise = doFetch(`${baseUrl}/analysis`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -317,7 +328,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       // API 응답 대기
       const response = await apiPromise;
-      
+
       // [추가] 401 Unauthorized 처리: 토큰 만료 시 재발급 시도
       if (response.status === 401) {
         await initializeAuth();
@@ -335,11 +346,48 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       const responseData = await response.json();
       console.log(responseData);
 
-      if (responseData.status !== 200 || !responseData.data) {
+      // Kafka async contract: POST /analysis returns 202 + jobId, then poll GET /analysis/{jobId}
+      if (responseData.status !== 202 || !responseData.data?.jobId) {
         throw new Error(responseData.message || "분석 요청 실패");
       }
 
-      const data = responseData.data;
+      const jobId: string = responseData.data.jobId;
+
+      const pollIntervalMs = 1500;
+      let data: any | null = null;
+
+      while (!controller.signal.aborted) {
+        const pollRes = await doFetch(`${baseUrl}/analysis/${jobId}`, {
+          method: "GET",
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!pollRes.ok) {
+          throw new Error(`API 오류: ${pollRes.status}`);
+        }
+
+        const pollBody = await pollRes.json();
+        if (pollBody.status !== 200 || !pollBody.data) {
+          throw new Error(pollBody.message || "분석 상태 조회 실패");
+        }
+
+        data = pollBody.data;
+        if (data.status === "TRANSCRIPT_PROCESSING") set({ analysisStatus: "analyzing_transcript" });
+        else if (data.status === "AI_PROCESSING") set({ analysisStatus: "analyzing_claims" });
+
+        if (data.status === "COMPLETED" || data.status === "FAILED") break;
+        await sleep(pollIntervalMs);
+      }
+
+      if (!data) throw new Error("분석 상태를 받지 못했습니다.");
+      console.log(responseData);
+
+      if (false && (responseData.status !== 200 || !responseData.data)) {
+        throw new Error(responseData.message || "분석 요청 실패");
+      }
+
+      // const data = responseData.data;
 
       // [추가] 분석 실패(FAILED) 케이스 처리
       if (data.status === "FAILED") {
@@ -395,14 +443,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       set({ analysisStatus: "verifying" });
       await new Promise((r) => setTimeout(r, 1000));
 
-      const resultObj = data.result?.analysis?.analysisResult || {};
+      const resultObj = data.result || {};
 
       // 백엔드 응답(trustGrade) 매핑
       let mappedVerdict: Verdict = "unknown";
       if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
       else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
 
-      const violations = data.result?.analysis?.violations || [];
+      const violations = resultObj.violations || [];
       const claims: Claim[] = violations.map((v: any, idx: number) => ({
         id: `v-${idx}`,
         text: v.violationSentence || "내용 없음",
@@ -413,7 +461,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         votesFake: 0,
       }));
 
-      const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
+      const youtubeInfo = resultObj || {};
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
         videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
@@ -442,9 +490,119 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         analysisStatus: "error",
         overallVerdict: "unknown",
         trustScore: 0,
-        summary: error instanceof Error && error.name === "AbortError" 
-          ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요." 
+        summary: error instanceof Error && error.name === "AbortError"
+          ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요."
           : "",
+        isWarningVisible: false,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * Legacy sync API flow (kept for compatibility / fallback)
+   * - POST /analysis/sync -> 200 + final result
+   */
+  startAnalysisSync: async () => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+
+    set({ analysisStatus: "detecting", isWarningVisible: false });
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const response = await fetch(`${baseUrl}/analysis/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ youtubeUrl: targetUrl }),
+        signal: controller.signal,
+      });
+
+      if (response.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().startAnalysisSync();
+        throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      }
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`);
+
+      const responseData = await response.json();
+      if (responseData.status !== 200 || !responseData.data) {
+        throw new Error(responseData.message || "분석 요청 실패");
+      }
+
+      const data = responseData.data;
+
+      if (data.status === "FAILED") {
+        set({
+          analysisStatus: "complete",
+          overallVerdict: "unknown",
+          trustScore: 0,
+          summary:
+            "데이터 분석을 지원하지 않는 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
+          isWarningVisible: false,
+          warningCount: 0,
+          claims: [],
+        });
+        return;
+      }
+
+      const resultObj = data.result?.analysis?.analysisResult || {};
+
+      let mappedVerdict: Verdict = "unknown";
+      if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
+      else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
+
+      const violations = data.result?.analysis?.violations || [];
+      const claims: Claim[] = violations.map((v: any, idx: number) => ({
+        id: `v-${idx}`,
+        text: v.violationSentence || "내용 없음",
+        verdict: "warning" as Verdict,
+        evidence: v.reason || "",
+        sources: [],
+        votesTrue: 0,
+        votesFake: 0,
+      }));
+
+      const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
+      const finalState = {
+        analysisStatus: "complete" as AnalysisStatus,
+        videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
+        channelName: youtubeInfo.channelName || data.channelName || get().channelName,
+        overallVerdict: mappedVerdict,
+        trustScore: resultObj.confidenceScore || 0,
+        summary: resultObj.summary || "",
+        isWarningVisible: mappedVerdict === "warning",
+        warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
+        claims: claims,
+      };
+
+      if (get().currentVideoId !== videoId) return;
+
+      set((state) => ({
+        ...finalState,
+        analyzedVideos: {
+          ...state.analyzedVideos,
+          [videoId]: finalState,
+        },
+      }));
+    } catch (error) {
+      console.error("분석 중 오류 발생:", error);
+      set({
+        analysisStatus: "error",
+        overallVerdict: "unknown",
+        trustScore: 0,
+        summary:
+          error instanceof Error && error.name === "AbortError"
+            ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요."
+            : "",
         isWarningVisible: false,
       });
     } finally {
