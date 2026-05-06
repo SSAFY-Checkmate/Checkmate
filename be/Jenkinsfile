@@ -118,72 +118,78 @@ EOF
                 branch 'develop'
             }
             steps {
-                sh '''
-                    set -e
+                sshagent(credentials: ['host-ssh-key']) {
+                    sh '''
+                        set -e
 
-                    echo "Waiting for containers to stabilize..."
-                    sleep 10
+                        echo "Waiting for containers to stabilize..."
+                        sleep 10
 
-                    ACTIVE_COLOR=$(cat /home/ubuntu/backend-active-color)
-                    BACKEND_CONTAINER="a405-backend-${ACTIVE_COLOR}"
+                        ssh -o StrictHostKeyChecking=no ubuntu@172.26.5.216 bash <<'EOF'
+set -e
 
-                    BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${BACKEND_CONTAINER} 2>/dev/null || echo "false")
-                    PUBLISHER_STATUS=$(docker inspect -f '{{.State.Running}}' a405-backend-publisher 2>/dev/null || echo "false")
-                    REDIS_STATUS=$(docker inspect -f '{{.State.Running}}' redis 2>/dev/null || echo "false")
-                    KAFKA_STATUS=$(docker inspect -f '{{.State.Running}}' kafka 2>/dev/null || echo "false")
-                    ZOOKEEPER_STATUS=$(docker inspect -f '{{.State.Running}}' zookeeper 2>/dev/null || echo "false")
+ACTIVE_COLOR=$(cat /home/ubuntu/backend-active-color)
+BACKEND_CONTAINER="a405-backend-${ACTIVE_COLOR}"
 
-                    echo "${BACKEND_CONTAINER} running: ${BACKEND_STATUS}"
-                    echo "a405-backend-publisher running: ${PUBLISHER_STATUS}"
-                    echo "redis running: ${REDIS_STATUS}"
-                    echo "kafka running: ${KAFKA_STATUS}"
-                    echo "zookeeper running: ${ZOOKEEPER_STATUS}"
+BACKEND_STATUS=$(docker inspect -f '{{.State.Running}}' ${BACKEND_CONTAINER} 2>/dev/null || echo "false")
+PUBLISHER_STATUS=$(docker inspect -f '{{.State.Running}}' a405-backend-publisher 2>/dev/null || echo "false")
+REDIS_STATUS=$(docker inspect -f '{{.State.Running}}' redis 2>/dev/null || echo "false")
+KAFKA_STATUS=$(docker inspect -f '{{.State.Running}}' kafka 2>/dev/null || echo "false")
+ZOOKEEPER_STATUS=$(docker inspect -f '{{.State.Running}}' zookeeper 2>/dev/null || echo "false")
 
-                    if [ "$BACKEND_STATUS" != "true" ]; then
-                      echo "[ERROR] Backend container is not running"
-                      docker logs --tail 100 ${BACKEND_CONTAINER} || true
-                      exit 1
-                    fi
+echo "${BACKEND_CONTAINER} running: ${BACKEND_STATUS}"
+echo "a405-backend-publisher running: ${PUBLISHER_STATUS}"
+echo "redis running: ${REDIS_STATUS}"
+echo "kafka running: ${KAFKA_STATUS}"
+echo "zookeeper running: ${ZOOKEEPER_STATUS}"
 
-                    if [ "$PUBLISHER_STATUS" != "true" ]; then
-                      echo "[ERROR] Backend publisher container is not running"
-                      docker logs --tail 100 a405-backend-publisher || true
-                      exit 1
-                    fi
+if [ "$BACKEND_STATUS" != "true" ]; then
+  echo "[ERROR] Backend container is not running"
+  docker logs --tail 100 ${BACKEND_CONTAINER} || true
+  exit 1
+fi
 
-                    if [ "$REDIS_STATUS" != "true" ]; then
-                      echo "[ERROR] Redis container is not running"
-                      docker logs --tail 100 redis || true
-                      exit 1
-                    fi
+if [ "$PUBLISHER_STATUS" != "true" ]; then
+  echo "[ERROR] Backend publisher container is not running"
+  docker logs --tail 100 a405-backend-publisher || true
+  exit 1
+fi
 
-                    if [ "$KAFKA_STATUS" != "true" ]; then
-                      echo "[ERROR] Kafka container is not running"
-                      docker logs --tail 100 kafka || true
-                      exit 1
-                    fi
+if [ "$REDIS_STATUS" != "true" ]; then
+  echo "[ERROR] Redis container is not running"
+  docker logs --tail 100 redis || true
+  exit 1
+fi
 
-                    if [ "$ZOOKEEPER_STATUS" != "true" ]; then
-                      echo "[ERROR] Zookeeper container is not running"
-                      docker logs --tail 100 zookeeper || true
-                      exit 1
-                    fi
+if [ "$KAFKA_STATUS" != "true" ]; then
+  echo "[ERROR] Kafka container is not running"
+  docker logs --tail 100 kafka || true
+  exit 1
+fi
 
-                    echo "Checking backend HTTP response via Nginx..."
-                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://k14a405.p.ssafy.io/be/health || echo "000")
-                    echo "Backend responded with HTTP CODE: $HTTP_CODE"
+if [ "$ZOOKEEPER_STATUS" != "true" ]; then
+  echo "[ERROR] Zookeeper container is not running"
+  docker logs --tail 100 zookeeper || true
+  exit 1
+fi
 
-                    if [ "$HTTP_CODE" -eq 200 ]; then
-                      echo "Health check passed"
-                    else
-                      echo "[ERROR] Health check failed with code $HTTP_CODE"
-                      docker logs --tail 100 ${BACKEND_CONTAINER} || true
-                      exit 1
-                    fi
+echo "Checking backend HTTP response via Nginx..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://k14a405.p.ssafy.io/be/health || echo "000")
+echo "Backend responded with HTTP CODE: $HTTP_CODE"
 
-                    echo "Checking checkmate-net containers..."
-                    docker network inspect checkmate-net --format '{{range .Containers}}{{.Name}} {{end}}'
-                '''
+if [ "$HTTP_CODE" -eq 200 ]; then
+  echo "Health check passed"
+else
+  echo "[ERROR] Health check failed with code $HTTP_CODE"
+  docker logs --tail 100 ${BACKEND_CONTAINER} || true
+  exit 1
+fi
+
+echo "Checking checkmate-net containers..."
+docker network inspect checkmate-net --format '{{range .Containers}}{{.Name}} {{end}}'
+EOF
+                    '''
+                }
             }
         }
     }
