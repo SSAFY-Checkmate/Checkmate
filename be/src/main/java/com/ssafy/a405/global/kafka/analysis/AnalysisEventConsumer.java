@@ -9,6 +9,7 @@ import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.domain.inbox.service.InboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -33,13 +34,19 @@ public class AnalysisEventConsumer {
 	public void onCompleted(String message, Acknowledgment ack) throws Exception {
 		EventEnvelope envelope = objectMapper.readValue(message, EventEnvelope.class);
 		String eventId = envelope.eventId();
+		String jobIdForMdc = envelope.aggregateId();
+		String traceIdForMdc = (envelope.traceId() != null && !envelope.traceId().isBlank())
+			? envelope.traceId()
+			: (jobIdForMdc != null && !jobIdForMdc.isBlank() ? "job:" + jobIdForMdc : "event:" + eventId);
 
 		if (!inboxService.beginProcessing(CONSUMER_NAME, eventId)) {
 			ack.acknowledge();
 			return;
 		}
 
-		try {
+		try (MDC.MDCCloseable mdcTraceId = MDC.putCloseable("traceId", traceIdForMdc);
+			 MDC.MDCCloseable mdcJobId = MDC.putCloseable("jobId", jobIdForMdc);
+			 MDC.MDCCloseable mdcEventId = MDC.putCloseable("eventId", eventId)) {
 			String jobId = envelope.aggregateId();
 			if (jobId == null || jobId.isBlank()) {
 				throw new IllegalArgumentException("aggregateId(jobId) is missing");
@@ -69,13 +76,19 @@ public class AnalysisEventConsumer {
 	public void onFailed(String message, Acknowledgment ack) throws Exception {
 		EventEnvelope envelope = objectMapper.readValue(message, EventEnvelope.class);
 		String eventId = envelope.eventId();
+		String jobIdForMdc = envelope.aggregateId();
+		String traceIdForMdc = (envelope.traceId() != null && !envelope.traceId().isBlank())
+			? envelope.traceId()
+			: (jobIdForMdc != null && !jobIdForMdc.isBlank() ? "job:" + jobIdForMdc : "event:" + eventId);
 
 		if (!inboxService.beginProcessing(CONSUMER_NAME, eventId)) {
 			ack.acknowledge();
 			return;
 		}
 
-		try {
+		try (MDC.MDCCloseable mdcTraceId = MDC.putCloseable("traceId", traceIdForMdc);
+			 MDC.MDCCloseable mdcJobId = MDC.putCloseable("jobId", jobIdForMdc);
+			 MDC.MDCCloseable mdcEventId = MDC.putCloseable("eventId", eventId)) {
 			String jobId = envelope.aggregateId();
 			if (jobId == null || jobId.isBlank()) {
 				throw new IllegalArgumentException("aggregateId(jobId) is missing");

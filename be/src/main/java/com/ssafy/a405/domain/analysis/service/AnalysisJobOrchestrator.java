@@ -9,6 +9,7 @@ import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -66,12 +67,16 @@ public class AnalysisJobOrchestrator {
 
 	private void enqueueTranscriptRequested(AnalysisJob job) {
 		TranscriptRequestedPayload payload = new TranscriptRequestedPayload(job.getJobId(), job.getYoutubeUrl());
+		String traceId = MDC.get("traceId");
+		if (traceId == null || traceId.isBlank()) {
+			traceId = "job:" + job.getJobId();
+		}
 		EventEnvelope envelope = new EventEnvelope(
 			java.util.UUID.randomUUID().toString(),
 			"transcript.requested",
 			1,
 			Instant.now(),
-			null,
+			traceId,
 			job.getJobId(),
 			objectMapper.valueToTree(payload)
 		);
