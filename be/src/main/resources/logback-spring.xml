@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+      Include MDC fields so a single log line is traceable without repeating context everywhere.
+
+      Typical MDC keys in this project:
+      - traceId (set by MdcLoggingFilter and Kafka consumers)
+      - userId  (best-effort from Spring Security Authentication)
+      - jobId   (set by Kafka consumers when available)
+    -->
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [traceId=%X{traceId:-}] [userId=%X{userId:-}] [jobId=%X{jobId:-}] [eventId=%X{eventId:-}] [%thread] %logger{36} - %msg%n%ex{full}"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- App logs -->
+    <logger name="com.ssafy.a405" level="INFO"/>
+
+    <!-- Noise reduction (framework / infra) -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.web" level="WARN"/>
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.springframework.kafka" level="WARN"/>
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="OFF"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
