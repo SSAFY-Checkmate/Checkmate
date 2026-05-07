@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCheckmateStore, type ChatMessage } from "../../lib/store";
-import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck, Pencil, Check, X } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 

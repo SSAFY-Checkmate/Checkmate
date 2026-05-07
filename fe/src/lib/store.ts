@@ -573,7 +573,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   },
 
   addComment: async (content: string) => {
-    const { isLoggedIn, analysisId, fetchComments } = get();
+    const { isLoggedIn, analysisId } = get();
     if (!isLoggedIn || !analysisId) return;
 
     try {
