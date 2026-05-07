@@ -93,6 +93,14 @@ interface CheckmateState {
   // 분석 결과 캐시
   analyzedVideos: Record<string, Partial<CheckmateState>>;
 
+  // 페이지네이션 상태
+  commentPagination: {
+    currentPage: number;
+    hasNext: boolean;
+    totalPages: number;
+    totalElements: number;
+  };
+
   // 액션 (상태 변경 함수들)
   openPanel: () => void;
   closePanel: () => void;
@@ -110,6 +118,8 @@ interface CheckmateState {
   postReaction: (analysisId: number, reactionType: boolean) => Promise<void>;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
+  fetchComments: (analysisId: number, page?: number) => Promise<void>;
+  addComment: (content: string) => Promise<void>;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
 
   // 인증 액션
@@ -136,6 +146,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   claims: [],
   communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
+  commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
 
   // 인증 초기 상태
   isLoggedIn: false, // 실제 구현 시 초기화 함수에서 확인
@@ -242,6 +253,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false,
         claims: [],
         warningCount: 0,
+        chatMessages: [],
+        commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
         communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
       });
 
@@ -513,6 +526,68 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }
     } catch (err) {
       console.error("[Reaction] Operation failed", err);
+    }
+  },
+
+  fetchComments: async (analysisId, page = 0) => {
+    try {
+      const body = await communityApi.getComments(analysisId, page);
+      if (body.status === 200 && body.data) {
+        const { content, page: currentPage, hasNext, totalPages, totalElements } = body.data;
+        
+        const newComments = content.map((c: any) => ({
+          id: String(c.id),
+          username: c.userName,
+          message: c.content,
+          createdAt: c.createdAt,
+        })).reverse(); // 최신순 -> 과거순으로 뒤집기
+        
+        set((state) => ({
+          // page 0이면 새 목록, 그 외엔 과거 데이터이므로 앞에 붙임 (Prepend)
+          chatMessages: page === 0 ? newComments : [...newComments, ...state.chatMessages],
+          commentPagination: {
+            currentPage,
+            hasNext,
+            totalPages,
+            totalElements,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Fetch failed", err);
+    }
+  },
+
+  addComment: async (content: string) => {
+    const { isLoggedIn, analysisId, fetchComments } = get();
+    if (!isLoggedIn || !analysisId) return;
+
+    try {
+      const body = await communityApi.postComment(analysisId, content);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().addComment(content);
+        return;
+      }
+
+      if (body.status === 201 || body.status === 200) {
+        // [개선] 전체 다시 가져오지 않고 생성된 댓글만 로컬에 즉시 추가
+        const newC = body.data;
+        if (newC) {
+          const mapped = {
+            id: String(newC.id),
+            username: newC.userName,
+            message: newC.content,
+            createdAt: newC.createdAt,
+          };
+          set((state) => ({
+            chatMessages: [...state.chatMessages, mapped],
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("[Comment] Post failed", err);
     }
   },
 

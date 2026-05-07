@@ -87,6 +87,22 @@ export const communityApi = {
     return res.json();
   },
 
+  /** 댓글 목록 조회 */
+  getComments: async (analysisId: number, page: number = 0) => {
+    const res = await doFetch(`/community/comments?analysisId=${analysisId}&page=${page}`);
+    return res.json();
+  },
+
+  /** 댓글 생성 */
+  postComment: async (analysisId: number, content: string) => {
+    const res = await doFetch("/community/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analysisId, content }),
+    });
+    return res.json();
+  },
+
   /** 반응 수정 */
   putReaction: async (reactionId: number, reactionType: boolean) => {
     const res = await doFetch(`/community/reactions/${reactionId}`, {

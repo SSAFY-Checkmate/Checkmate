@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCheckmateStore } from "../../lib/store";
 import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
@@ -88,14 +88,30 @@ const STYLES = {
 };
 
 export function CommunityTab() {
-  const { channelName, communityVotes, postReaction, isLoggedIn, analysisId, chatMessages, addChatMessage } =
-    useCheckmateStore();
+  const {
+    channelName,
+    communityVotes,
+    postReaction,
+    isLoggedIn,
+    analysisId,
+    chatMessages,
+    fetchComments,
+    addComment,
+    commentPagination,
+  } = useCheckmateStore();
   const [newMsg, setNewMsg] = useState("");
 
   const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null };
   const totalVotes = votes.trueVotes + votes.fakeVotes;
   const truePercent = totalVotes > 0 ? Math.round((votes.trueVotes / totalVotes) * 100) : 50;
   const fakePercent = 100 - truePercent;
+
+  // 컴포넌트 마운트 시 또는 분석 ID 변경 시 댓글 로드
+  useEffect(() => {
+    if (analysisId) {
+      fetchComments(analysisId);
+    }
+  }, [analysisId, fetchComments]);
 
   const handleVote = (type: boolean) => {
     if (!isLoggedIn) {
@@ -111,7 +127,7 @@ export function CommunityTab() {
 
   const handleSend = () => {
     if (!newMsg.trim() || !isLoggedIn) return;
-    addChatMessage({ username: "나", message: newMsg });
+    addComment(newMsg);
     setNewMsg("");
   };
 
@@ -220,33 +236,54 @@ export function CommunityTab() {
           실시간 수사 상황실
         </h4>
         <div style={STYLES.chatBox}>
-          {(chatMessages || []).slice(-5).map((msg) => (
-            <div key={msg.id} style={{ fontSize: "12px", lineHeight: 1.4, fontFamily: PIXEL_FONT }}>
-              <span
+          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+            {/* 페이지네이션: 더 보기 버튼 */}
+            {commentPagination.hasNext && (
+              <button
+                onClick={() => fetchComments(analysisId!, commentPagination.currentPage + 1)}
                 style={{
-                  color: msg.badge === "verifier" ? "#10b981" : "#38bdf8",
-                  marginRight: "6px",
+                  padding: "4px 0",
+                  fontSize: "10px",
+                  color: "#94a3b8",
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: PIXEL_FONT,
+                  marginBottom: "8px",
+                }}
+              >
+                --- 이전 수사 기록 더 보기 ({commentPagination.currentPage + 1}/{commentPagination.totalPages}) ---
+              </button>
+            )}
+
+            {(chatMessages || []).map((msg) => (
+              <div key={msg.id} style={{ fontSize: "12px", lineHeight: 1.4, fontFamily: PIXEL_FONT }}>
+                <span
+                  style={{
+                    color: msg.badge === "verifier" ? "#10b981" : "#38bdf8",
+                    marginRight: "6px",
+                    fontFamily: PIXEL_FONT,
+                  }}
+                >
+                  {msg.username}:
+                </span>
+                <span style={{ color: "#f1f5f9", fontFamily: PIXEL_FONT }}>{msg.message}</span>
+              </div>
+            ))}
+            {(!chatMessages || chatMessages.length === 0) && (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#94a3b8",
+                  textAlign: "center",
+                  marginTop: "20px",
                   fontFamily: PIXEL_FONT,
                 }}
               >
-                {msg.username}:
-              </span>
-              <span style={{ color: "#f1f5f9", fontFamily: PIXEL_FONT }}>{msg.message}</span>
-            </div>
-          ))}
-          {(!chatMessages || chatMessages.length === 0) && (
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#94a3b8",
-                textAlign: "center",
-                marginTop: "20px",
-                fontFamily: PIXEL_FONT,
-              }}
-            >
-              수신된 데이터가 없습니다
-            </div>
-          )}
+                수신된 데이터가 없습니다
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
