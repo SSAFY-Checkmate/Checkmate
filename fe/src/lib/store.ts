@@ -637,15 +637,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     if (!isLoggedIn) return;
 
     try {
-      const response = await communityApi.deleteComment(commentId);
+      const body = await communityApi.deleteComment(commentId);
 
-      if (response.status === 401) {
+      if (body.status === 401) {
         await initializeAuth();
         if (get().isLoggedIn) return get().deleteComment(commentId);
         return;
       }
 
-      if (response.ok) {
+      if (body.status === 200) {
         set((state) => ({
           chatMessages: state.chatMessages.filter((msg) => msg.id !== String(commentId)),
         }));

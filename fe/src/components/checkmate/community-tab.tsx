@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useCheckmateStore, type ChatMessage } from "../../lib/store";
 import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck, Pencil, Check, X } from "lucide-react";
 import { motion } from "framer-motion";
+import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
 const BORDER_COLOR = "#475569";
@@ -105,6 +106,8 @@ export function CommunityTab() {
   const [newMsg, setNewMsg] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [idToDelete, setIdToDelete] = useState<string | null>(null);
 
   const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null };
   const totalVotes = votes.trueVotes + votes.fakeVotes;
@@ -152,9 +155,15 @@ export function CommunityTab() {
     setEditingId(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("이 댓글을 삭제하시겠습니까?")) {
-      await deleteComment(id);
+  const handleDelete = (id: string) => {
+    setIdToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (idToDelete) {
+      await deleteComment(idToDelete);
+      setIdToDelete(null);
     }
   };
 
@@ -425,6 +434,19 @@ export function CommunityTab() {
           </button>
         </div>
       </section>
+
+      <PixelConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setIdToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="수사 기록 삭제"
+        message="작성하신 수사 기록(댓글)을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다."
+        confirmText="삭제"
+        cancelText="취소"
+      />
     </div>
   );
 }

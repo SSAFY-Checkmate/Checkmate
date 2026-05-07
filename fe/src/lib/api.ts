@@ -124,7 +124,7 @@ export const communityApi = {
     const res = await doFetch(`/community/comments/${commentId}`, {
       method: "DELETE",
     });
-    return res;
+    return res.json();
   },
 
   /** 반응 수정 */
