@@ -65,9 +65,15 @@ export const analysisApi = {
  * 커뮤니티 투표 관련 API
  */
 export const communityApi = {
-  /** 반응(투표) 목록 조회 */
+  /** 반응 목록 조회 */
   getReactions: async (analysisId: number) => {
     const res = await doFetch(`/community/reactions?analysisId=${analysisId}`);
+    return res.json();
+  },
+
+  /** 반응 단건 조회 */
+  getReaction: async (reactionId: number) => {
+    const res = await doFetch(`/community/reactions/${reactionId}`);
     return res.json();
   },
 

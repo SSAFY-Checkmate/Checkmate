@@ -683,7 +683,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }
       localStorage.removeItem("jwtToken");
     }
+    
     set({ isLoggedIn, user });
+
+    // 로그인 성공 시 현재 영상의 투표 정보 다시 가져오기
+    const store = useCheckmateStore.getState();
+    if (isLoggedIn && store.analysisId) {
+      store.fetchReactions(store.analysisId);
+    }
   },
 }));
 
