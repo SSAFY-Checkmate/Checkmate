@@ -30,7 +30,7 @@ public class AnalysisHttpPipelineService {
 			process(jobId, started);
 			log.info("[PIPELINE] completed jobId={} elapsedMs={}", jobId, System.currentTimeMillis() - started);
 		} catch (Exception e) {
-			log.warn("[PIPELINE] failed jobId={} elapsedMs={} err={}", jobId, System.currentTimeMillis() - started, e.toString(), e);
+			log.error("[PIPELINE] failed jobId={} elapsedMs={} err={}", jobId, System.currentTimeMillis() - started, e.toString(), e);
 			analysisJobService.applyFailed(jobId, "PIPELINE_FAILED", e.getMessage());
 		}
 	}
@@ -45,7 +45,7 @@ public class AnalysisHttpPipelineService {
 		try {
 			return process(jobId, started);
 		} catch (Exception e) {
-			log.warn("[PIPELINE] failed(sync) jobId={} elapsedMs={} err={}", jobId, System.currentTimeMillis() - started, e.toString(), e);
+			log.error("[PIPELINE] failed(sync) jobId={} elapsedMs={} err={}", jobId, System.currentTimeMillis() - started, e.toString(), e);
 			analysisJobService.applyFailed(jobId, "PIPELINE_FAILED", e.getMessage());
 			return null;
 		}

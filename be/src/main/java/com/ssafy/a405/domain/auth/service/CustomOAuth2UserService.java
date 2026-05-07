@@ -4,6 +4,7 @@ import com.ssafy.a405.domain.auth.security.CustomUserDetail;
 import com.ssafy.a405.domain.user.entity.User;
 import com.ssafy.a405.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
@@ -29,16 +31,24 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String email = String.valueOf(attributes.get("email"));
         String name = String.valueOf(attributes.get("name"));
 
-        User user = userRepository.findByGoogleSubId(googleSubId)
-                .map(existingUser -> {
-                    existingUser.updateProfile(email, name);
-                    return existingUser;
-                })
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .email(email)
-                        .name(name)
-                        .googleSubId(googleSubId)
-                        .build()));
+        User existing = userRepository.findByGoogleSubId(googleSubId).orElse(null);
+        final boolean isNew;
+        final User user;
+        if (existing != null) {
+            existing.updateProfile(email, name);
+            user = existing;
+            isNew = false;
+        } else {
+            user = userRepository.save(User.builder()
+                .email(email)
+                .name(name)
+                .googleSubId(googleSubId)
+                .build());
+            isNew = true;
+        }
+
+        // Avoid logging email; keep security events traceable.
+        log.info("auth.oauth2_user_upsert provider=google userId={} isNew={}", user.getId(), isNew);
 
         return new CustomUserDetail(user, attributes);
     }

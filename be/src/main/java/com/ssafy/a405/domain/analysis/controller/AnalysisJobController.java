@@ -6,6 +6,7 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisReportResponse;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobOrchestrator;
 import com.ssafy.a405.domain.analysis.service.AnalysisJobService;
 import com.ssafy.a405.domain.analysis.service.AnalysisService;
@@ -51,7 +52,35 @@ public class AnalysisJobController {
 
 	@GetMapping("/{jobId}")
 	public ResponseEntity<ApiResponseBody<AnalysisJobGetResponse>> getAnalysisJob(@PathVariable String jobId) {
-		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.getJob(jobId)));
+		AnalysisJobGetResponse data = analysisJobService.getJob(jobId);
+
+		// Help polling clients back off without changing the response schema.
+		Integer retryAfterSeconds = retryAfterSecondsFor(data.status());
+		if (retryAfterSeconds != null) {
+			return ResponseEntity
+				.ok()
+				.header("Retry-After", String.valueOf(retryAfterSeconds))
+				.body(ApiResponseBody.onSuccess(SuccessCode.OK, data));
+		}
+
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, data));
+	}
+
+	private Integer retryAfterSecondsFor(AnalysisJobStatus status) {
+		if (status == null) {
+			return null;
+		}
+		if (status == AnalysisJobStatus.COMPLETED || status == AnalysisJobStatus.FAILED) {
+			return null;
+		}
+
+		// Default hints (seconds). Keep it simple; clients may ignore this header.
+		return switch (status) {
+			case REQUESTED -> 2;
+			case TRANSCRIPT_PROCESSING -> 2;
+			case AI_PROCESSING -> 1;
+			default -> 2;
+		};
 	}
 
 	@GetMapping("/latest")

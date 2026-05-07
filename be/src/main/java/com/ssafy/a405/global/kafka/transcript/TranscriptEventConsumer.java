@@ -10,6 +10,7 @@ import com.ssafy.a405.global.common.exception.CustomException;
 import com.ssafy.a405.domain.inbox.service.InboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -37,15 +38,22 @@ public class TranscriptEventConsumer {
     public void onTranscriptCompleted(String message, Acknowledgment ack) throws Exception {
         EventEnvelope envelope = objectMapper.readValue(message, EventEnvelope.class);
         String eventId = envelope.eventId();
+        String jobIdForMdc = envelope.aggregateId();
+        String traceIdForMdc = (envelope.traceId() != null && !envelope.traceId().isBlank())
+            ? envelope.traceId()
+            : (jobIdForMdc != null && !jobIdForMdc.isBlank() ? "job:" + jobIdForMdc : "event:" + eventId);
 
         if (!inboxService.beginProcessing(CONSUMER_NAME, eventId)) {
             ack.acknowledge();
             return;
         }
 
-        try {
+        try (MDC.MDCCloseable traceId = MDC.putCloseable("traceId", traceIdForMdc);
+             MDC.MDCCloseable jobId = MDC.putCloseable("jobId", jobIdForMdc);
+             MDC.MDCCloseable ev = MDC.putCloseable("eventId", eventId)) {
             TranscriptCompletedPayload payload = objectMapper.treeToValue(envelope.payload(), TranscriptCompletedPayload.class);
-            analysisJobService.applyTranscriptCompleted(payload, envelope.traceId());
+            // Propagate a non-empty traceId downstream even if the upstream producer omitted it.
+            analysisJobService.applyTranscriptCompleted(payload, traceIdForMdc);
 
             log.info("transcript.completed received. eventId={}, aggregateId={}, traceId={}",
                 envelope.eventId(), envelope.aggregateId(), envelope.traceId());
@@ -68,13 +76,19 @@ public class TranscriptEventConsumer {
     public void onTranscriptFailed(String message, Acknowledgment ack) throws Exception {
         EventEnvelope envelope = objectMapper.readValue(message, EventEnvelope.class);
         String eventId = envelope.eventId();
+        String jobIdForMdc = envelope.aggregateId();
+        String traceIdForMdc = (envelope.traceId() != null && !envelope.traceId().isBlank())
+            ? envelope.traceId()
+            : (jobIdForMdc != null && !jobIdForMdc.isBlank() ? "job:" + jobIdForMdc : "event:" + eventId);
 
         if (!inboxService.beginProcessing(CONSUMER_NAME, eventId)) {
             ack.acknowledge();
             return;
         }
 
-        try {
+        try (MDC.MDCCloseable traceId = MDC.putCloseable("traceId", traceIdForMdc);
+             MDC.MDCCloseable jobId = MDC.putCloseable("jobId", jobIdForMdc);
+             MDC.MDCCloseable ev = MDC.putCloseable("eventId", eventId)) {
             TranscriptFailedPayload payload = objectMapper.treeToValue(envelope.payload(), TranscriptFailedPayload.class);
             analysisJobService.applyTranscriptFailed(payload);
 

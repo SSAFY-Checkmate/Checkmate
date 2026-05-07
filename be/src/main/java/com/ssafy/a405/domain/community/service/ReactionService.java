@@ -12,12 +12,14 @@ import com.ssafy.a405.domain.user.repository.UserRepository;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ReactionService {
 
@@ -31,6 +33,9 @@ public class ReactionService {
                 .ifPresent(reaction -> {
                     throw new CustomException(ErrorCode.BAD_REQUEST);
                 });
+
+        log.info("community.reaction_create_request userId={} analysisId={} reactionType={}",
+            userId, request.analysisId(), request.reactionType());
 
         Reaction reaction = reactionRepository.save(
                 Reaction.builder()
@@ -61,6 +66,8 @@ public class ReactionService {
         Reaction reaction = getReactionEntity(reactionId);
         validateOwner(userId, reaction.getUser().getId());
         reaction.updateReactionType(request.reactionType());
+        log.info("community.reaction_updated userId={} reactionId={} reactionType={}",
+            userId, reactionId, request.reactionType());
         return ReactionResponse.from(reaction);
     }
 
@@ -69,6 +76,7 @@ public class ReactionService {
         Reaction reaction = getReactionEntity(reactionId);
         validateOwner(userId, reaction.getUser().getId());
         reactionRepository.delete(reaction);
+        log.info("community.reaction_deleted userId={} reactionId={}", userId, reactionId);
     }
 
     private Reaction getReactionEntity(Long reactionId) {

@@ -7,7 +7,9 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisRequestedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptFailedPayload;
+import com.ssafy.a405.domain.analysis.cache.AnalysisJobReadCache;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.repository.AnalysisJobRepository;
 import com.ssafy.a405.global.util.YoutubeUrlNormalizer;
 import com.ssafy.a405.global.common.code.ErrorCode;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Optional;
 
 @Service
@@ -33,6 +36,7 @@ public class AnalysisJobService {
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
 	private final AnalysisDataMappingService analysisDataMappingService;
+	private final AnalysisJobReadCache analysisJobReadCache;
 
 	@Value("${topics.analysis.requested:analysis.requested}")
 	private String analysisRequestedTopic;
@@ -69,30 +73,55 @@ public class AnalysisJobService {
 
 	@Transactional(readOnly = true)
 	public AnalysisJobGetResponse getJob(String jobId) {
-		AnalysisJob job = analysisJobRepository.findById(jobId)
+		// Read-through cache: protects DB from tight polling loops.
+		Optional<AnalysisJobGetResponse> cached = analysisJobReadCache.get(jobId);
+		if (cached.isPresent()) {
+			return cached.get();
+		}
+
+		var summary = analysisJobRepository.findSummaryById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
+		// Only load & parse the potentially large LONGTEXT result payload for COMPLETED.
 		JsonNode resultNode = null;
-		if (job.getResultJson() != null) {
-			try {
-				resultNode = objectMapper.readTree(job.getResultJson());
-			} catch (Exception ignored) {
-				// If stored payload isn't valid JSON, return null result instead of breaking the API.
+		if (summary.getStatus() == AnalysisJobStatus.COMPLETED) {
+			var result = analysisJobRepository.findResultById(jobId)
+				.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+			if (result.getResultJson() != null) {
+				try {
+					resultNode = objectMapper.readTree(result.getResultJson());
+				} catch (Exception ignored) {
+					// If stored payload isn't valid JSON, return null result instead of breaking the API.
+				}
 			}
 		}
 
 		AnalysisJobGetResponse.ErrorInfo error = null;
-		if (job.getErrorCode() != null || job.getErrorMessage() != null) {
-			error = new AnalysisJobGetResponse.ErrorInfo(job.getErrorCode(), job.getErrorMessage());
+		if (summary.getErrorCode() != null || summary.getErrorMessage() != null) {
+			error = new AnalysisJobGetResponse.ErrorInfo(summary.getErrorCode(), summary.getErrorMessage());
 		}
 
-		return new AnalysisJobGetResponse(
-			job.getJobId(),
-			job.getStatus(),
-			job.getYoutubeUrl(),
+		AnalysisJobGetResponse response = new AnalysisJobGetResponse(
+			summary.getJobId(),
+			summary.getStatus(),
+			summary.getYoutubeUrl(),
 			resultNode,
 			error
 		);
+
+		analysisJobReadCache.put(jobId, response, cacheTtlFor(summary.getStatus()));
+		return response;
+	}
+
+	private Duration cacheTtlFor(AnalysisJobStatus status) {
+		if (status == null) {
+			return Duration.ofSeconds(2);
+		}
+		if (status == AnalysisJobStatus.COMPLETED || status == AnalysisJobStatus.FAILED) {
+			return Duration.ofHours(1);
+		}
+		// Keep short to reduce staleness while still absorbing high-frequency polls.
+		return Duration.ofSeconds(2);
 	}
 
 	@Transactional(readOnly = true)
@@ -117,6 +146,7 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.complete(LocalDateTime.now(), resultJson);
+		analysisJobReadCache.evict(jobId);
 		
 		// Map and save to RDB entities
 		analysisDataMappingService.mapAndSaveAnalysisResult(resultJson);
@@ -127,6 +157,7 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.fail(LocalDateTime.now(), errorCode, errorMessage);
+		analysisJobReadCache.evict(jobId);
 	}
 
 	@Transactional
@@ -135,6 +166,7 @@ public class AnalysisJobService {
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		// Do not wipe transcript reference if it already exists.
 		job.markAiProcessing(LocalDateTime.now(), job.getTranscriptArtifactKey(), job.getTranscriptExpiresAt());
+		analysisJobReadCache.evict(jobId);
 	}
 
 	@Transactional
@@ -142,6 +174,7 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.markTranscriptProcessing(LocalDateTime.now());
+		analysisJobReadCache.evict(jobId);
 	}
 
 	@Transactional
@@ -157,10 +190,12 @@ public class AnalysisJobService {
 		// Idempotency: if we already stored the same transcript artifact key, don't enqueue another analysis request.
 		if (job.getTranscriptArtifactKey() != null && job.getTranscriptArtifactKey().equals(payload.artifactKey())) {
 			job.markAiProcessing(LocalDateTime.now(), payload.artifactKey(), expiresAt);
+			analysisJobReadCache.evict(job.getJobId());
 			return;
 		}
 
 		job.markAiProcessing(LocalDateTime.now(), payload.artifactKey(), expiresAt);
+		analysisJobReadCache.evict(job.getJobId());
 
 		AnalysisRequestedPayload analysisPayload = new AnalysisRequestedPayload(
 			job.getJobId(),
@@ -185,5 +220,6 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(payload.jobId())
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.fail(LocalDateTime.now(), payload.errorCode(), payload.message());
+		analysisJobReadCache.evict(job.getJobId());
 	}
 }
