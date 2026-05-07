@@ -93,6 +93,12 @@ export const communityApi = {
     return res.json();
   },
 
+  /** 댓글 단건 조회 */
+  getComment: async (commentId: string | number) => {
+    const res = await doFetch(`/community/comments/${commentId}`);
+    return res.json();
+  },
+
   /** 댓글 생성 */
   postComment: async (analysisId: number, content: string) => {
     const res = await doFetch("/community/comments", {
@@ -101,6 +107,24 @@ export const communityApi = {
       body: JSON.stringify({ analysisId, content }),
     });
     return res.json();
+  },
+
+  /** 댓글 수정 */
+  putComment: async (commentId: string | number, content: string) => {
+    const res = await doFetch(`/community/comments/${commentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    return res.json();
+  },
+
+  /** 댓글 삭제 */
+  deleteComment: async (commentId: string | number) => {
+    const res = await doFetch(`/community/comments/${commentId}`, {
+      method: "DELETE",
+    });
+    return res;
   },
 
   /** 반응 수정 */

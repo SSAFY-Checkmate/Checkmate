@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from "react";
-import { useCheckmateStore, logoutAuth } from "../../lib/store";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useCheckmateStore, logoutAuth, initializeAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
@@ -28,6 +28,11 @@ export function LongFormDashboard() {
   } = useCheckmateStore();
   
   const dashboardRef = useRef<HTMLDivElement>(null);
+  
+  // 컴포넌트 마운트 시 인증 초기화
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
   /**
    * 분석 상태에 따른 메시지 매핑

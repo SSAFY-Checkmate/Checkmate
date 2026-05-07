@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
+import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,6 +19,11 @@ export function ShortsDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [showCheckAnim, setShowCheckAnim] = useState(false);
+
+  // 컴포넌트 마운트 시 인증 초기화
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
   // 분석 완료 시 체크 애니메이션 트리거
   useEffect(() => {

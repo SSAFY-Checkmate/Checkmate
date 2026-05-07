@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
-import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck } from "lucide-react";
+import { useCheckmateStore, type ChatMessage } from "../../lib/store";
+import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck, Pencil, Check, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
@@ -97,9 +97,14 @@ export function CommunityTab() {
     chatMessages,
     fetchComments,
     addComment,
+    updateComment,
+    deleteComment,
     commentPagination,
+    user,
   } = useCheckmateStore();
   const [newMsg, setNewMsg] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null };
   const totalVotes = votes.trueVotes + votes.fakeVotes;
@@ -129,6 +134,28 @@ export function CommunityTab() {
     if (!newMsg.trim() || !isLoggedIn) return;
     addComment(newMsg);
     setNewMsg("");
+  };
+
+  const startEditing = (msg: ChatMessage) => {
+    setEditingId(msg.id);
+    setEditContent(msg.message);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editContent.trim()) return;
+    await updateComment(editingId, editContent);
+    setEditingId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("이 댓글을 삭제하시겠습니까?")) {
+      await deleteComment(id);
+    }
   };
 
   return (
@@ -257,17 +284,91 @@ export function CommunityTab() {
             )}
 
             {(chatMessages || []).map((msg) => (
-              <div key={msg.id} style={{ fontSize: "12px", lineHeight: 1.4, fontFamily: PIXEL_FONT }}>
+              <div
+                key={msg.id}
+                style={{
+                  fontSize: "14px",
+                  lineHeight: 1.8,
+                  fontFamily: PIXEL_FONT,
+                  marginBottom: "8px",
+                }}
+              >
                 <span
                   style={{
                     color: msg.badge === "verifier" ? "#10b981" : "#38bdf8",
-                    marginRight: "6px",
+                    marginRight: "8px",
                     fontFamily: PIXEL_FONT,
+                    fontWeight: "bold",
                   }}
                 >
                   {msg.username}:
                 </span>
-                <span style={{ color: "#f1f5f9", fontFamily: PIXEL_FONT }}>{msg.message}</span>
+                
+                {editingId === msg.id ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", width: "calc(100% - 80px)" }}>
+                    <input
+                      autoFocus
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit();
+                        if (e.key === "Escape") cancelEditing();
+                      }}
+                      style={{
+                        flex: 1,
+                        fontSize: "14px",
+                        fontFamily: PIXEL_FONT,
+                        backgroundColor: "#0f172a",
+                        color: "white",
+                        border: `1px solid ${BORDER_COLOR}`,
+                        padding: "2px 6px",
+                        outline: "none",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap", marginLeft: "4px" }}>
+                      [
+                      <span 
+                        onClick={saveEdit} 
+                        style={{ cursor: "pointer", color: "#10b981", textDecoration: "underline", padding: "0 6px" }}
+                      >
+                        저장
+                      </span>
+                      <span style={{ opacity: 0.3 }}>|</span>
+                      <span 
+                        onClick={cancelEditing} 
+                        style={{ cursor: "pointer", color: "#ef4444", textDecoration: "underline", padding: "0 6px" }}
+                      >
+                        취소
+                      </span>
+                      ]
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <span style={{ color: "#f1f5f9", fontFamily: PIXEL_FONT }}>{msg.message}</span>
+                    
+                    {/* 내 댓글일 경우 수정 | 삭제 버튼 표시 */}
+                    {user && String(user.id) === String(msg.userId) && (
+                      <span style={{ marginLeft: "10px", fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap" }}>
+                        [
+                        <span 
+                          onClick={() => startEditing(msg)} 
+                          style={{ cursor: "pointer", textDecoration: "underline", padding: "0 4px" }}
+                        >
+                          수정
+                        </span>
+                        |
+                        <span 
+                          onClick={() => handleDelete(msg.id)}
+                          style={{ cursor: "pointer", textDecoration: "underline", padding: "0 4px" }}
+                        >
+                          삭제
+                        </span>
+                        ]
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
             ))}
             {(!chatMessages || chatMessages.length === 0) && (

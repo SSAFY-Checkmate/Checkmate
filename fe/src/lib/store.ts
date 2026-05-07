@@ -16,9 +16,11 @@ export interface WantedCard {
 
 export interface ChatMessage {
   id: string;
+  userId: number;
   username: string;
   message: string;
   badge?: "verifier" | "reporter";
+  createdAt?: string;
 }
 
 /**
@@ -120,6 +122,8 @@ interface CheckmateState {
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   fetchComments: (analysisId: number, page?: number) => Promise<void>;
   addComment: (content: string) => Promise<void>;
+  updateComment: (commentId: string | number, content: string) => Promise<void>;
+  deleteComment: (commentId: string | number) => Promise<void>;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
 
   // 인증 액션
@@ -170,9 +174,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     },
   ],
   chatMessages: [
-    { id: "1", username: "팩트체커", message: "이 영상 3분 12초 부분 자막이 이상해요.", badge: "verifier" },
-    { id: "2", username: "익명", message: "저도 그렇게 생각합니다." },
-    { id: "3", username: "제보왕", message: "다른 출처도 찾아보고 있어요.", badge: "reporter" },
+    { id: "1", userId: 0, username: "팩트체커", message: "이 영상 3분 12초 부분 자막이 이상해요.", badge: "verifier" },
+    { id: "2", userId: 0, username: "익명", message: "저도 그렇게 생각합니다." },
+    { id: "3", userId: 0, username: "제보왕", message: "다른 출처도 찾아보고 있어요.", badge: "reporter" },
   ],
 
   // 액션 구현
@@ -213,7 +217,16 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
   addChatMessage: (msg) =>
     set((state) => ({
-      chatMessages: [...state.chatMessages, { id: Date.now().toString(), ...msg }],
+      chatMessages: [
+        ...state.chatMessages,
+        {
+          id: Date.now().toString(),
+          userId: 0,
+          username: msg.username,
+          message: msg.message,
+          badge: msg.badge,
+        },
+      ],
     })),
 
   /**
@@ -537,6 +550,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         
         const newComments = content.map((c: any) => ({
           id: String(c.id),
+          userId: c.userId,
           username: c.userName,
           message: c.content,
           createdAt: c.createdAt,
@@ -577,6 +591,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         if (newC) {
           const mapped = {
             id: String(newC.id),
+            userId: newC.userId || get().user?.id,
             username: newC.userName,
             message: newC.content,
             createdAt: newC.createdAt,
@@ -591,6 +606,54 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
+  updateComment: async (commentId: string | number, content: string) => {
+    const { isLoggedIn } = get();
+    if (!isLoggedIn) return;
+
+    try {
+      const body = await communityApi.putComment(commentId, content);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().updateComment(commentId, content);
+        return;
+      }
+
+      if (body.status === 200) {
+        // 로컬 상태 업데이트
+        set((state) => ({
+          chatMessages: state.chatMessages.map((msg) =>
+            msg.id === String(commentId) ? { ...msg, message: content } : msg
+          ),
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Update failed", err);
+    }
+  },
+
+  deleteComment: async (commentId: string | number) => {
+    const { isLoggedIn } = get();
+    if (!isLoggedIn) return;
+
+    try {
+      const response = await communityApi.deleteComment(commentId);
+
+      if (response.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().deleteComment(commentId);
+        return;
+      }
+
+      if (response.ok) {
+        set((state) => ({
+          chatMessages: state.chatMessages.filter((msg) => msg.id !== String(commentId)),
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Delete failed", err);
+    }
+  },
   /**
    * 데모 분석 요청 (목업 데이터 사용, API 호출 안함)
    */
@@ -781,7 +844,9 @@ export const initializeAuth = async () => {
     if (response.ok) {
       const result = await response.json();
       if (result.data && result.data.name) {
-        store.setLoginStatus(true, { id: result.data.id, name: result.data.name });
+        // id와 userId 중 존재하는 쪽을 사용 (백엔드 필드명 대응)
+        const userId = result.data.id || result.data.userId;
+        store.setLoginStatus(true, { id: userId, name: result.data.name });
         return;
       }
     } else if (response.status === 401 || response.status === 403) {
