@@ -3,7 +3,7 @@ import { useCheckmateStore } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShieldCheck, AlertTriangle, HelpCircle, Check } from "lucide-react";
+import { X, ShieldCheck, AlertTriangle, HelpCircle, Check, FileText, Search } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
 import { TrustMeter, ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
@@ -20,8 +20,42 @@ const verdictConfig = {
  * [Checkmate 쇼츠 전용 대시보드 - 버튼 인터페이스]
  */
 export function ShortsDashboard() {
-  const { analysisStatus, startAnalysis, overallVerdict, isLoggedIn, setResultModalOpen } = useCheckmateStore();
+  const {
+    analysisStatus,
+    startAnalysis,
+    overallVerdict,
+    isLoggedIn,
+    setResultModalOpen,
+    setCurrentVideo,
+    checkAnalysisStatus,
+    currentVideoId, // 현재 저장된 영상 ID 가져오기
+  } = useCheckmateStore();
   const [showCheckAnim, setShowCheckAnim] = useState(false);
+
+  // 쇼츠 영상 변경 감지 및 상태 체크 로직 개선
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const url = window.location.href;
+      let videoId = "";
+
+      if (url.includes("/shorts/")) {
+        videoId = url.split("/shorts/")[1].split("?")[0];
+      } else if (url.includes("v=")) {
+        videoId = new URLSearchParams(window.location.search).get("v") || "";
+      }
+
+      // [중요] 영상 ID가 실제로 바뀌었을 때만 스토어 업데이트 및 체크 실행
+      if (videoId && videoId !== currentVideoId) {
+        setCurrentVideo(videoId);
+        checkAnalysisStatus();
+      }
+    };
+
+    handleUrlChange();
+
+    const interval = setInterval(handleUrlChange, 2000);
+    return () => clearInterval(interval);
+  }, [setCurrentVideo, checkAnalysisStatus, currentVideoId]);
 
   useEffect(() => {
     if (analysisStatus === "complete") {
@@ -32,7 +66,9 @@ export function ShortsDashboard() {
   }, [analysisStatus]);
 
   return (
-    <div style={{ fontFamily: pixelFont, display: "flex", flexDirection: "column", alignItems: "center", width: "48px" }}>
+    <div
+      style={{ fontFamily: pixelFont, display: "flex", flexDirection: "column", alignItems: "center", width: "48px" }}
+    >
       <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -42,17 +78,33 @@ export function ShortsDashboard() {
             setResultModalOpen(true);
             return;
           }
-          if (analysisStatus === "complete") setResultModalOpen(true);
+
+          // [수정] 분석 진행 중일 때는 클릭 무시 (error 상태는 클릭 허용)
+          if (analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error") return;
+
+          if (analysisStatus === "complete" || analysisStatus === "error") setResultModalOpen(true);
           else startAnalysis();
         }}
-        style={{ width: "48px", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", gap: "6px", position: "relative" }}
+        style={{
+          width: "48px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          cursor:
+            analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error"
+              ? "wait"
+              : "pointer",
+          gap: "6px",
+          position: "relative",
+          opacity: analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error" ? 0.8 : 1,
+        }}
       >
         <div
           style={{
             width: "48px",
             height: "48px",
             background:
-              analysisStatus === "complete"
+              analysisStatus === "complete" || analysisStatus === "error"
                 ? verdictConfig[overallVerdict].color
                 : analysisStatus === "idle"
                   ? "linear-gradient(135deg, #2563eb, #1e40af)"
@@ -61,7 +113,10 @@ export function ShortsDashboard() {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            border: analysisStatus === "complete" ? "2px solid white" : "2px solid rgba(255,255,255,0.2)",
+            border:
+              analysisStatus === "complete" || analysisStatus === "error"
+                ? "2px solid white"
+                : "2px solid rgba(255,255,255,0.2)",
             boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
             position: "relative",
           }}
@@ -70,7 +125,15 @@ export function ShortsDashboard() {
             <motion.div
               animate={{ rotate: 360, scale: [1, 1.15, 1] }}
               transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-              style={{ position: "absolute", inset: "-6px", border: "4px solid transparent", borderTopColor: "#bbf7ff", borderRadius: "50%", zIndex: 0, filter: "drop-shadow(0 0 5px rgba(191, 247, 255, 0.8))" }}
+              style={{
+                position: "absolute",
+                inset: "-6px",
+                border: "4px solid transparent",
+                borderTopColor: "#bbf7ff",
+                borderRadius: "50%",
+                zIndex: 0,
+                filter: "drop-shadow(0 0 5px rgba(191, 247, 255, 0.8))",
+              }}
             />
           )}
           <div style={{ zIndex: 1, position: "relative", display: "flex" }}>
@@ -80,13 +143,42 @@ export function ShortsDashboard() {
               isWalking={analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error"}
             />
           </div>
+          {analysisStatus === "error" && (
+            <div
+              style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                width: "18px",
+                height: "18px",
+                backgroundColor: "#ef4444",
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                border: "2px solid white",
+                zIndex: 10,
+                boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
+              }}
+            >
+              <span style={{ color: "white", fontSize: "14px", fontWeight: "900", lineHeight: 1 }}>!</span>
+            </div>
+          )}
           <AnimatePresence>
             {showCheckAnim && (
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1.5, opacity: 1 }}
                 exit={{ scale: 2, opacity: 0 }}
-                style={{ position: "absolute", zIndex: 10, color: "#22c55e", display: "flex", justifyContent: "center", alignItems: "center", filter: "drop-shadow(0 0 5px rgba(255,255,255,0.8))" }}
+                style={{
+                  position: "absolute",
+                  zIndex: 10,
+                  color: "#22c55e",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  filter: "drop-shadow(0 0 5px rgba(255,255,255,0.8))",
+                }}
               >
                 <Check size={36} strokeWidth={2.5} />
               </motion.div>
@@ -107,7 +199,13 @@ export function ShortsDashboard() {
             borderRadius: "4px",
           }}
         >
-          {!isLoggedIn ? "로그인" : analysisStatus === "complete" ? "결과확인" : analysisStatus === "idle" ? "분석" : "분석중"}
+          {!isLoggedIn
+            ? "로그인"
+            : analysisStatus === "complete"
+              ? "결과확인"
+              : analysisStatus === "idle"
+                ? "분석"
+                : "분석중"}
         </span>
       </motion.div>
     </div>
@@ -118,8 +216,17 @@ export function ShortsDashboard() {
  * [Checkmate 쇼츠 글로벌 결과 모달]
  */
 export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) {
-  const { isResultModalOpen, setResultModalOpen, overallVerdict, trustScore, summary, videoTitle, channelName, isLoggedIn } = useCheckmateStore();
-  const [activeTab, setActiveTab] = useState<"summary" | "report" | "community">("summary");
+  const {
+    isResultModalOpen,
+    setResultModalOpen,
+    overallVerdict,
+    trustScore,
+    summary,
+    videoTitle,
+    channelName,
+    isLoggedIn,
+    analysisStatus,
+  } = useCheckmateStore();
 
   useEffect(() => {
     if (!shadowHost) return;
@@ -139,158 +246,223 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(15, 23, 42, 0.9)",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             zIndex: 2147483647,
             padding: "20px",
-            backdropFilter: "blur(12px)",
+            backdropFilter: "blur(6px)",
             fontFamily: pixelFont,
             pointerEvents: "auto",
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setResultModalOpen(false);
-          }}
+          onClick={() => setResultModalOpen(false)}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 30 }}
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "95vw",
-              height: "90vh",
-              maxWidth: "600px",
-              maxHeight: "800px",
+              height: "85vh",
+              maxWidth: "520px",
               ...PIXEL_STYLES.border,
               backgroundColor: "#1e293b",
               borderWidth: "6px",
-              borderColor: verdictConfig[overallVerdict].color,
-              padding: "32px 24px",
+              borderColor: "#64748b", // 기본 테두리
+              padding: "0px",
               position: "relative",
               fontFamily: pixelFont,
-              boxShadow: "0 0 50px rgba(0,0,0,0.5)",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
               display: "flex",
               flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <button
-              onClick={() => setResultModalOpen(false)}
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                background: "rgba(255, 255, 255, 0.9)",
-                border: "3px solid #1e293b",
-                padding: "4px",
-                cursor: "pointer",
-                boxShadow: "2px 2px 0 rgba(0,0,0,0.2)",
-                zIndex: 20,
-                borderRadius: "4px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <X size={18} color="#1e293b" strokeWidth={4} />
-            </button>
-            
+            {/* [TOP HEADER] 채널명 표시 */}
             <div
               style={{
-                position: "absolute",
-                top: "-12px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: verdictConfig[overallVerdict].color,
-                color: "#ffffff",
-                padding: "4px 16px",
-                fontSize: "12px",
-                fontWeight: "900",
-                border: "3px solid #1e293b",
-                textShadow: "1px 1px 0px rgba(0,0,0,0.3)",
-                whiteSpace: "nowrap",
-                zIndex: 10,
+                backgroundColor: "#0f172a",
+                padding: "10px 16px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "4px solid rgba(255,255,255,0.1)",
               }}
             >
-              {!isLoggedIn ? "CHECKMATE LOGIN" : `REPORT: ${channelName}`}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Search size={14} color="#94a3b8" />
+                <span style={{ color: "#cbd5e1", fontSize: "12px", fontWeight: "bold" }}>채널명: {channelName}</span>
+              </div>
+              <button
+                onClick={() => setResultModalOpen(false)}
+                style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex" }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {!isLoggedIn ? (
-              <div style={{ marginTop: "20px", height: "100%", overflowY: "auto" }}>
-                <LoginView />
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", marginTop: "20px", height: "100%" }}>
-                <div style={{ display: "flex", gap: "8px", marginBottom: "20px", borderBottom: "2px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>
-                  {[
-                    { id: "summary", label: "요약" },
-                    { id: "report", label: "상세" },
-                    { id: "community", label: "커뮤니티" },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
-                      style={{
-                        flex: 1,
-                        padding: "8px 0",
-                        border: "none",
-                        background: activeTab === tab.id ? verdictConfig[overallVerdict].color : "rgba(255,255,255,0.05)",
-                        color: activeTab === tab.id ? "#ffffff" : "#94a3b8",
-                        fontFamily: pixelFont,
-                        fontSize: "13px",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        borderRadius: "4px",
-                        transition: "all 0.2s",
-                        boxShadow: activeTab === tab.id ? "0 4px 0 rgba(0,0,0,0.3)" : "none",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+            {/* [MAIN BODY] 수사 보고서 본문 */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "24px",
+              }}
+            >
+              {analysisStatus === "error" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: "100%",
+                    gap: "20px",
+                    textAlign: "center",
+                    color: "#ef4444",
+                    padding: "40px 20px",
+                  }}
+                >
+                  <AlertTriangle size={56} strokeWidth={1.5} />
+                  <h3 style={{ fontSize: "20px", fontWeight: "900", margin: 0 }}>분석을 진행할 수 없습니다</h3>
+                  <p
+                    style={{ fontSize: "14px", color: "#cbd5e1", lineHeight: "1.6", margin: 0, wordBreak: "keep-all" }}
+                  >
+                    {summary || "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다."}
+                  </p>
+                  <p style={{ fontSize: "13px", color: "#94a3b8", marginTop: "10px" }}>
+                    커뮤니티 탭에서 다른 사람들과 의견을 나누어 보세요!
+                  </p>
                 </div>
-
-                <div style={{ flex: 1, overflowY: "auto", paddingRight: "4px" }}>
-                  {activeTab === "summary" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                      <h3 style={{ fontSize: "18px", color: "#f8fafc", lineHeight: "1.4", margin: 0, fontWeight: "bold" }}>{videoTitle}</h3>
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px", background: "rgba(255,255,255,0.03)", padding: "20px", border: "2px dashed rgba(255,255,255,0.1)", borderRadius: "8px" }}>
-                        <div style={{ width: "50px", height: "50px", backgroundColor: verdictConfig[overallVerdict].color, display: "flex", justifyContent: "center", alignItems: "center", border: "3px solid #1e293b" }}>
-                          {(() => {
-                            const Icon = verdictConfig[overallVerdict].icon;
-                            return <Icon size={30} color="#ffffff" />;
-                          })()}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: "22px", fontWeight: "900", color: verdictConfig[overallVerdict].color, textShadow: "2px 2px 0 rgba(0,0,0,0.5)" }}>{verdictConfig[overallVerdict].title}</div>
-                          <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "bold" }}>TRUST LEVEL: {trustScore}%</div>
+              ) : (
+                <>
+                  {/* 1. 핵심 수사 결과 (슬림 가로형 배치) */}
+                  <div
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.06)", // 배경색 추가
+                      border: `2px solid ${verdictConfig[overallVerdict].color}`,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      borderRadius: "6px",
+                      boxShadow: `0 4px 15px ${verdictConfig[overallVerdict].color}11`,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          backgroundColor: verdictConfig[overallVerdict].color,
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          borderRadius: "4px",
+                          border: "2px solid #0f172a",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(() => {
+                          const Icon = verdictConfig[overallVerdict].icon;
+                          return <Icon size={20} color="#fff" />;
+                        })()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "bold" }}>최종 수사 결과</div>
+                        <div
+                          style={{ fontSize: "18px", fontWeight: "900", color: verdictConfig[overallVerdict].color }}
+                        >
+                          {verdictConfig[overallVerdict].title}
                         </div>
                       </div>
-                      <TrustMeter score={trustScore} />
-                      <div style={{ backgroundColor: "#0f172a", color: "#cbd5e1", padding: "20px", fontSize: "14px", lineHeight: "1.7", ...PIXEL_STYLES.border, border: "2px solid rgba(255,255,255,0.1)", borderRadius: "4px" }}>
-                        {summary || "수사 결과 요약 정보를 불러오는 중입니다..."}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "bold" }}>수사 신뢰도</div>
+                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#fff" }}>
+                        {trustScore}
+                        <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}>%</span>
                       </div>
                     </div>
-                  )}
-                  {activeTab === "report" && (
-                    <div style={{ backgroundColor: "white", borderRadius: "8px", overflow: "hidden" }}>
-                      <ReportTab />
-                    </div>
-                  )}
-                  {activeTab === "community" && (
-                    <div style={{ backgroundColor: "white", borderRadius: "8px", overflow: "hidden" }}>
-                      <CommunityTab />
-                    </div>
-                  )}
-                </div>
+                  </div>
 
-                <div style={{ marginTop: "20px" }}>
-                  <PixelButton text="확인" size="md" colorType="primary" onClick={() => setResultModalOpen(false)} />
-                </div>
-              </div>
-            )}
+                  {!isLoggedIn ? (
+                    <LoginView />
+                  ) : (
+                    <>
+                      {/* 2. 사건 개요 (Summary) */}
+                      <section>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                          <FileText size={16} color={verdictConfig[overallVerdict].color} />
+                          <h3 style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                            수사 개요
+                          </h3>
+                        </div>
+                        <div
+                          style={{
+                            backgroundColor: "#0f172a",
+                            padding: "20px",
+                            fontSize: "14px",
+                            lineHeight: "1.7",
+                            color: "#cbd5e1",
+                            border: "2px solid rgba(255,255,255,0.05)",
+                            borderRadius: "2px",
+                            position: "relative",
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "4px",
+                              height: "100%",
+                              backgroundColor: verdictConfig[overallVerdict].color,
+                            }}
+                          ></div>
+                          {summary || "수사 결과 요약 정보를 불러오는 중입니다..."}
+                        </div>
+                      </section>
+
+                      {/* 3. 핵심 증거 목록 (The "Why" - ReportTab) */}
+                      <section style={{ marginBottom: "20px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                          <h3 style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                            수사관 정밀 판독 결과 (증거 목록)
+                          </h3>
+                        </div>
+                        <div
+                          style={{
+                            backgroundColor: "rgba(255,255,255,0.02)",
+                            borderRadius: "8px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {/* [핵심] 사용자가 가장 궁금해하는 문장별 분석 내역 (쇼츠용 콤팩트 모드) */}
+                          <ReportTab isCompact={true} />
+                        </div>
+                      </section>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* [BOTTOM] 확인 버튼 */}
+            <div
+              style={{
+                padding: "16px 24px",
+                backgroundColor: "rgba(15, 23, 42, 0.5)",
+                borderTop: "2px solid rgba(255,255,255,0.05)",
+              }}
+            >
+              <PixelButton text="보고서 닫기" size="md" colorType="primary" onClick={() => setResultModalOpen(false)} />
+            </div>
           </motion.div>
         </div>
       )}

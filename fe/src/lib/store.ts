@@ -419,7 +419,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           "알 수 없는 채널";
 
         const failState = {
-          analysisStatus: "complete" as AnalysisStatus,
+          analysisStatus: "error" as AnalysisStatus, // idle에서 error로 변경
           videoTitle: scrapedTitle,
           channelName: scrapedChannel,
           overallVerdict: "unknown" as Verdict,
@@ -428,9 +428,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           isWarningVisible: false,
           warningCount: 0,
           claims: [],
+          isResultModalOpen: true, // 에러 발생 시 즉시 모달 오픈
         };
 
-        // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
         if (get().currentVideoId !== videoId) return;
 
         set((state) => ({
@@ -443,11 +443,19 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         return;
       }
 
-      // 검증 단계 연출
       set({ analysisStatus: "verifying" });
       await new Promise((r) => setTimeout(r, 1000));
 
-      const resultObj = data.result || {};
+      // [핵심 수정] 폴링 API의 응답 구조(래퍼 유무) 차이 완벽 대응
+      const resultObj = data.result?.analysis?.analysisResult 
+                      || data.result?.analysis 
+                      || data.result || {};
+
+      // [보완] 실제 분석 데이터가 유효한지 다시 한 번 확인
+      if (!resultObj.summary && (!resultObj.trustGrade && !resultObj.confidenceScore)) {
+         set({ analysisStatus: "idle" });
+         return;
+      }
 
       // 백엔드 응답(trustGrade) 매핑
       let mappedVerdict: Verdict = "unknown";
@@ -546,11 +554,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (data.status === "FAILED") {
         set({
-          analysisStatus: "complete",
+          analysisStatus: "error",
           overallVerdict: "unknown",
           trustScore: 0,
           summary:
-            "데이터 분석을 지원하지 않는 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
+            "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
           isWarningVisible: false,
           warningCount: 0,
           claims: [],
@@ -558,7 +566,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         return;
       }
 
-      const resultObj = data.result?.analysis?.analysisResult || {};
+      // [핵심 수정] 동기 API의 응답 구조(래퍼 유무) 차이 완벽 대응
+      const resultObj = data.result?.analysis?.analysisResult 
+                      || data.result?.analysis 
+                      || data.result || {};
 
       let mappedVerdict: Verdict = "unknown";
       if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
@@ -575,13 +586,24 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         votesFake: 0,
       }));
 
+      // [보완] 신뢰도 점수(trustScore) 추출 로직 강화 (checkAnalysisStatus와 통일)
+      const rawScore = resultObj.confidenceScore ?? resultObj.confidence_score;
+      const rawGrade = resultObj.trustGrade ?? resultObj.trust_grade;
+      
+      let extractedScore = 0;
+      if (rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore))) {
+        extractedScore = Number(rawScore);
+      } else if (rawGrade !== undefined && rawGrade !== null && !isNaN(Number(rawGrade))) {
+        extractedScore = Number(rawGrade);
+      }
+
       const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
         videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
         channelName: youtubeInfo.channelName || data.channelName || get().channelName,
         overallVerdict: mappedVerdict,
-        trustScore: resultObj.confidenceScore || 0,
+        trustScore: extractedScore,
         summary: resultObj.summary || "",
         isWarningVisible: mappedVerdict === "warning",
         warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
@@ -634,53 +656,113 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
-      const response = await fetch(`${baseUrl}/analysis/check?youtubeUrl=${encodeURIComponent(targetUrl)}`, {
+      // [핵심 수정] /check 대신 /latest를 호출하여 전체 분석 결과 데이터(JSON)를 가져옵니다.
+      let response = await fetch(`${baseUrl}/analysis/latest?youtubeUrl=${encodeURIComponent(targetUrl)}`, {
         method: "GET",
         credentials: "include",
       });
 
-      if (response.ok) {
-        const responseData = await response.json();
-        if (responseData.status === 200 && responseData.data) {
-          const data = responseData.data;
-          const resultObj = data.result || {};
-          
-          let mappedVerdict: Verdict = "unknown";
-          if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
-          else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
-
-          const claims: Claim[] = (resultObj.violations || []).map((v: any, idx: number) => ({
-            id: `v-${idx}`,
-            text: v.violationSentence || "",
-            verdict: "warning" as Verdict,
-            evidence: v.reason || "",
-            sources: [],
-            votesTrue: 0,
-            votesFake: 0,
-          }));
-
-          const finalState = {
-            analysisStatus: "complete" as AnalysisStatus,
-            videoTitle: resultObj.videoTitle || data.videoTitle || get().videoTitle,
-            channelName: resultObj.channelName || data.channelName || get().channelName,
-            overallVerdict: mappedVerdict,
-            trustScore: resultObj.confidenceScore || 0,
-            summary: resultObj.summary || "",
-            isWarningVisible: mappedVerdict === "warning",
-            warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
-            claims: claims,
-          };
-
-          if (get().currentVideoId === videoId) {
-            set((state) => ({
-              ...finalState,
-              analyzedVideos: { ...state.analyzedVideos, [videoId]: finalState },
-            }));
-          }
+      // [추가] 401 Unauthorized 처리: 새로고침 직후 인증이 풀려있을 경우 복구
+      if (response.status === 401) {
+        // 동적으로 상단 스코프의 initializeAuth 사용 (store.ts 하단에 선언되어 있음)
+        const { initializeAuth } = await import("./store");
+        await initializeAuth();
+        
+        if (get().isLoggedIn) {
+          // 복구 성공 시 다시 요청
+          response = await fetch(`${baseUrl}/analysis/latest?youtubeUrl=${encodeURIComponent(targetUrl)}`, {
+            method: "GET",
+            credentials: "include",
+          });
         }
+      }
+
+      if (!response.ok) {
+        console.log("checkAnalysisStatus: response not ok", response.status);
+        set({ analysisStatus: "idle" });
+        return;
+      }
+
+      const responseData = await response.json();
+      console.log("checkAnalysisStatus: responseData", responseData);
+      
+      if (responseData.status === 200 && responseData.data) {
+        const data = responseData.data;
+        console.log("checkAnalysisStatus: data", data);
+
+        if (data.status === "FAILED") {
+          console.log("checkAnalysisStatus: data.status is FAILED");
+          set({
+            analysisStatus: "error",
+            overallVerdict: "unknown",
+            trustScore: 0,
+            summary: "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
+            isWarningVisible: false,
+            warningCount: 0,
+            claims: [],
+          });
+          return;
+        }
+
+        // [핵심 수정] /sync API와 /latest API의 응답 구조(래퍼 유무) 차이 완벽 대응
+        const resultObj = data.result?.analysis?.analysisResult 
+                        || data.result?.analysis 
+                        || data.result || {};
+        console.log("checkAnalysisStatus: resultObj", resultObj);
+        
+        if (!resultObj.summary && !resultObj.trustGrade && !resultObj.confidenceScore) {
+          console.log("checkAnalysisStatus: missing summary/trustGrade/confidenceScore");
+          set({ analysisStatus: "idle" });
+          return;
+        }
+
+        let mappedVerdict: Verdict = "unknown";
+        const grade = (resultObj.trustGrade || "").toUpperCase();
+        if (grade === "SAFE" || grade === "GOOD") mappedVerdict = "safe";
+        else if (grade === "WARNING" || grade === "DANGER") mappedVerdict = "warning";
+
+        const violations = data.result?.analysis?.violations || resultObj.violations || [];
+        const claims: Claim[] = violations.map((v: any, idx: number) => ({
+          id: `v-${idx}`,
+          text: v.violationSentence || "내용 없음",
+          verdict: "warning" as Verdict,
+          evidence: v.reason || "",
+          sources: [],
+          votesTrue: 0,
+          votesFake: 0,
+        }));
+
+        const rawScore = resultObj.confidenceScore ?? resultObj.confidence_score;
+        const rawGrade = resultObj.trustGrade ?? resultObj.trust_grade;
+        
+        let extractedScore = 0;
+        if (rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore))) {
+          extractedScore = Number(rawScore);
+        } else if (rawGrade !== undefined && rawGrade !== null && !isNaN(Number(rawGrade))) {
+          extractedScore = Number(rawGrade);
+        }
+
+        const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
+        const finalState = {
+          analysisStatus: "complete" as AnalysisStatus,
+          videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
+          channelName: youtubeInfo.channelName || data.channelName || get().channelName,
+          overallVerdict: mappedVerdict,
+          trustScore: extractedScore,
+          summary: resultObj.summary || "",
+          isWarningVisible: mappedVerdict === "warning",
+          warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
+          claims: claims,
+        };
+
+        set((state) => ({
+          ...finalState,
+          analyzedVideos: { ...state.analyzedVideos, [videoId]: finalState },
+        }));
       }
     } catch (error) {
       console.error("분석 상태 체크 실패:", error);
+      set({ analysisStatus: "idle" });
     }
   },
 }));
