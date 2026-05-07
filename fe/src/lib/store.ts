@@ -61,6 +61,7 @@ interface CheckmateState {
 
   // 패널 및 모달 상태
   isPanelOpen: boolean;
+  isResultModalOpen: boolean;
   activeTab: Tab;
 
   // 알림 팝업 상태
@@ -101,6 +102,8 @@ interface CheckmateState {
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
+  setResultModalOpen: (open: boolean) => void;
+  checkAnalysisStatus: () => Promise<void>;
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
@@ -112,6 +115,7 @@ interface CheckmateState {
 export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   // 초기 상태 설정
   isPanelOpen: false,
+  isResultModalOpen: false,
   activeTab: "report",
   isWarningVisible: false,
   warningCount: 0,
@@ -618,6 +622,66 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       localStorage.removeItem("jwtToken");
     }
     set({ isLoggedIn, user });
+  },
+
+  setResultModalOpen: (open) => set({ isResultModalOpen: open }),
+
+  checkAnalysisStatus: async () => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    try {
+      const response = await fetch(`${baseUrl}/analysis/check?youtubeUrl=${encodeURIComponent(targetUrl)}`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        if (responseData.status === 200 && responseData.data) {
+          const data = responseData.data;
+          const resultObj = data.result || {};
+          
+          let mappedVerdict: Verdict = "unknown";
+          if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
+          else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
+
+          const claims: Claim[] = (resultObj.violations || []).map((v: any, idx: number) => ({
+            id: `v-${idx}`,
+            text: v.violationSentence || "",
+            verdict: "warning" as Verdict,
+            evidence: v.reason || "",
+            sources: [],
+            votesTrue: 0,
+            votesFake: 0,
+          }));
+
+          const finalState = {
+            analysisStatus: "complete" as AnalysisStatus,
+            videoTitle: resultObj.videoTitle || data.videoTitle || get().videoTitle,
+            channelName: resultObj.channelName || data.channelName || get().channelName,
+            overallVerdict: mappedVerdict,
+            trustScore: resultObj.confidenceScore || 0,
+            summary: resultObj.summary || "",
+            isWarningVisible: mappedVerdict === "warning",
+            warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
+            claims: claims,
+          };
+
+          if (get().currentVideoId === videoId) {
+            set((state) => ({
+              ...finalState,
+              analyzedVideos: { ...state.analyzedVideos, [videoId]: finalState },
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("분석 상태 체크 실패:", error);
+    }
   },
 }));
 

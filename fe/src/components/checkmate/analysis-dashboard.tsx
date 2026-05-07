@@ -10,12 +10,19 @@ import { useEffect } from "react";
  * 영상 타입(Long-form / Shorts)에 따라 최적화된 대시보드를 렌더링합니다.
  */
 export function AnalysisDashboard() {
-  const { isLoggedIn, setLoginStatus } = useCheckmateStore();
+  const { isLoggedIn, setLoginStatus, currentVideoId, analysisStatus, checkAnalysisStatus } = useCheckmateStore();
 
   // [추가] 앱 시작 시 인증 상태 복원
   useEffect(() => {
     initializeAuth();
   }, [setLoginStatus]);
+
+  // [추가] 영상 변경 시 기존 분석 결과 자동 조회
+  useEffect(() => {
+    if (currentVideoId && analysisStatus === "idle") {
+      checkAnalysisStatus();
+    }
+  }, [currentVideoId, analysisStatus, checkAnalysisStatus]);
 
   // SSR 환경이나 브라우저 객체가 없는 환경에서의 방어 로직
   if (typeof window === "undefined") return null;
