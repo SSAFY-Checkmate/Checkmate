@@ -184,7 +184,7 @@ export function ShortsDashboard() {
               boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
             }}
           >
-            {!isLoggedIn ? "로그인" : analysisStatus === "complete" ? "결과확인" : analysisStatus === "idle" ? "분석" : "분석중"}
+            {!isLoggedIn ? "로그인" : analysisStatus === "complete" ? "결과확인" : analysisStatus === "checking" ? "확인중" : analysisStatus === "idle" ? "분석" : "분석중"}
           </span>
 
         </motion.div>

@@ -34,6 +34,7 @@ export function LongFormDashboard() {
    */
   const statusMsg = useMemo(() => {
     switch (analysisStatus) {
+      case "checking": return "분석 이력 확인 중...";
       case "detecting": return "영상 감지 중...";
       case "analyzing_transcript": return "자막 분석 중...";
       case "analyzing_claims": return "주장 추출 중...";
@@ -364,7 +365,8 @@ export function LongFormDashboard() {
                   }}>
                     <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
                     <span>
-                      {analysisStatus === "detecting" ? "25%" : 
+                      {analysisStatus === "checking" ? "10%" :
+                       analysisStatus === "detecting" ? "25%" : 
                        analysisStatus === "analyzing_transcript" ? "50%" : 
                        analysisStatus === "analyzing_claims" ? "75%" : "95%"}
                     </span>
@@ -384,6 +386,7 @@ export function LongFormDashboard() {
                   }}>
                     {Array.from({ length: 15 }).map((_, i) => {
                       const progress = 
+                        analysisStatus === "checking" ? 10 :
                         analysisStatus === "detecting" ? 25 : 
                         analysisStatus === "analyzing_transcript" ? 50 : 
                         analysisStatus === "analyzing_claims" ? 75 : 95;
