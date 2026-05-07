@@ -32,6 +32,17 @@ export function ShortsDashboard() {
   } = useCheckmateStore();
   const [showCheckAnim, setShowCheckAnim] = useState(false);
 
+  // [추가] 숏폼 분석 진행률(%) 계산
+  const getProgressPercent = () => {
+    switch (analysisStatus) {
+      case "detecting": return "25%";
+      case "analyzing_transcript": return "50%";
+      case "analyzing_claims": return "75%";
+      case "verifying": return "95%";
+      default: return "";
+    }
+  };
+
   // 쇼츠 영상 변경 감지 및 상태 체크 로직 개선
   useEffect(() => {
     const handleUrlChange = () => {
@@ -143,6 +154,58 @@ export function ShortsDashboard() {
               isWalking={analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error"}
             />
           </div>
+          <AnimatePresence>
+            {analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error" && (
+              <motion.div
+                initial={{ y: 5, opacity: 0, scale: 0.8 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                style={{
+                  position: "absolute",
+                  top: "-30px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  backgroundColor: "white",
+                  border: "2px solid #0f172a",
+                  borderRadius: "6px",
+                  padding: "2px 6px",
+                  fontSize: "10px",
+                  fontWeight: "900",
+                  color: "#0f172a",
+                  boxShadow: "0 2px 0 rgba(0,0,0,0.2)",
+                  whiteSpace: "nowrap",
+                  zIndex: 20,
+                  fontFamily: pixelFont,
+                }}
+              >
+                {/* 말풍선 꼬리 외곽선 */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "-5px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 0,
+                  height: 0,
+                  borderLeft: "5px solid transparent",
+                  borderRight: "5px solid transparent",
+                  borderTop: "5px solid #0f172a",
+                }} />
+                {/* 말풍선 꼬리 내부 */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "-2px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 0,
+                  height: 0,
+                  borderLeft: "3px solid transparent",
+                  borderRight: "3px solid transparent",
+                  borderTop: "3px solid white",
+                }} />
+                {getProgressPercent()}
+              </motion.div>
+            )}
+          </AnimatePresence>
           {analysisStatus === "error" && (
             <div
               style={{

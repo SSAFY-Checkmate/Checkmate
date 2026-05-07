@@ -294,16 +294,59 @@ export function LongFormDashboard() {
         ) : (
           <>
             <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
-              <PixelCharacter size="lg" />
+              <PixelOfficer 
+                size="lg" 
+                isWalking={analysisStatus !== "idle" && analysisStatus !== "error"} 
+              />
               <AnimatePresence>
-                {analysisStatus !== "idle" && (
+                {analysisStatus !== "idle" && analysisStatus !== "error" && (
                   <motion.div
-                    initial={{ x: -40, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
+                    initial={{ y: 10, opacity: 0, scale: 0.8 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    style={{ 
+                      position: "absolute", 
+                      top: "-25px", 
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      backgroundColor: "white",
+                      border: "2px solid #0f172a",
+                      borderRadius: "8px",
+                      padding: "4px 10px",
+                      fontSize: "12px",
+                      fontWeight: "900",
+                      color: "#0f172a",
+                      boxShadow: "0 4px 0 rgba(0,0,0,0.2)",
+                      whiteSpace: "nowrap",
+                      zIndex: 10,
+                      fontFamily: pixelFont,
+                    }}
                   >
-                    <PixelOfficer size="sm" mood="thinking" />
+                    {/* 말풍선 꼬리 외곽선 */}
+                    <div style={{
+                      position: "absolute",
+                      bottom: "-6px",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "6px solid transparent",
+                      borderRight: "6px solid transparent",
+                      borderTop: "6px solid #0f172a",
+                    }} />
+                    {/* 말풍선 꼬리 내부 */}
+                    <div style={{
+                      position: "absolute",
+                      bottom: "-3px",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderLeft: "4px solid transparent",
+                      borderRight: "4px solid transparent",
+                      borderTop: "4px solid white",
+                    }} />
+                    {statusMsg}
                   </motion.div>
                 )}
               </AnimatePresence>
