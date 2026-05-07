@@ -11,7 +11,7 @@ from youtube_transcript_api._errors import (
     IpBlocked,
 )
 
-from core.text_processor import clean_transcript_text
+from core.text_processor import clean_transcript_text, process_and_merge_segments
 from services.stt_engine import run_stt_fallback
 
 
@@ -105,14 +105,14 @@ def fetch_and_clean_transcript(video_id: str) -> dict:
         raw_text = " ".join([segment.text for segment in transcript_data])
         cleaned_text = clean_transcript_text(raw_text)
 
-        segments = []
+        raw_segments = []
         for segment in transcript_data:
-            c_text = clean_transcript_text(segment.text).strip()
-            if c_text:
-                segments.append({
-                    "start_time": segment.start,
-                    "text": c_text
-                })
+            raw_segments.append({
+                "start_time": segment.start,
+                "text": segment.text
+            })
+
+        segments = process_and_merge_segments(raw_segments)
 
         return {
             "video_id": video_id,

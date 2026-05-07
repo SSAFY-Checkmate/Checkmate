@@ -1,4 +1,4 @@
-import React from "react";
+
 
 export const GoogleIcon = ({ size = 20 }: { size?: number }) => (
   <svg 

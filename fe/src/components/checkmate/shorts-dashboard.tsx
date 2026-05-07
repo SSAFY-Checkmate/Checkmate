@@ -3,8 +3,8 @@ import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShieldCheck, AlertTriangle, HelpCircle, Check, LogIn } from "lucide-react";
-import { PIXEL_STYLES, COLORS } from "../../lib/constants/styles";
+import { X, ShieldCheck, AlertTriangle, HelpCircle, Check } from "lucide-react";
+import { PIXEL_STYLES } from "../../lib/constants/styles";
 import { TrustMeter } from "./report-tab";
 import { LoginView } from "./login-view";
 
@@ -218,8 +218,8 @@ export function ShortsDashboard() {
               style={{
                 width: "100%",
                 maxWidth: "360px",
-                backgroundColor: "#ffffff",
                 ...PIXEL_STYLES.border,
+                backgroundColor: "#ffffff",
                 borderWidth: "6px",
                 borderColor: verdictConfig[overallVerdict].color,
                 padding: "24px",

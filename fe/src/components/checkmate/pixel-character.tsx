@@ -40,7 +40,7 @@ export const PixelCharacter = ({ className, size = "lg" }: PixelCharacterProps) 
   );
 };
 
-export const PixelOfficer = ({ size = "sm", mood = "neutral", isWalking = false }: PixelCharacterProps) => {
+export const PixelOfficer = ({ size = "sm", isWalking = false }: PixelCharacterProps) => {
   const sizes = {
     xs: "32px",
     sm: "40px",

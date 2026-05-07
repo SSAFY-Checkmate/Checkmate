@@ -13,7 +13,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
     const { renderDashboard } = await import("./components/checkmate/injector");
 
     let isEnabled = false;
-    let observer: MutationObserver | null = null;
+
 
     const initStorage = async () => {
       const result = await chrome.storage.local.get(["factCheckEnabled"]);
@@ -32,7 +32,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       });
 
       // [추가] 콘텐츠 스크립트 생존 확인용 리스너
-      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (message.type === "PING") {
           sendResponse({ type: "PONG" });
         }
