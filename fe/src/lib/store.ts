@@ -58,6 +58,12 @@ interface CheckmateState {
   // 인증 상태
   isLoggedIn: boolean;
   user: User | null;
+  /**
+   * [자동 로그인 초기화 진행 중 여부]
+   * - true: initializeAuth()가 아직 실행 중 (로딩 스켈레톤 표시)
+   * - false: 인증 확인 완료 (결과에 따라 LoginView 또는 대시보드 표시)
+   */
+  isAuthInitializing: boolean;
 
   // 패널 및 모달 상태
   isPanelOpen: boolean;
@@ -79,7 +85,7 @@ interface CheckmateState {
   // 분석 결과 데이터
   trustScore: number;
   overallVerdict: Verdict;
-  summary: string; // 새로 추가된 summary 필드
+  summary: string;
   claims: Claim[];
 
   // 커뮤니티 데이터
@@ -130,8 +136,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   analyzedVideos: {},
 
   // 인증 초기 상태
-  isLoggedIn: false, // 실제 구현 시 초기화 함수에서 확인
+  // [중요] isAuthInitializing: true로 시작 → initializeAuth() 완료 전까지 LoginView 표시 차단
+  isLoggedIn: false,
   user: null,
+  isAuthInitializing: true,
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
@@ -636,10 +644,22 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
+  /**
+   * 로그인 상태 변경 + chrome.storage.local 캐시 동기화
+   * - 로그인 성공 시: 유저 정보를 로컬에 캐시하여 다음 페이지 로드 시 즉시 복원
+   * - 로그아웃 시: 캐시 및 토큰 전부 삭제
+   */
   setLoginStatus: (isLoggedIn, user = null) => {
-    if (!isLoggedIn) {
+    if (isLoggedIn && user) {
+      // [핵심] 로그인 성공 시 유저 정보를 chrome.storage.local에 캐시
+      // → 다음 페이지 로드 시 네트워크 없이 즉시 복원 가능
       if (typeof chrome !== "undefined" && chrome.storage) {
-        chrome.storage.local.remove("jwtToken");
+        chrome.storage.local.set({ checkmateUser: user });
+      }
+    } else {
+      // 로그아웃 시 캐시 완전 삭제
+      if (typeof chrome !== "undefined" && chrome.storage) {
+        chrome.storage.local.remove(["jwtToken", "checkmateUser"]);
       }
       localStorage.removeItem("jwtToken");
     }
@@ -770,10 +790,46 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 /**
  * 앱 로드 시 서버에 /auth/me 요청을 보내어 HttpOnly 쿠키 기반 인증 상태를 복원합니다.
  */
+/**
+ * [하이브리드 자동 로그인 전략]
+ *
+ * 기존 문제: isLoggedIn 초기값이 false이므로, initializeAuth()의 비동기 응답(~1~2초)
+ * 완료 전에 LoginView가 항상 먼저 렌더링되는 Flash(깜빡임) 현상 발생.
+ *
+ * 해결 전략 (2-Phase):
+ *   Phase 1 - 즉시 복원 (0ms): chrome.storage.local에 캐시된 유저 정보가 있으면
+ *             네트워크 요청 없이 isLoggedIn: true로 즉시 설정 → Flash 완전 제거
+ *   Phase 2 - 백그라운드 검증 (비동기): 서버에 /auth/me를 요청하여 세션 유효성 확인.
+ *             토큰이 만료된 경우 /auth/reissue로 재발급 시도.
+ *             최종적으로 서버 검증 실패 시에만 강제 로그아웃 + 캐시 삭제.
+ */
 export const initializeAuth = async () => {
   const store = useCheckmateStore.getState();
   const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
+  // ─── Phase 1: chrome.storage.local 캐시 즉시 복원 ───────────────────────────
+  // 목적: 네트워크 대기 없이 이전 세션의 유저 정보로 UI를 즉시 렌더링
+  // 효과: LoginView Flash(깜빡임) 완전 제거
+  if (typeof chrome !== "undefined" && chrome.storage) {
+    try {
+      const cached = await new Promise<{ checkmateUser?: User }>((resolve) => {
+        chrome.storage.local.get(["checkmateUser"], (items) => {
+          resolve(items as { checkmateUser?: User });
+        });
+      });
+      if (cached.checkmateUser) {
+        // 캐시 히트: 서버 응답 전에 즉시 로그인 상태로 전환
+        // isAuthInitializing은 아직 true → 서버 검증 완료 후 false로 변경
+        useCheckmateStore.setState({ isLoggedIn: true, user: cached.checkmateUser });
+      }
+    } catch {
+      // chrome.storage 접근 실패 시 조용히 무시하고 Phase 2로 진행
+    }
+  }
+
+  // ─── Phase 2: 서버 세션 유효성 백그라운드 검증 ──────────────────────────────
+  // 목적: 캐시가 있더라도 실제 서버 세션이 유효한지 반드시 확인
+  // 실패 시: 캐시 삭제 + 강제 로그아웃 (보안 보장)
   try {
     const response = await fetch(`${baseUrl}/auth/me`, {
       method: "GET",
@@ -783,18 +839,19 @@ export const initializeAuth = async () => {
     if (response.ok) {
       const result = await response.json();
       if (result.data && result.data.name) {
+        // 서버 검증 성공: 최신 유저 정보로 갱신 + 캐시 업데이트
         store.setLoginStatus(true, { name: result.data.name });
         return;
       }
     } else if (response.status === 401 || response.status === 403) {
-      // Access Token이 만료된 경우 (401/403) Refresh Token으로 재발급 시도
+      // Access Token 만료 → Refresh Token으로 재발급 시도
       const reissueResponse = await fetch(`${baseUrl}/auth/reissue`, {
         method: "POST",
         credentials: "include",
       });
 
       if (reissueResponse.ok) {
-        // 토큰 재발급 성공 시 다시 내 정보 가져오기
+        // 재발급 성공 → 유저 정보 재요청
         const retryResponse = await fetch(`${baseUrl}/auth/me`, {
           method: "GET",
           credentials: "include",
@@ -808,13 +865,25 @@ export const initializeAuth = async () => {
           }
         }
       } else {
-        console.warn("리프레시 토큰 만료, 다시 로그인해야 합니다.");
+        console.warn("[Checkmate] 리프레시 토큰 만료 → 재로그인 필요");
       }
     }
+
+    // 서버 검증 최종 실패 → 캐시 삭제 + 로그아웃
     store.setLoginStatus(false, null);
   } catch (error) {
-    console.error("인증 초기화 실패:", error);
-    store.setLoginStatus(false, null);
+    // 네트워크 오류(백엔드 다운 등) 시 처리
+    // 캐시로 이미 복원된 상태라면 오프라인 허용 (강제 로그아웃 하지 않음)
+    const currentState = useCheckmateStore.getState();
+    if (!currentState.isLoggedIn) {
+      // 캐시도 없고 서버도 실패 → 로그아웃 상태 확정
+      store.setLoginStatus(false, null);
+    } else {
+      console.warn("[Checkmate] 서버 검증 실패, 캐시 세션 유지 (네트워크 오류)");
+    }
+  } finally {
+    // Phase 2 완료: 로딩 스켈레톤 해제
+    useCheckmateStore.setState({ isAuthInitializing: false });
   }
 };
 
