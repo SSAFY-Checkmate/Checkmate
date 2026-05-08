@@ -65,6 +65,24 @@ class QdrantService:
             logger.error(f"Error creating collections: {e}")
             raise e
 
+    def clear_all_collections(self):
+        """Drops all collections and recreates them, effectively wiping all data."""
+        if not self.client:
+            logger.error("Qdrant client is not initialized.")
+            return {"status": "error", "message": "Qdrant client not initialized"}
+
+        try:
+            for collection_name in COLLECTIONS:
+                self.client.delete_collection(collection_name=collection_name)
+                logger.info(f"Deleted collection: {collection_name}")
+            
+            # Recreate them
+            created = self.create_collections_if_not_exist()
+            return {"status": "success", "message": "All collections have been cleared and recreated.", "recreated": created}
+        except Exception as e:
+            logger.error(f"Error clearing collections: {e}")
+            return {"status": "error", "message": str(e)}
+
     def upsert_points(self, collection_name: str, points: list):
         if not self.client:
             logger.error("Qdrant client is not initialized.")

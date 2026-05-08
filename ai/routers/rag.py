@@ -31,6 +31,28 @@ async def init_rag_collections():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/reset", summary="모든 Qdrant 컬렉션 초기화 (DB 싹 날리기)", description="주의: 이 API는 Qdrant에 있는 모든 컬렉션과 데이터를 삭제하고 빈 컬렉션을 다시 생성합니다. 복구할 수 없으므로 주의해서 사용하세요.")
+async def reset_all_collections():
+    try:
+        result = qdrant_service.clear_all_collections()
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message"))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+from seed_rag_docs import seed_markdown_documents
+
+@router.post("/seed/markdown", summary="마크다운 지식 데이터 적재 (파일 -> DB)", description="ai/data/rag/rag_ready 폴더의 마크다운 파일들을 청킹하여 Qdrant DB의 food_health_ad_docs 컬렉션에 적재합니다. (기존 데이터가 날아가진 않고 추가됩니다.)")
+async def seed_markdown_data():
+    try:
+        result = seed_markdown_documents()
+        if result and result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message"))
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/embedding/test", summary="GMS Embedding API 테스트", description="입력받은 텍스트를 SSAFY GMS Gateway(text-embedding-3-small)를 통해 임베딩 벡터로 변환하고, 생성된 벡터의 차원 수(1536) 및 프리뷰 값을 반환합니다.")
 async def test_embedding(request: EmbeddingRequest):
     try:
