@@ -13,12 +13,14 @@ import com.ssafy.a405.domain.user.repository.UserRepository;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CommentService {
 
@@ -30,6 +32,9 @@ public class CommentService {
 
     @Transactional
     public CommentResponse createComment(Long userId, CommentCreateRequest request) {
+        log.info("community.comment_create_request userId={} analysisId={} contentChars={}",
+            userId, request.analysisId(), request.content() == null ? 0 : request.content().length());
+
         Comment comment = commentRepository.save(
                 Comment.builder()
                         .analysisResult(getAnalysisResult(request.analysisId()))
@@ -65,6 +70,8 @@ public class CommentService {
         Comment comment = getCommentEntity(commentId);
         validateOwner(userId, comment.getUser().getId());
         comment.updateContent(request.content());
+        log.info("community.comment_updated userId={} commentId={} contentChars={}",
+            userId, commentId, request.content() == null ? 0 : request.content().length());
         return CommentResponse.from(comment);
     }
 
@@ -73,6 +80,7 @@ public class CommentService {
         Comment comment = getCommentEntity(commentId);
         validateOwner(userId, comment.getUser().getId());
         commentRepository.delete(comment);
+        log.info("community.comment_deleted userId={} commentId={}", userId, commentId);
     }
 
     private Comment getCommentEntity(Long commentId) {

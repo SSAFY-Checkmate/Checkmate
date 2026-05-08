@@ -12,12 +12,14 @@ import com.ssafy.a405.domain.analysis.repository.ViolationDetailRepository;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AnalysisService {
 
@@ -35,7 +37,7 @@ public class AnalysisService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
-        String videoIdStr = extractVideoId(job.getResultJson());
+        String videoIdStr = extractVideoId(jobId, job.getResultJson());
         if (videoIdStr == null) {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
@@ -60,10 +62,11 @@ public class AnalysisService {
                 .build();
     }
 
-    private String extractVideoId(String resultJson) {
+    private String extractVideoId(String jobId, String resultJson) {
         try {
             return objectMapper.readTree(resultJson).path("transcript").path("video_id").asText(null);
         } catch (Exception e) {
+            log.warn("analysis.result_extract_videoId_failed jobId={} resultChars={}", jobId, resultJson == null ? 0 : resultJson.length(), e);
             return null;
         }
     }

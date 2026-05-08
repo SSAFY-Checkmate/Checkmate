@@ -134,7 +134,8 @@ public class AnalysisDataMappingService {
             log.info("Successfully mapped and saved AnalysisResult for videoId={}", videoIdStr);
 
         } catch (Exception e) {
-            log.error("Failed to map and save AnalysisResult. resultJson={}", resultJson, e);
+            // Avoid logging full payload: it may be large and can contain transcript content.
+            log.error("analysis.mapping_failed payloadChars={}", resultJson == null ? 0 : resultJson.length(), e);
         }
     }
 

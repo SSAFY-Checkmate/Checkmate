@@ -10,12 +10,14 @@ import com.ssafy.a405.domain.user.repository.UserRepository;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService {
 
@@ -41,6 +43,8 @@ public class AuthService {
                 Duration.ofMillis(jwtProperties.refreshTokenExpirationMillis())
         );
 
+        // Do not log tokens. Keep security events traceable.
+        log.info("auth.token_issued userId={}", userDetail.getUserId());
         return TokenResponse.bearer(accessToken, refreshToken);
     }
 
@@ -50,14 +54,17 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHORIZED));
 
         if (!savedRefreshToken.equals(refreshToken)) {
+            log.warn("auth.refresh_token_mismatch userId={}", userId);
             throw new CustomException(ErrorCode.UNAUTHORIZED);
         }
 
         CustomUserDetail userDetail = loadUserDetail(userId);
+        log.info("auth.token_reissue userId={}", userId);
         return issueToken(userDetail);
     }
 
     public void logout(CustomUserDetail userDetail) {
         tokenStore.deleteRefreshToken(userDetail.getUserId());
+        log.info("auth.logout userId={}", userDetail.getUserId());
     }
 }

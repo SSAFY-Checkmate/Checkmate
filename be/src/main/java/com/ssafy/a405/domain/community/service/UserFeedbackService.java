@@ -12,12 +12,14 @@ import com.ssafy.a405.domain.user.repository.UserRepository;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UserFeedbackService {
 
@@ -31,6 +33,12 @@ public class UserFeedbackService {
                 .ifPresent(userFeedback -> {
                     throw new CustomException(ErrorCode.BAD_REQUEST);
                 });
+
+        log.info("community.feedback_create_request userId={} analysisId={} isCorrect={} reasonChars={}",
+            userId,
+            request.analysisId(),
+            request.isCorrect(),
+            request.reason() == null ? 0 : request.reason().length());
 
         UserFeedback userFeedback = userFeedbackRepository.save(
                 UserFeedback.builder()
@@ -62,6 +70,11 @@ public class UserFeedbackService {
         UserFeedback userFeedback = getUserFeedbackEntity(userFeedbackId);
         validateOwner(userId, userFeedback.getUser().getId());
         userFeedback.updateFeedback(request.reason(), request.isCorrect());
+        log.info("community.feedback_updated userId={} feedbackId={} isCorrect={} reasonChars={}",
+            userId,
+            userFeedbackId,
+            request.isCorrect(),
+            request.reason() == null ? 0 : request.reason().length());
         return UserFeedbackResponse.from(userFeedback);
     }
 
@@ -70,6 +83,7 @@ public class UserFeedbackService {
         UserFeedback userFeedback = getUserFeedbackEntity(userFeedbackId);
         validateOwner(userId, userFeedback.getUser().getId());
         userFeedbackRepository.delete(userFeedback);
+        log.info("community.feedback_deleted userId={} feedbackId={}", userId, userFeedbackId);
     }
 
     private UserFeedback getUserFeedbackEntity(Long userFeedbackId) {
