@@ -24,8 +24,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
     routing_result = await asyncio.to_thread(semantic_router.route_claim, claim)
     selected_routes = routing_result.get("selected_routes", ["general_web_search"])
     
-    # 2. Evidence Retrieval (블로킹 DB/검색 작업)
-    evidences = await asyncio.to_thread(evidence_retriever.retrieve_by_routes, claim, selected_routes, 3)
+    # 2. Evidence Retrieval (비동기 DB/검색/SQL 작업)
+    evidences = await evidence_retriever.retrieve_by_routes(claim, selected_routes, 3)
     
     # 증거를 문자열로 포맷팅
     evidence_text = ""
@@ -42,11 +42,12 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
 주어진 증거(Evidence) 자료들을 종합적으로 분석하여, 사용자의 주장(Claim)이 사실인지 거짓인지 합리적으로 판정하십시오.
 
 [증거 평가 및 교차 검증 원칙]
-1. 공식 기관 문서나 법령(Qdrant DB 기반)은 신뢰도가 가장 높습니다.
-2. [웹 검색 결과] 태그가 붙은 증거 역시 중요한 팩트체크 수단입니다. 내용이 상식적이고 일관성이 있다면 신뢰할 수 있는 증거로 적극 인정하십시오.
-3. 웹 검색 결과와 공식 문서가 정면으로 충돌할 경우에만 공식 문서를 우선하십시오.
-4. 증거의 텍스트가 주장과 "토씨 하나까지 완벽히" 일치하지 않더라도, 문맥상 핵심 의미가 상통한다면 사실로 인정하는 유연함을 발휘하십시오.
-5. 만약 [검색된 증거]가 사실상 비어 있거나, "검색된 관련 근거가 없습니다."와 같은 문구만 포함한다면, status는 반드시 "NOT_ENOUGH_INFO"로 설정해야 합니다.
+1. [식약처 DB 조회 결과] 태그가 붙은 증거는 정부의 공식 승인 데이터베이스 결과이므로 가장 신뢰도가 높으며, 다른 모든 증거보다 우선하여 판정의 근거로 삼으십시오.
+2. 공식 기관 문서나 법령(Qdrant DB 기반)은 두 번째로 신뢰도가 높습니다.
+3. [웹 검색 결과] 태그가 붙은 증거 역시 중요한 팩트체크 수단입니다. 내용이 상식적이고 일관성이 있다면 신뢰할 수 있는 증거로 적극 인정하십시오.
+4. 웹 검색 결과와 공식 문서/DB 결과가 정면으로 충돌할 경우에만 공식 문서/DB 결과를 우선하십시오.
+5. 증거의 텍스트가 주장과 "토씨 하나까지 완벽히" 일치하지 않더라도, 문맥상 핵심 의미가 상통한다면 사실로 인정하는 유연함을 발휘하십시오.
+6. 만약 [검색된 증거]가 사실상 비어 있거나, "검색된 관련 근거가 없습니다."와 같은 문구만 포함한다면, status는 반드시 "NOT_ENOUGH_INFO"로 설정해야 합니다.
 
 [자기 성찰 및 메타 인지 (Reflexion)]
 판정을 내리기 전, 다음 질문에 대한 답을 작성하며 스스로 성찰하십시오:

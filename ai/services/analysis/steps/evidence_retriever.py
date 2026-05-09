@@ -2,6 +2,8 @@ import logging
 from typing import List, Dict, Any
 from services.embedding_service import embedding_service
 from services.qdrant_service import qdrant_service
+from services.analysis.steps.sql_retriever import sql_retriever
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +45,10 @@ class EvidenceRetriever:
             logger.error(f"Web search failed: {e}")
             return []
 
-    def retrieve_by_routes(self, claim: str, selected_routes: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
+    async def retrieve_by_routes(self, claim: str, selected_routes: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
         """
         선택된 라우트들의 컬렉션에서 claim과 관련된 근거(Evidence)를 검색합니다.
+        조건부로 SQL Agent를 트리거하여 식약처 DB를 함께 조회합니다.
         """
         all_evidence = []
         
@@ -64,7 +67,7 @@ class EvidenceRetriever:
                     continue
                     
                 # similarity_search_with_score returns List[Tuple[Document, float]]
-                results = vector_store.similarity_search_with_score(claim, k=top_k)
+                results = await asyncio.to_thread(vector_store.similarity_search_with_score, claim, k=top_k)
                 
                 for doc, score in results:
                     all_evidence.append({
@@ -77,15 +80,29 @@ class EvidenceRetriever:
             except Exception as e:
                 logger.error(f"Error searching collection {collection_name}: {e}")
                 
+        # 2. SQL Agent Fallback/Addition (식품/건강 관련 라우트인 경우)
+        if "food_health_ad" in selected_routes or "health_medical" in selected_routes:
+            logger.info("SQL Agent condition met. Triggering 식약처 DB search...")
+            sql_result = await sql_retriever.search_sql_db(claim)
+            
+            if sql_result:
+                all_evidence.append({
+                    "route": "sql_db",
+                    "score": 0.95, # DB 검색 결과는 매우 높은 신뢰도 부여
+                    "content": f"[식약처 DB 조회 결과]\n{sql_result}",
+                    "metadata": {"source_type": "sql_database"}
+                })
+
+                
         # 3. Web Search Fallback (껐다 켰다 할 수 있는 로직)
         import os
         enable_web_search = os.getenv("ENABLE_WEB_SEARCH", "false").lower() == "true"
         
         if enable_web_search:
-            # news_event(최신 뉴스) 라우트이거나, 로컬 Qdrant에서 검색된 근거가 아예 없을 때 웹 검색 가동
+            # news_event(최신 뉴스) 라우트이거나, 로컬 Qdrant/SQL에서 검색된 근거가 아예 없을 때 웹 검색 가동
             if "news_event" in selected_routes or len(all_evidence) == 0:
                 logger.info("Web Search condition met. Triggering DuckDuckGo whitelist search...")
-                web_evidence = self._search_web_whitelist(claim)
+                web_evidence = await asyncio.to_thread(self._search_web_whitelist, claim)
                 all_evidence.extend(web_evidence)
                 
         # 4. (선택적) Reranking - 단순히 score 순으로 재정렬
