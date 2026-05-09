@@ -15,3 +15,6 @@ langchain-qdrant
 langchain-community
 ddgs
 langsmith
+pandas
+requests
+sqlalchemy
