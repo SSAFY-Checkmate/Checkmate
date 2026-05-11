@@ -1,5 +1,5 @@
 import { useCheckmateStore } from "../../lib/store";
-import { FileText, Users, Play } from "lucide-react";
+import { FileText, Users } from "lucide-react";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 
@@ -8,8 +8,6 @@ export function SidePanel() {
   const { 
     activeTab, 
     setActiveTab,
-    videoTitle,
-    channelName
   } = useCheckmateStore();
 
   return (
@@ -23,53 +21,6 @@ export function SidePanel() {
         fontFamily: "'CheckmatePixel', sans-serif",
       }}
     >
-      {/* Video Info Header */}
-      <div
-        style={{
-          padding: "16px",
-          borderBottom: "4px solid #cbd5e1",
-          backgroundColor: "#f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-        }}
-      >
-        <div
-          style={{
-            width: "48px",
-            height: "40px",
-            backgroundColor: "#e2e8f0",
-            border: "2px solid #94a3b8",
-            boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            borderRadius: "4px"
-          }}
-        >
-          <Play size={20} color="#64748b" fill="#64748b" />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: "16px",
-              fontWeight: "900",
-              color: "#334155",
-              margin: 0,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {videoTitle || "영상 제목이 없습니다"}
-          </p>
-          <p style={{ fontSize: "12px", color: "#94a3b8", margin: 0, fontWeight: "bold" }}>
-            {channelName || "채널 정보 없음"}
-          </p>
-        </div>
-      </div>
-
       {/* Tab Menu */}
       <div style={{ display: "flex", backgroundColor: "#e2e8f0", padding: "8px", gap: "8px", borderBottom: "4px solid #cbd5e1" }}>
         <button

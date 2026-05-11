@@ -29,13 +29,18 @@ public class ReactionService {
 
     @Transactional
     public ReactionResponse createReaction(Long userId, ReactionCreateRequest request) {
-        reactionRepository.findByAnalysisResultIdAndUserId(request.analysisId(), userId)
-                .ifPresent(reaction -> {
-                    throw new CustomException(ErrorCode.BAD_REQUEST);
-                });
+        java.util.Optional<Reaction> existingReaction = reactionRepository.findByAnalysisResultIdAndUserId(request.analysisId(), userId);
 
-        log.info("community.reaction_create_request userId={} analysisId={} reactionType={}",
-            userId, request.analysisId(), request.reactionType());
+        if (existingReaction.isPresent()) {
+            Reaction reaction = existingReaction.get();
+            if (reaction.getReactionType().equals(request.reactionType())) {
+                reactionRepository.delete(reaction);
+                return null;
+            } else {
+                reaction.updateReactionType(request.reactionType());
+                return ReactionResponse.from(reaction);
+            }
+        }
 
         Reaction reaction = reactionRepository.save(
                 Reaction.builder()

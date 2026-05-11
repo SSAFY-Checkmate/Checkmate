@@ -1,7 +1,6 @@
-
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
-import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
+import { COLORS } from "../../lib/constants/styles";
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const config = {
@@ -38,7 +37,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
         borderRadius: "4px",
         backgroundColor: bgColor,
         color: color,
-        border: `1px solid ${color}4d`, // 4d = 30% opacity
+        border: `1px solid ${color}4d`,
         imageRendering: "pixelated",
       }}
     >
@@ -53,71 +52,41 @@ export function TrustMeter({ score }: { score: number }) {
   const filledBars = Math.round((score / 100) * bars);
 
   const getBarColor = (i: number) => {
-    if (i >= filledBars) return "#cbd5e1"; // 비활성화된 바 (회색)
+    if (i >= filledBars) return "#cbd5e1";
     if (score < 30) return COLORS.destructive;
     if (score < 60) return COLORS.warning;
     return COLORS.success;
   };
 
-  const getBarShadow = (i: number) => {
-    if (i >= filledBars) return "#94a3b8"; 
-    if (score < 30) return "#991b1b"; // 진한 빨강
-    if (score < 60) return "#d97706"; // 진한 주황
-    return "#16a34a"; // 진한 초록
-  };
-
   return (
-    <div style={{ 
-      display: "flex", 
-      flexDirection: "column", 
-      gap: "6px", 
-      width: "100%", 
-      maxWidth: "240px",
-      padding: "10px",
-      ...PIXEL_STYLES.border,
-      backgroundColor: "#f8fafc",
-      border: "2px solid #94a3b8",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+        width: "100%",
+        maxWidth: "240px",
+        padding: "10px",
+        backgroundColor: "#f8fafc",
+        border: "2px solid #94a3b8",
+        borderRadius: "4px",
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2px" }}>
-        <span style={{ fontSize: "14px", fontWeight: "900", color: "#475569", letterSpacing: "1px" }}>
-          TRUST SCORE
-        </span>
+        <span style={{ fontSize: "14px", fontWeight: "900", color: "#475569", letterSpacing: "1px" }}>수사 신뢰도</span>
         <span
           style={{
             fontSize: "16px",
             fontWeight: "900",
             color: score < 30 ? COLORS.destructive : score < 60 ? COLORS.warning : COLORS.success,
-            textShadow: "1px 1px 0 rgba(0,0,0,0.1)"
           }}
         >
           {score}%
         </span>
       </div>
-      
-      {/* 게이지 본체 */}
-      <div style={{ 
-        display: "flex", 
-        gap: "4px", 
-        backgroundColor: "#1e293b", 
-        padding: "6px",
-        boxShadow: "inset 0 4px 0 rgba(0,0,0,0.4)",
-        border: "2px solid #475569"
-      }}>
-        {Array.from({ length: bars }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              height: "14px",
-              backgroundColor: getBarColor(i),
-              position: "relative",
-              // 픽셀 입체감 효과
-              boxShadow: i < filledBars ? `
-                inset 2px 2px 0 rgba(255,255,255,0.4), 
-                inset -2px -2px 0 ${getBarShadow(i)}
-              ` : "none",
-            }}
-          />
+      <div style={{ display: "flex", gap: "4px", height: "12px" }}>
+        {[...Array(bars)].map((_, i) => (
+          <div key={i} style={{ flex: 1, backgroundColor: getBarColor(i), borderRadius: "1px" }} />
         ))}
       </div>
     </div>
@@ -125,84 +94,200 @@ export function TrustMeter({ score }: { score: number }) {
 }
 
 function ClaimCard({ claim }: { claim: Claim }) {
-  const isWarning = claim.verdict === "warning";
-  const borderColor = isWarning ? "#ef4444" : "#0ea5e9";
-  const bgColor = isWarning ? "#fef2f2" : "#f0f9ff";
-  const textColor = isWarning ? "#991b1b" : "#0f172a";
-  const reasonColor = isWarning ? "#b91c1c" : "#334155";
+  // 전용 데이터 파서 함수
+  const parseEvidence = (text: string) => {
+    const cleanText = text.replace(/\*\*/g, "").replace(/^-\s*/, "").trim();
+
+    const parts = {
+      original: claim.text,
+      translatedClaim: "",
+      verdict: claim.verdict,
+      verdictText: "", // AI가 보낸 원본 판정 문구 저장
+      explanation: "",
+    };
+
+    const claimIdx = cleanText.indexOf("[주장]");
+    const verdictIdx = cleanText.indexOf("[판정]");
+    const explanationIdx = cleanText.indexOf("[설명]");
+
+    if (claimIdx !== -1) {
+      const endIdx = verdictIdx !== -1 ? verdictIdx : explanationIdx !== -1 ? explanationIdx : cleanText.length;
+      parts.translatedClaim = cleanText.substring(claimIdx + 4, endIdx).trim();
+    }
+
+    if (explanationIdx !== -1) {
+      parts.explanation = cleanText.substring(explanationIdx + 4).trim();
+    } else {
+      parts.explanation = cleanText;
+    }
+
+    if (verdictIdx !== -1) {
+      const vText = cleanText
+        .substring(verdictIdx + 4, explanationIdx !== -1 ? explanationIdx : cleanText.length)
+        .trim();
+      parts.verdictText = vText; // 원본 문구 보관
+
+      const upperV = vText.toUpperCase();
+      // 위험/허위 판별
+      if (
+        upperV.includes("WARNING") ||
+        upperV.includes("DANGER") ||
+        upperV.includes("FALSE") ||
+        upperV.includes("MISINFORMATION") ||
+        upperV.includes("FAKE")
+      ) {
+        parts.verdict = "warning";
+      }
+      // 안전/사실 판별
+      else if (
+        upperV.includes("SAFE") ||
+        upperV.includes("GOOD") ||
+        upperV.includes("TRUE") ||
+        upperV.includes("FACT") ||
+        upperV.includes("VALID")
+      ) {
+        parts.verdict = "safe";
+      }
+      // 보류 판별
+      else if (upperV.includes("NOT_ENOUGH") || upperV.includes("UNKNOWN") || upperV.includes("PENDING")) {
+        parts.verdict = "unknown";
+      }
+    }
+
+    // [지능형 보정] 설명 내용에 "사실로 확인", "사실입니다" 등이 포함되어 있으면 safe로 판단
+    if (
+      parts.explanation.includes("사실로 확인") ||
+      parts.explanation.includes("사실입니다") ||
+      parts.explanation.includes("신뢰할 수 있")
+    ) {
+      parts.verdict = "safe";
+    } else if (
+      parts.explanation.includes("허위로 확인") ||
+      parts.explanation.includes("거짓입니다") ||
+      parts.explanation.includes("왜곡된")
+    ) {
+      parts.verdict = "warning";
+    }
+
+    return parts;
+  };
+
+  const parsed = parseEvidence(claim.evidence);
+  const isWarning = parsed.verdict === "warning";
+  const isUnknown = parsed.verdict === "unknown";
+
+  const theme = isWarning
+    ? { border: "#ef4444", bg: "rgba(254, 242, 242, 0.98)", label: "#b91c1c" } // 빨강, 진한 빨강
+    : isUnknown
+      ? { border: "#f59e0b", bg: "rgba(255, 251, 235, 0.98)", label: "#b45309" } // 주황, 진한 주황
+      : { border: "#10b981", bg: "rgba(240, 253, 244, 0.98)", label: "#047857" }; // 초록, 진한 초록
+
+  // 공통 라벨 스타일
+  const labelStyle = (color: string) => ({
+    backgroundColor: color,
+    color: "#fff",
+    padding: "3px 10px",
+    fontSize: "11px",
+    fontWeight: "bold",
+    borderRadius: "2px",
+    display: "inline-block",
+    marginBottom: "8px",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+  });
 
   return (
     <div
       style={{
-        padding: "16px",
-        ...PIXEL_STYLES.border,
-        backgroundColor: bgColor,
-        border: `3px solid ${borderColor}`,
-        boxShadow: isWarning 
-          ? "inset 0 0 0 2px rgba(239, 68, 68, 0.2), 0 4px 6px rgba(0,0,0,0.1)"
-          : "inset 0 0 0 2px rgba(14, 165, 233, 0.2), 0 4px 6px rgba(0,0,0,0.1)",
-        marginBottom: "16px",
-        fontFamily: "'CheckmatePixel', sans-serif",
+        backgroundColor: theme.bg,
+        padding: "20px",
+        border: `2px solid ${theme.border}`,
+        borderRadius: "8px",
+        marginBottom: "24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "18px",
+        boxShadow: `0 4px 15px ${theme.border}15`,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", borderBottom: `2px dashed ${borderColor}66`, paddingBottom: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <AlertTriangle size={16} color={isWarning ? "#ef4444" : "#0ea5e9"} />
-          <span style={{ fontSize: "14px", fontWeight: "bold", color: borderColor, letterSpacing: "1px" }}>
-            의심 문장 발견
-          </span>
+      {/* 1. 원문 섹션 */}
+      <div>
+        <span style={labelStyle("#475569")}>원문</span>
+        <div
+          style={{
+            backgroundColor: "#fff",
+            padding: "12px 14px",
+            borderLeft: `4px solid ${theme.border}44`,
+            borderRadius: "4px",
+            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.05)"
+          }}
+        >
+          <p style={{ fontSize: "14px", fontWeight: "bold", color: "#475569", margin: 0, lineHeight: "1.6" }}>
+            {parsed.original}
+          </p>
         </div>
-        <VerdictBadge verdict={claim.verdict} />
       </div>
 
-      <div style={{ 
-        backgroundColor: "rgba(255, 255, 255, 0.8)", 
-        padding: "12px", 
-        border: `2px solid ${borderColor}4d`,
-        borderRadius: "4px",
-        marginBottom: "12px"
-      }}>
-        <p style={{ 
-          fontSize: "15px", 
-          fontWeight: "900", 
-          color: textColor, 
-          margin: 0, 
-          lineHeight: "1.5",
-          wordBreak: "keep-all"
-        }}>
-          "{claim.text}"
+      <div style={{ width: "100%", height: "1px", backgroundColor: `${theme.border}22` }}></div>
+
+      {/* 2. 주장 섹션 */}
+      <div>
+        <span style={labelStyle(theme.border)}>주장</span>
+        <p style={{ fontSize: "16px", fontWeight: "900", color: "#1e293b", margin: "4px 0 0 4px", lineHeight: "1.5" }}>
+          {parsed.translatedClaim}
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-        <div style={{ 
-          backgroundColor: borderColor, 
-          color: "white", 
-          padding: "4px 6px", 
-          fontSize: "11px", 
-          fontWeight: "bold",
-          marginTop: "2px",
-          border: `1px solid ${isWarning ? "#991b1b" : "#0284c7"}`,
-          boxShadow: `0 2px 0 ${isWarning ? "#991b1b" : "#0284c7"}`,
-          borderRadius: "2px"
-        }}>
-          AI 판단 근거
+      {/* 3. 판정 섹션 */}
+      <div
+        style={{
+          padding: "12px 0",
+          borderTop: `1px dashed ${theme.border}33`,
+          borderBottom: `1px dashed ${theme.border}33`,
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
+        <span style={{ ...labelStyle(theme.label), marginBottom: 0 }}>판정</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <VerdictBadge verdict={parsed.verdict} />
+          {parsed.verdictText && (
+            <span style={{ fontSize: "12px", color: theme.label, fontStyle: "italic", fontWeight: "bold" }}>
+              ({parsed.verdictText})
+            </span>
+          )}
         </div>
-        <p style={{ 
-          flex: 1,
-          fontSize: "13px", 
-          color: reasonColor, 
-          margin: 0, 
-          lineHeight: "1.6",
-          fontWeight: "bold",
-          wordBreak: "keep-all"
-        }}>
-          {claim.evidence}
+      </div>
+
+      {/* 4. 설명 섹션 */}
+      <div>
+        <span style={labelStyle("#475569")}>설명</span>
+        <p
+          style={{
+            fontSize: "14px",
+            color: "#334155",
+            margin: 0,
+            lineHeight: "1.8",
+            fontWeight: "bold",
+            wordBreak: "keep-all",
+          }}
+        >
+          {parsed.explanation}
         </p>
       </div>
 
+      {/* 출처 */}
       {claim.sources.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px", paddingTop: "8px", borderTop: "1px dashed #cbd5e1" }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px",
+            marginTop: "4px",
+            paddingTop: "12px",
+            borderTop: "1px solid rgba(0,0,0,0.05)",
+          }}
+        >
           {claim.sources.map((source, idx) => (
             <a
               key={idx}
@@ -214,13 +299,12 @@ function ClaimCard({ claim }: { claim: Claim }) {
                 fontSize: "12px",
                 color: COLORS.primary,
                 textDecoration: "none",
-                fontWeight: "bold"
+                fontWeight: "bold",
               }}
               target="_blank"
               rel="noreferrer"
             >
-              <ExternalLink size={12} />
-              {source.label}
+              <ExternalLink size={12} /> {source.label}
             </a>
           ))}
         </div>
@@ -229,7 +313,11 @@ function ClaimCard({ claim }: { claim: Claim }) {
   );
 }
 
-export function ReportTab() {
+interface ReportTabProps {
+  isCompact?: boolean;
+}
+
+export function ReportTab({ isCompact = false }: ReportTabProps) {
   const { trustScore, overallVerdict, summary, claims } = useCheckmateStore();
 
   const verdictConfig = {
@@ -256,95 +344,82 @@ export function ReportTab() {
     },
   };
 
-  const { icon, label, bgColor, borderColor, textColor } = verdictConfig[overallVerdict];
+  const currentVerdict = verdictConfig[overallVerdict];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "16px", fontFamily: "'CheckmatePixel', sans-serif" }}>
-      {/* Overall Verdict Card */}
-      <div
-        style={{
-          padding: "16px",
-          textAlign: "center",
-          ...PIXEL_STYLES.border,
-          backgroundColor: bgColor,
-          border: `2px solid ${borderColor}`,
-          boxShadow: `inset 0 0 0 2px ${bgColor}, ${PIXEL_STYLES.border.boxShadow.trim()}`,
-        }}
-      >
-        <div style={{ fontSize: "32px", marginBottom: "4px" }}>{icon}</div>
-        <h3 style={{ fontSize: "18px", fontWeight: "bold", color: textColor, margin: "0 0 8px 0" }}>{label}</h3>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <TrustMeter score={trustScore} />
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        padding: isCompact ? "4px" : "16px",
+        fontFamily: "'CheckmatePixel', sans-serif",
+      }}
+    >
+      {/* 롱폼에서만 보여주는 전체 결과 카드 */}
+      {!isCompact && (
+        <div
+          style={{
+            padding: "16px",
+            textAlign: "center",
+            backgroundColor: currentVerdict.bgColor,
+            border: `2px solid ${currentVerdict.borderColor}`,
+            borderRadius: "4px",
+          }}
+        >
+          <div style={{ fontSize: "32px", marginBottom: "4px" }}>{currentVerdict.icon}</div>
+          <h3 style={{ fontSize: "18px", fontWeight: "bold", color: currentVerdict.textColor, margin: "0 0 8px 0" }}>
+            {currentVerdict.label}
+          </h3>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <TrustMeter score={trustScore} />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Summary Area */}
-      {summary && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-          <h4 style={{ 
-            fontSize: "16px", 
-            fontWeight: "900", 
-            color: "#0ea5e9", 
-            margin: 0,
-            fontFamily: "'CheckmatePixel', sans-serif",
-            letterSpacing: "1px",
-            textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)"
-          }}>
-            📋 AI 영상 요약
-          </h4>
-          <div style={{ 
-            padding: "16px", 
-            ...PIXEL_STYLES.border,
-            backgroundColor: "#f8fafc",
-            border: "2px solid #cbd5e1",
-            lineHeight: "1.6",
-            fontSize: "14px",
-            color: "#334155",
-            fontFamily: "'CheckmatePixel', sans-serif",
-            fontWeight: "bold",
-            boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.5)"
-          }}>
+      {/* 요약 섹션 (롱폼에서만 혹은 데이터가 있을 때) */}
+      {!isCompact && summary && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <h4 style={{ fontSize: "16px", fontWeight: "900", color: "#0ea5e9", margin: 0 }}>📋 AI 영상 요약</h4>
+          <div
+            style={{
+              padding: "16px",
+              backgroundColor: "#f8fafc",
+              border: "2px solid #cbd5e1",
+              fontSize: "14px",
+              color: "#334155",
+              fontWeight: "bold",
+              lineHeight: "1.6",
+            }}
+          >
             {summary}
           </div>
         </div>
       )}
 
-      {/* Claims List Area */}
-      {claims.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-          <h4 style={{ 
-            fontSize: "16px", 
-            fontWeight: "900", 
-            color: "#ef4444", 
-            margin: 0,
-            fontFamily: "'CheckmatePixel', sans-serif",
-            letterSpacing: "1px",
-            textShadow: "1px 1px 0 rgba(239, 68, 68, 0.2)"
-          }}>
-            🚨 핵심 주장 분석
-          </h4>
-          {claims.map((claim) => (
-            <ClaimCard key={claim.id} claim={claim} />
-          ))}
-        </div>
-      ) : (
-        !summary && (
-          <div style={{ 
-            padding: "24px", 
-            backgroundColor: "#f8fafc", 
-            border: "3px dashed #cbd5e1",
-            borderRadius: "4px",
-            textAlign: "center",
-            fontFamily: "'CheckmatePixel', sans-serif",
-            marginTop: "8px"
-          }}>
-            <p style={{ margin: 0, fontSize: "14px", color: "#64748b", lineHeight: "1.6", fontWeight: "bold" }}>
-              세부 영상 분석 데이터가 없습니다.<br/>
-              상단의 <span style={{ color: "#0ea5e9" }}>전체 신뢰도 판별 결과</span>를 참고해 주세요.
+      {/* 증거 목록 (공통) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {!isCompact && claims.length > 0 && (
+          <h4 style={{ fontSize: "16px", fontWeight: "900", color: "#ef4444", margin: 0 }}>🚨 핵심 주장 분석</h4>
+        )}
+        {claims && claims.length > 0 ? (
+          claims.map((claim) => <ClaimCard key={claim.id} claim={claim} />)
+        ) : (
+          <div
+            style={{
+              padding: "32px 16px",
+              backgroundColor: "rgba(15, 23, 42, 0.1)",
+              border: "2px dashed rgba(0,0,0,0.1)",
+              borderRadius: "8px",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "14px", color: "#64748b", fontWeight: "bold" }}>
+              본문에서 발견된 결정적 증거가 없습니다.
             </p>
           </div>
-        )
-      )}
+        )}
+      </div>
     </div>
   );
 }

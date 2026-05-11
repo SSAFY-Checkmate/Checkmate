@@ -1,5 +1,5 @@
-import { useMemo, useRef } from "react";
-import { useCheckmateStore, logoutAuth } from "../../lib/store";
+import { useMemo, useRef, useEffect } from "react";
+import { useCheckmateStore, logoutAuth, initializeAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
@@ -12,34 +12,46 @@ import { PIXEL_STYLES } from "../../lib/constants/styles";
  * 기존 AnalysisDashboard의 로직을 그대로 유지합니다.
  */
 export function LongFormDashboard() {
-  const { 
-    startAnalysis, 
-    startDemoAnalysis,
-    analysisStatus, 
-    overallVerdict, 
-    openPanel, 
-    warningCount, 
+  const {
+    startAnalysis,
+    analysisStatus,
+    overallVerdict,
+    openPanel,
+    warningCount,
     setActiveTab,
     isPanelOpen,
     closePanel,
 
     user,
-    summary
+    summary,
   } = useCheckmateStore();
-  
+
   const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // 컴포넌트 마운트 시 인증 초기화
+  useEffect(() => {
+    initializeAuth();
+  }, []);
 
   /**
    * 분석 상태에 따른 메시지 매핑
    */
   const statusMsg = useMemo(() => {
     switch (analysisStatus) {
-      case "detecting": return "영상 감지 중...";
-      case "analyzing_transcript": return "자막 분석 중...";
-      case "analyzing_claims": return "주장 추출 중...";
-      case "verifying": return "신뢰도 검증 중...";
-      case "complete": return "수사 완료";
-      default: return "";
+      case "checking":
+        return "분석 이력 확인 중...";
+      case "detecting":
+        return "영상 감지 중...";
+      case "analyzing_transcript":
+        return "자막 분석 중...";
+      case "analyzing_claims":
+        return "주장 추출 중...";
+      case "verifying":
+        return "신뢰도 검증 중...";
+      case "complete":
+        return "수사 완료";
+      default:
+        return "";
     }
   }, [analysisStatus]);
 
@@ -138,11 +150,11 @@ export function LongFormDashboard() {
   };
 
   return (
-    <div 
+    <div
       ref={dashboardRef}
       style={{
         ...PIXEL_STYLES.dashboardContainer,
-        fontFamily: pixelFont
+        fontFamily: pixelFont,
       }}
     >
       {/* --- 상단 메인 카드 영역 --- */}
@@ -156,7 +168,7 @@ export function LongFormDashboard() {
           boxShadow: `0 10px 25px ${theme.shadowOuter}, inset 0 0 0 2px ${theme.shadowHover}`,
           border: `4px solid ${theme.border}`,
           borderRadius: "8px",
-          padding: "16px", 
+          padding: "16px",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -167,8 +179,19 @@ export function LongFormDashboard() {
       >
         {/* 우측 상단 유저 프로필 및 로그아웃 버튼 */}
         {user?.name && (
-          <div style={{ position: "absolute", top: "10px", right: "10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", zIndex: 100 }}>
-            <div 
+          <div
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "4px",
+              zIndex: 100,
+            }}
+          >
+            <div
               onClick={logoutAuth}
               style={{
                 width: "32px",
@@ -188,12 +211,12 @@ export function LongFormDashboard() {
                 transition: "transform 0.1s",
               }}
               title={`${user.name} (클릭하여 로그아웃)`}
-              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.1)"}
-              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               {user.name.charAt(0).toUpperCase()}
             </div>
-            <span 
+            <span
               onClick={logoutAuth}
               style={{
                 fontSize: "10px",
@@ -217,7 +240,7 @@ export function LongFormDashboard() {
                 padding: "4px",
                 borderRadius: "4px",
                 boxShadow: `0 4px 0 ${theme.iconShadow}`,
-                marginTop: "16px"
+                marginTop: "16px",
               }}
             >
               <div
@@ -230,7 +253,7 @@ export function LongFormDashboard() {
                   justifyContent: "center",
                   alignItems: "center",
                   width: "64px",
-                  height: "64px"
+                  height: "64px",
                 }}
               >
                 {(() => {
@@ -286,24 +309,87 @@ export function LongFormDashboard() {
                 onClick={(e) => togglePanel(e)}
                 colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
                 text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                icon={isPanelOpen ? <ChevronUp size={20} color="#1e293b" strokeWidth={3} /> : <ChevronDown size={20} color="#ffffff" strokeWidth={3} />}
+                icon={
+                  isPanelOpen ? (
+                    <ChevronUp size={20} color="#1e293b" strokeWidth={3} />
+                  ) : (
+                    <ChevronDown size={20} color="#ffffff" strokeWidth={3} />
+                  )
+                }
                 size="md"
               />
             </div>
           </>
         ) : (
           <>
-            <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
+            {/* 경찰서 건물(항상 표시) + 분석 중 경찰관 오버레이 */}
+            <div
+              style={{ position: "relative", cursor: "pointer", marginTop: "16px" }}
+              onClick={() => startAnalysis()}
+            >
+              {/* 경찰서 건물 배경 */}
               <PixelCharacter size="lg" />
+
+              {/* 분석 중일 때 경찰관 오버레이 */}
               <AnimatePresence>
-                {analysisStatus !== "idle" && (
+                {analysisStatus !== "idle" && analysisStatus !== "error" && (
                   <motion.div
                     initial={{ x: -40, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ opacity: 0 }}
                     style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
                   >
-                    <PixelOfficer size="sm" mood="thinking" />
+                    {/* 말풍선 */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "-30px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        backgroundColor: "white",
+                        border: "2px solid #0f172a",
+                        borderRadius: "8px",
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: "900",
+                        color: "#0f172a",
+                        boxShadow: "0 4px 0 rgba(0,0,0,0.2)",
+                        whiteSpace: "nowrap",
+                        zIndex: 10,
+                        fontFamily: pixelFont,
+                      }}
+                    >
+                      {/* 말풍선 꼬리 외곽선 */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "-6px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 0,
+                          height: 0,
+                          borderLeft: "6px solid transparent",
+                          borderRight: "6px solid transparent",
+                          borderTop: "6px solid #0f172a",
+                        }}
+                      />
+                      {/* 말풍선 꼬리 내부 */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "-3px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 0,
+                          height: 0,
+                          borderLeft: "4px solid transparent",
+                          borderRight: "4px solid transparent",
+                          borderTop: "4px solid white",
+                        }}
+                      />
+                      {statusMsg}
+                    </div>
+                    <PixelOfficer size="sm" mood="thinking" isWalking />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -313,97 +399,80 @@ export function LongFormDashboard() {
               {analysisStatus === "idle" ? (
                 <div style={{ display: "flex", gap: "8px", width: "100%" }}>
                   <div style={{ flex: 1 }}>
-                    <PixelButton
-                      onClick={() => startAnalysis()}
-                      colorType="primary"
-                      text="팩트체크 수사 시작"
-                    />
+                    <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
                   </div>
-                  <button
-                    onClick={() => startDemoAnalysis()}
-                    title="API를 호출하지 않고 목업 데이터로 데모를 실행합니다"
-                    style={{
-                      backgroundColor: "#e2e8f0",
-                      border: "2px solid #94a3b8",
-                      borderRadius: "6px",
-                      padding: "0 12px",
-                      cursor: "pointer",
-                      fontFamily: pixelFont,
-                      fontWeight: "bold",
-                      color: "#475569",
-                      boxShadow: "0 4px 0 #94a3b8",
-                      transition: "all 0.1s",
-                      flexShrink: 0,
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "translateY(4px)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "translateY(0px)";
-                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0px)";
-                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
-                    }}
-                  >
-                    데모
-                  </button>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-                  <div style={{ 
-                    display: "flex", 
-                    justifyContent: "space-between", 
-                    fontSize: "14px", 
-                    color: "#0ea5e9",
-                    fontFamily: pixelFont,
-                    fontWeight: "900",
-                    textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
-                  }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "14px",
+                      color: "#0ea5e9",
+                      fontFamily: pixelFont,
+                      fontWeight: "900",
+                      textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
+                    }}
+                  >
                     <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
                     <span>
-                      {analysisStatus === "detecting" ? "25%" : 
-                       analysisStatus === "analyzing_transcript" ? "50%" : 
-                       analysisStatus === "analyzing_claims" ? "75%" : "95%"}
+                      {analysisStatus === "checking"
+                        ? "10%"
+                        : analysisStatus === "detecting"
+                          ? "25%"
+                          : analysisStatus === "analyzing_transcript"
+                            ? "50%"
+                            : analysisStatus === "analyzing_claims"
+                              ? "75%"
+                              : "95%"}
                     </span>
                   </div>
-                  
-                  <div style={{ 
-                    height: "24px", 
-                    width: "100%", 
-                    backgroundColor: "#0f172a", 
-                    padding: "4px", 
-                    border: "3px solid #475569",
-                    boxShadow: "inset 0 4px 0 rgba(0,0,0,0.5), 2px 2px 0 rgba(255,255,255,0.1)",
-                    display: "flex",
-                    gap: "3px",
-                    position: "relative",
-                    overflow: "hidden"
-                  }}>
+
+                  <div
+                    style={{
+                      height: "24px",
+                      width: "100%",
+                      backgroundColor: "#0f172a",
+                      padding: "4px",
+                      border: "3px solid #475569",
+                      boxShadow: "inset 0 4px 0 rgba(0,0,0,0.5), 2px 2px 0 rgba(255,255,255,0.1)",
+                      display: "flex",
+                      gap: "3px",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
                     {Array.from({ length: 15 }).map((_, i) => {
-                      const progress = 
-                        analysisStatus === "detecting" ? 25 : 
-                        analysisStatus === "analyzing_transcript" ? 50 : 
-                        analysisStatus === "analyzing_claims" ? 75 : 95;
-                      
-                      const isFilled = (i + 1) <= (progress / 100) * 15;
-                      
+                      const progress =
+                        analysisStatus === "checking"
+                          ? 10
+                          : analysisStatus === "detecting"
+                            ? 25
+                            : analysisStatus === "analyzing_transcript"
+                              ? 50
+                              : analysisStatus === "analyzing_claims"
+                                ? 75
+                                : 95;
+
+                      const isFilled = i + 1 <= (progress / 100) * 15;
+
                       return (
                         <motion.div
                           key={i}
                           initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ 
-                            opacity: isFilled ? 1 : 0.2, 
+                          animate={{
+                            opacity: isFilled ? 1 : 0.2,
                             scale: isFilled ? 1 : 0.9,
-                            backgroundColor: isFilled ? "#38bdf8" : "#1e293b" 
+                            backgroundColor: isFilled ? "#38bdf8" : "#1e293b",
                           }}
                           style={{
                             flex: 1,
                             height: "100%",
-                            boxShadow: isFilled ? "inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 #0369a1" : "none",
-                            position: "relative"
+                            boxShadow: isFilled
+                              ? "inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 #0369a1"
+                              : "none",
+                            position: "relative",
                           }}
                         >
                           {isFilled && (
@@ -414,7 +483,7 @@ export function LongFormDashboard() {
                                 position: "absolute",
                                 inset: 0,
                                 background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
-                                pointerEvents: "none"
+                                pointerEvents: "none",
                               }}
                             />
                           )}
@@ -436,13 +505,13 @@ export function LongFormDashboard() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
-            style={{ 
-              width: "100%", 
+            style={{
+              width: "100%",
               overflow: "hidden",
               ...PIXEL_STYLES.border,
               borderTop: "none",
               backgroundColor: "white",
-              zIndex: 10
+              zIndex: 10,
             }}
           >
             <div style={{ height: "500px", display: "flex", flexDirection: "column" }}>

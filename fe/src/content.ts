@@ -3,6 +3,7 @@
  */
 
 import { useCheckmateStore } from "./lib/store";
+import { scrapeMetadata } from "./lib/youtube-utils";
 
 if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
@@ -10,7 +11,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   (window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__ = true;
 
   const runCheckmate = async () => {
-    const { renderDashboard } = await import("./components/checkmate/injector");
+    const { renderDashboard, renderGlobalModal } = await import("./components/checkmate/injector");
 
     let isEnabled = false;
 
@@ -40,6 +41,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
     };
 
     const startInfection = () => {
+      renderGlobalModal();
       runInjections();
 
       // 기존의 무거운 MutationObserver 제거 및 단순 감시 타이머로 교체
@@ -135,7 +137,10 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       }
 
       if (videoId) {
-        useCheckmateStore.getState().setCurrentVideo(videoId);
+        // YouTube DOM에서 제목/채널명 추출
+        const { title: videoTitle, channel: channelName } = scrapeMetadata();
+
+        useCheckmateStore.getState().setCurrentVideo(videoId, videoTitle.trim(), channelName.trim());
       }
 
       if (isWatchPage) {

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { MOCK_ANALYSIS_RESULTS } from "./constants/mock-data";
+import { isUnknown, scrapeMetadata } from "./youtube-utils";
+import { analysisApi, communityApi, authApi } from "./api";
 
 export type Tab = "report" | "community";
 export type Verdict = "safe" | "warning" | "unknown";
@@ -15,9 +17,11 @@ export interface WantedCard {
 
 export interface ChatMessage {
   id: string;
+  userId: number;
   username: string;
   message: string;
   badge?: "verifier" | "reporter";
+  createdAt?: string;
 }
 
 /**
@@ -40,6 +44,7 @@ export interface Claim {
  */
 export type AnalysisStatus =
   | "idle"
+  | "checking"
   | "detecting"
   | "analyzing_transcript"
   | "analyzing_claims"
@@ -48,6 +53,7 @@ export type AnalysisStatus =
   | "error";
 
 export interface User {
+  id: number;
   name: string;
 }
 
@@ -58,9 +64,16 @@ interface CheckmateState {
   // 인증 상태
   isLoggedIn: boolean;
   user: User | null;
+  /**
+   * [자동 로그인 초기화 진행 중 여부]
+   * - true: initializeAuth()가 아직 실행 중 (로딩 스켈레톤 표시)
+   * - false: 인증 확인 완료 (결과에 따라 LoginView 또는 대시보드 표시)
+   */
+  isAuthInitializing: boolean;
 
   // 패널 및 모달 상태
   isPanelOpen: boolean;
+  isResultModalOpen: boolean;
   activeTab: Tab;
 
   // 알림 팝업 상태
@@ -78,15 +91,31 @@ interface CheckmateState {
   // 분석 결과 데이터
   trustScore: number;
   overallVerdict: Verdict;
-  summary: string; // 새로 추가된 summary 필드
+  summary: string;
+  analysisId: number | null; // RDB PK
   claims: Claim[];
 
   // 커뮤니티 데이터
+  communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null; userReactionId: number | null };
   wantedCards: WantedCard[];
   chatMessages: ChatMessage[];
 
+  // [영상 단위 커뮤니티 반응]
+  /** 전체 반응 요약 */
+  reactionSummary: { proCount: number; conCount: number };
+  /** 현재 유저의 투표 여부 (true=찬성, false=반대, null=미투표) */
+  myReaction: boolean | null;
+
   // 분석 결과 캐시
   analyzedVideos: Record<string, Partial<CheckmateState>>;
+
+  // 페이지네이션 상태
+  commentPagination: {
+    currentPage: number;
+    hasNext: boolean;
+    totalPages: number;
+    totalElements: number;
+  };
 
   // 액션 (상태 변경 함수들)
   openPanel: () => void;
@@ -94,13 +123,24 @@ interface CheckmateState {
   setActiveTab: (tab: Tab) => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
-  startAnalysis: () => void;
-  startAnalysisSync: () => void;
+  startAnalysis: () => Promise<void>;
+  startAnalysisSync: () => Promise<void>;
   startDemoAnalysis: () => void;
+  checkExistingAnalysis: (videoId: string) => Promise<void>;
+  pollAnalysisJob: (videoId: string, jobId: string) => Promise<void>;
+  mapAnalysisResult: (videoId: string, data: any) => void;
   setCurrentVideo: (id: string, title?: string, channel?: string) => void;
+  fetchReactions: (analysisId: number) => Promise<void>;
+  postReaction: (analysisId: number, reactionType: boolean) => Promise<void>;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
+  fetchComments: (analysisId: number, page?: number) => Promise<void>;
+  addComment: (content: string) => Promise<void>;
+  updateComment: (commentId: string | number, content: string) => Promise<void>;
+  deleteComment: (commentId: string | number) => Promise<void>;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
+  setResultModalOpen: (open: boolean) => void;
+  checkAnalysisStatus: () => Promise<void>;
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
@@ -112,6 +152,7 @@ interface CheckmateState {
 export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   // 초기 상태 설정
   isPanelOpen: false,
+  isResultModalOpen: false,
   activeTab: "report",
   isWarningVisible: false,
   warningCount: 0,
@@ -122,12 +163,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   trustScore: 0,
   overallVerdict: "unknown",
   summary: "",
+  analysisId: null,
   claims: [],
+  communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
+  commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
+
+  // 커뮤니티 투표 초기 상태
+  reactionSummary: { proCount: 0, conCount: 0 },
+  myReaction: null,
 
   // 인증 초기 상태
-  isLoggedIn: false, // 실제 구현 시 초기화 함수에서 확인
+  isLoggedIn: false,
   user: null,
+  isAuthInitializing: true,
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
@@ -147,9 +196,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     },
   ],
   chatMessages: [
-    { id: "1", username: "팩트체커", message: "이 영상 3분 12초 부분 자막이 이상해요.", badge: "verifier" },
-    { id: "2", username: "익명", message: "저도 그렇게 생각합니다." },
-    { id: "3", username: "제보왕", message: "다른 출처도 찾아보고 있어요.", badge: "reporter" },
+    { id: "1", userId: 0, username: "팩트체커", message: "이 영상 3분 12초 부분 자막이 이상해요.", badge: "verifier" },
+    { id: "2", userId: 0, username: "익명", message: "저도 그렇게 생각합니다." },
+    { id: "3", userId: 0, username: "제보왕", message: "다른 출처도 찾아보고 있어요.", badge: "reporter" },
   ],
 
   // 액션 구현
@@ -165,11 +214,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       wantedCards: state.wantedCards.map((card) =>
         card.id === cardId
           ? {
-            ...card,
-            userVote: vote,
-            votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
-            votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
-          }
+              ...card,
+              userVote: vote,
+              votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
+              votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
+            }
           : card,
       ),
     })),
@@ -179,18 +228,27 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       claims: state.claims.map((claim) =>
         claim.id === claimId
           ? {
-            ...claim,
-            userVote: vote,
-            votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
-            votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
-          }
+              ...claim,
+              userVote: vote,
+              votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
+              votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
+            }
           : claim,
       ),
     })),
 
   addChatMessage: (msg) =>
     set((state) => ({
-      chatMessages: [...state.chatMessages, { id: Date.now().toString(), ...msg }],
+      chatMessages: [
+        ...state.chatMessages,
+        {
+          id: Date.now().toString(),
+          userId: 0,
+          username: msg.username,
+          message: msg.message,
+          badge: msg.badge,
+        },
+      ],
     })),
 
   /**
@@ -201,38 +259,453 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     // 이미 같은 영상이면 무시
     if (state.currentVideoId === id) return;
 
+    let finalTitle = title;
+    let finalChannel = channel;
+
+    // [개선] 전달받은 정보가 부실하면(Unknown) DOM에서 직접 스크래핑 시도
+    if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
+      const scraped = scrapeMetadata();
+      if (isUnknown(finalTitle)) finalTitle = scraped.title;
+      if (isUnknown(finalChannel)) finalChannel = scraped.channel;
+    }
+
     const cachedData = state.analyzedVideos[id];
 
     if (cachedData) {
-      // 캐시된 분석 결과가 있으면 복원
+      // 캐시된 분석 결과가 있으면 복원 (단, Unknown이 아닐 때만 캐시값 우선)
       set({
         currentVideoId: id,
-        videoTitle: title || (cachedData.videoTitle as string) || "",
-        channelName: channel || (cachedData.channelName as string) || "",
-        isPanelOpen: false, // 영상 전환 시 서랍은 닫음
+        videoTitle: !isUnknown(finalTitle) ? finalTitle : (cachedData.videoTitle as string) || "",
+        channelName: !isUnknown(finalChannel) ? finalChannel : (cachedData.channelName as string) || "",
+        isPanelOpen: false,
         ...cachedData,
       });
+
+      if (cachedData.analysisId) {
+        get().fetchReactions(cachedData.analysisId as number);
+      }
     } else {
       // 새로운 영상이면 초기화
       set({
         currentVideoId: id,
-        videoTitle: title, // 빈 문자열 혹은 전달된 값
-        channelName: channel, // 빈 문자열 혹은 전달된 값
-        analysisStatus: "idle",
+        videoTitle: finalTitle,
+        channelName: finalChannel,
+        analysisStatus: "checking",
         overallVerdict: "unknown",
         trustScore: 0,
         summary: "",
+        analysisId: null,
         isWarningVisible: false,
         isPanelOpen: false,
         claims: [],
         warningCount: 0,
+        chatMessages: [],
+        commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
+        communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
+        reactionSummary: { proCount: 0, conCount: 0 },
+        myReaction: null,
       });
+
+      // 서버에서 기존 분석 이력이 있는지 확인
+      get().checkExistingAnalysis(id);
     }
   },
 
   /**
-   * 데모 분석 요청 (목업 데이터 사용, API 호출 안함)
+   * 분석 결과 데이터를 프런트엔드 상태로 매핑
    */
+  mapAnalysisResult: (videoId: string, data: any) => {
+    const resultObj = data.result || data;
+    let mappedVerdict: Verdict = "unknown";
+    
+    if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
+    else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
+
+    const violations = resultObj.violations || [];
+    const claims: Claim[] = violations.map((v: any, idx: number) => ({
+      id: `v-${idx}`,
+      text: v.violationSentence || "내용 없음",
+      verdict: "warning" as Verdict,
+      evidence: v.reason || "",
+      sources: [],
+      votesTrue: 0,
+      votesFake: 0,
+    }));
+
+    const finalState = {
+      analysisStatus: "complete" as AnalysisStatus,
+      videoTitle: resultObj.videoTitle || data.videoTitle || get().videoTitle,
+      channelName: resultObj.channelName || data.channelName || get().channelName,
+      overallVerdict: mappedVerdict,
+      trustScore: resultObj.confidenceScore || 0,
+      summary: resultObj.summary || "",
+      isWarningVisible: mappedVerdict === "warning",
+      warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
+      claims: claims,
+      analysisId: (data.analysisId || resultObj.analysisId) ? Number(data.analysisId || resultObj.analysisId) : null,
+    };
+
+    if (get().currentVideoId !== videoId) return;
+
+    set((state) => ({
+      ...finalState,
+      analyzedVideos: {
+        ...state.analyzedVideos,
+        [videoId]: finalState,
+      },
+    }));
+
+    if (finalState.analysisId !== null) {
+      get().fetchReactions(finalState.analysisId);
+    }
+  },
+
+  /**
+   * 서버에 해당 영상의 분석 이력이 있는지 확인하고 있으면 상태 업데이트
+   */
+  checkExistingAnalysis: async (videoId: string) => {
+    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    try {
+      const body = await analysisApi.checkExisting(targetUrl);
+
+      if (body.status === 200 && body.data) {
+        const { isAnalyzed, jobId, jobStatus } = body.data;
+
+        if (isAnalyzed && jobId) {
+          if (jobStatus === "COMPLETED") {
+            const resultBody = await analysisApi.getJobStatus(jobId);
+            if (resultBody.status === 200 && resultBody.data) {
+              get().mapAnalysisResult(videoId, resultBody.data);
+              return;
+            }
+          } else if (jobStatus !== "FAILED") {
+            get().pollAnalysisJob(videoId, jobId);
+            return;
+          }
+        }
+      }
+      
+      if (get().currentVideoId === videoId) {
+        set({ analysisStatus: "idle" });
+      }
+    } catch (err) {
+      console.error("[Checkmate] Check failed", err);
+      if (get().currentVideoId === videoId) {
+        set({ analysisStatus: "idle" });
+      }
+    }
+  },
+
+  /**
+   * 분석 작업의 상태를 주기적으로 확인 (Polling)
+   */
+  pollAnalysisJob: async (videoId: string, jobId: string) => {
+    const pollIntervalMs = 1500;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    try {
+      let data: any | null = null;
+      while (!controller.signal.aborted) {
+        const pollBody = await analysisApi.getJobStatus(jobId, controller.signal);
+        
+        if (pollBody.status === 401) {
+          await initializeAuth();
+          if (!get().isLoggedIn) throw new Error("Unauthorized");
+          continue;
+        }
+
+        if (pollBody.status !== 200 || !pollBody.data) throw new Error(pollBody.message || "분석 상태 조회 실패");
+        
+        data = pollBody.data;
+        if (data.status === "TRANSCRIPT_PROCESSING") set({ analysisStatus: "analyzing_transcript" });
+        else if (data.status === "AI_PROCESSING") set({ analysisStatus: "analyzing_claims" });
+        
+        if (data.status === "COMPLETED" || data.status === "FAILED") break;
+        await sleep(pollIntervalMs);
+      }
+
+      if (controller.signal.aborted) return;
+      if (!data) throw new Error("분석 상태를 받지 못했습니다.");
+
+      if (data.status === "FAILED") {
+        const failState = {
+          analysisStatus: "complete" as AnalysisStatus,
+          overallVerdict: "unknown" as Verdict,
+          trustScore: 0,
+          summary: "데이터 분석을 허용하지 않는 영상입니다. 하단의 버튼을 눌러 커뮤니티에서 직접 진위를 투표해 보세요!",
+          isWarningVisible: false,
+          warningCount: 0,
+          claims: [],
+          analysisId: data.analysisId ? Number(data.analysisId) : null,
+        };
+
+        if (get().currentVideoId === videoId) {
+          set((state) => ({
+            ...failState,
+            analyzedVideos: { ...state.analyzedVideos, [videoId]: failState },
+          }));
+          if (data.analysisId) get().fetchReactions(Number(data.analysisId));
+        }
+        return;
+      }
+
+      set({ analysisStatus: "verifying" });
+      await sleep(1000);
+      get().mapAnalysisResult(videoId, data);
+
+    } catch (error) {
+      console.error("폴링 중 오류 발생:", error);
+      if (get().currentVideoId === videoId) {
+        set({ analysisStatus: "error" });
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+
+  /**
+   * 영상 분석 요청
+   */
+  startAnalysis: async () => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+
+    set({ analysisStatus: "detecting", isWarningVisible: false });
+
+    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    try {
+      const response = await analysisApi.requestAnalysis(targetUrl);
+
+      if (response.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().startAnalysis();
+        throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      }
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`);
+
+      const responseData = await response.json();
+      if (responseData.status !== 202 || !responseData.data?.jobId) {
+        throw new Error(responseData.message || "분석 요청 실패");
+      }
+
+      const jobId: string = responseData.data.jobId;
+      await get().pollAnalysisJob(videoId, jobId);
+
+    } catch (error) {
+      console.error("분석 시작 중 오류 발생:", error);
+      set({ analysisStatus: "error" });
+    }
+  },
+
+  /**
+   * 현재 영상에 대한 커뮤니티 반응(투표) 목록을 가져옵니다.
+   */
+  fetchReactions: async (analysisId) => {
+    const currentUser = get().user;
+
+    try {
+      const body = await communityApi.getReactions(analysisId);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().fetchReactions(analysisId);
+        return;
+      }
+
+      if (body.status === 200 && Array.isArray(body.data)) {
+        const reactions = body.data;
+        const proCount = reactions.filter((r: any) => r.reactionType === true).length;
+        const conCount = reactions.filter((r: any) => r.reactionType === false).length;
+
+        const myReactionObj = currentUser
+          ? reactions.find((r: any) => String(r.userId) === String(currentUser.id))
+          : null;
+
+        set({
+          reactionSummary: { proCount, conCount },
+          myReaction: myReactionObj ? myReactionObj.reactionType : null,
+          communityVotes: {
+            trueVotes: proCount,
+            fakeVotes: conCount,
+            userVote: myReactionObj ? myReactionObj.reactionType : null,
+            userReactionId: myReactionObj ? myReactionObj.id : null,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[Reaction] Fetch failed", err);
+    }
+  },
+
+  /**
+   * 커뮤니티 반응(진실/허위)을 게시하거나 수정합니다.
+   * 낙관적 업데이트(Optimistic UI)를 적용하여 즉각적인 피드백을 제공합니다.
+   */
+  postReaction: async (analysisId, reactionType) => {
+    const { isLoggedIn, communityVotes, fetchReactions, myReaction, reactionSummary } = get();
+    if (!isLoggedIn) return;
+
+    // ─── 낙관적 업데이트 (Optimistic UI) ───────────────────────────────────────
+    const prevState = { ...reactionSummary, myReaction };
+    set((state) => {
+      if (state.myReaction === reactionType) return state;
+      const newPro = state.reactionSummary.proCount + (reactionType ? 1 : 0) - (state.myReaction === true ? 1 : 0);
+      const newCon = state.reactionSummary.conCount + (!reactionType ? 1 : 0) - (state.myReaction === false ? 1 : 0);
+      return {
+        myReaction: reactionType,
+        reactionSummary: { proCount: Math.max(0, newPro), conCount: Math.max(0, newCon) },
+      };
+    });
+    // ──────────────────────────────────────────────────────────────────────────
+
+    const userReactionId = communityVotes.userReactionId;
+
+    try {
+      let body;
+      if (userReactionId) {
+        body = await communityApi.putReaction(userReactionId, reactionType);
+      } else {
+        body = await communityApi.postReaction(analysisId, reactionType);
+      }
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().postReaction(analysisId, reactionType);
+        return;
+      }
+
+      if (body.status === 201 || body.status === 200) {
+        await fetchReactions(analysisId);
+      } else {
+        throw new Error("투표 요청 실패");
+      }
+    } catch (err) {
+      console.error("[Reaction] Operation failed", err);
+      // 에러 발생 시 이전 상태로 롤백
+      set({
+        myReaction: prevState.myReaction,
+        reactionSummary: { proCount: prevState.proCount, conCount: prevState.conCount },
+      });
+      alert("투표 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  },
+
+  fetchComments: async (analysisId, page = 0) => {
+    try {
+      const body = await communityApi.getComments(analysisId, page);
+      if (body.status === 200 && body.data) {
+        const { content, page: currentPage, hasNext, totalPages, totalElements } = body.data;
+        
+        const newComments = content.map((c: any) => ({
+          id: String(c.id),
+          userId: c.userId,
+          username: c.userName,
+          message: c.content,
+          createdAt: c.createdAt,
+        })).reverse();
+        
+        set((state) => ({
+          chatMessages: page === 0 ? newComments : [...newComments, ...state.chatMessages],
+          commentPagination: {
+            currentPage,
+            hasNext,
+            totalPages,
+            totalElements,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Fetch failed", err);
+    }
+  },
+
+  addComment: async (content: string) => {
+    const { isLoggedIn, analysisId } = get();
+    if (!isLoggedIn || !analysisId) return;
+
+    try {
+      const body = await communityApi.postComment(analysisId, content);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().addComment(content);
+        return;
+      }
+
+      if (body.status === 201 || body.status === 200) {
+        const newC = body.data;
+        if (newC) {
+          const mapped = {
+            id: String(newC.id),
+            userId: newC.userId || get().user?.id || 0,
+            username: newC.userName,
+            message: newC.content,
+            createdAt: newC.createdAt,
+          };
+          set((state) => ({
+            chatMessages: [...state.chatMessages, mapped],
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("[Comment] Post failed", err);
+    }
+  },
+
+  updateComment: async (commentId: string | number, content: string) => {
+    const { isLoggedIn } = get();
+    if (!isLoggedIn) return;
+
+    try {
+      const body = await communityApi.putComment(commentId, content);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().updateComment(commentId, content);
+        return;
+      }
+
+      if (body.status === 200) {
+        set((state) => ({
+          chatMessages: state.chatMessages.map((msg) =>
+            msg.id === String(commentId) ? { ...msg, message: content } : msg
+          ),
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Update failed", err);
+    }
+  },
+
+  deleteComment: async (commentId: string | number) => {
+    const { isLoggedIn } = get();
+    if (!isLoggedIn) return;
+
+    try {
+      const body = await communityApi.deleteComment(commentId);
+
+      if (body.status === 401) {
+        await initializeAuth();
+        if (get().isLoggedIn) return get().deleteComment(commentId);
+        return;
+      }
+
+      if (body.status === 200) {
+        set((state) => ({
+          chatMessages: state.chatMessages.filter((msg) => msg.id !== String(commentId)),
+        }));
+      }
+    } catch (err) {
+      console.error("[Comment] Delete failed", err);
+    }
+  },
+
   startDemoAnalysis: async () => {
     const videoId = get().currentVideoId;
     if (!videoId) return;
@@ -240,7 +713,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     set({ analysisStatus: "detecting", isWarningVisible: false });
 
     try {
-      // UX를 위한 시뮬레이션 지연
       await new Promise((r) => setTimeout(r, 1000));
       set({ analysisStatus: "analyzing_transcript" });
       await new Promise((r) => setTimeout(r, 1000));
@@ -262,9 +734,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isWarningVisible: mockData.verdict === "warning",
         warningCount: mockData.warningCount,
         claims: mockData.claims,
+        analysisId: 999,
+        communityVotes: { trueVotes: 42, fakeVotes: 12, userVote: null, userReactionId: null },
       };
 
-      // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
       if (get().currentVideoId !== videoId) return;
 
       set((state) => ({
@@ -280,250 +753,18 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
-  /**
-   * 영상 분석 요청 (동기 API 연동)
-   */
-  startAnalysis: async () => {
-    const videoId = get().currentVideoId;
-    if (!videoId) return;
-
-    // 1단계: 감지 시작
-    set({ analysisStatus: "detecting", isWarningVisible: false });
-
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-    // 60초 타임아웃 설정 (영상이 길거나 서버 부하가 있을 경우 고려)
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-
-    const doFetch = async (input: RequestInfo | URL, init: RequestInit) => {
-      const res = await fetch(input, init);
-      if (res.status !== 401) return res;
-      await initializeAuth();
-      if (!get().isLoggedIn) return res;
-      return fetch(input, init);
-    };
-
-    try {
-      // API 요청 시작 (결과는 나중에 기다림)
-      const apiPromise = doFetch(`${baseUrl}/analysis`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ youtubeUrl: targetUrl }),
-        signal: controller.signal,
-      });
-
-      // 시각적 피드백을 위해 각 단계별 최소 대기 시간 부여
-      await new Promise((r) => setTimeout(r, 800));
-      set({ analysisStatus: "analyzing_transcript" });
-
-      await new Promise((r) => setTimeout(r, 800));
-      set({ analysisStatus: "analyzing_claims" });
-
-      // API 응답 대기
-      const response = await apiPromise;
-
-      // [추가] 401 Unauthorized 처리: 토큰 만료 시 재발급 시도
-      if (response.status === 401) {
-        await initializeAuth();
-        // 재발급 후 로그인 상태가 되었다면 분석 다시 시도
-        if (get().isLoggedIn) {
-          return get().startAnalysis();
-        }
-        throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
-      }
-
-      if (!response.ok) {
-        throw new Error(`API 오류: ${response.status}`);
-      }
-
-      const responseData = await response.json();
-      console.log(responseData);
-
-      // Kafka async contract: POST /analysis returns 202 + jobId, then poll GET /analysis/{jobId}
-      if (responseData.status !== 202 || !responseData.data?.jobId) {
-        throw new Error(responseData.message || "분석 요청 실패");
-      }
-
-      const jobId: string = responseData.data.jobId;
-
-      const pollIntervalMs = 1500;
-      let data: any | null = null;
-
-      while (!controller.signal.aborted) {
-        const pollRes = await doFetch(`${baseUrl}/analysis/${jobId}`, {
-          method: "GET",
-          credentials: "include",
-          signal: controller.signal,
-        });
-
-        if (!pollRes.ok) {
-          throw new Error(`API 오류: ${pollRes.status}`);
-        }
-
-        const pollBody = await pollRes.json();
-        if (pollBody.status !== 200 || !pollBody.data) {
-          throw new Error(pollBody.message || "분석 상태 조회 실패");
-        }
-
-        data = pollBody.data;
-        if (data.status === "TRANSCRIPT_PROCESSING") set({ analysisStatus: "analyzing_transcript" });
-        else if (data.status === "AI_PROCESSING") set({ analysisStatus: "analyzing_claims" });
-
-        if (data.status === "COMPLETED" || data.status === "FAILED") break;
-        await sleep(pollIntervalMs);
-      }
-
-      if (!data) throw new Error("분석 상태를 받지 못했습니다.");
-      console.log(responseData);
-
-      if (false && (responseData.status !== 200 || !responseData.data)) {
-        throw new Error(responseData.message || "분석 요청 실패");
-      }
-
-      // const data = responseData.data;
-
-      // [추가] 분석 실패(FAILED) 케이스 처리
-      if (data.status === "FAILED") {
-        // 활성화된 쇼츠 오버레이를 먼저 찾습니다.
-        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer"))
-          .find(el => (el as HTMLElement).getBoundingClientRect().width > 0);
-
-        // DOM에서 직접 타이틀과 채널명 추출 (쇼츠/롱폼 레이아웃 대응)
-        const scrapedTitle =
-          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
-          activeReel?.querySelector("h2.ytd-reel-player-header-renderer")?.textContent?.trim() ||
-          document.querySelector("h1.ytd-watch-metadata")?.textContent?.trim() ||
-          document.querySelector("yt-formatted-string.ytd-video-primary-info-renderer")?.textContent?.trim() ||
-          document.title.replace(" - YouTube", "").trim() ||
-          "알 수 없는 영상";
-
-        const scrapedChannel =
-          activeReel?.querySelector("#channel-name yt-formatted-string")?.textContent?.trim() ||
-          activeReel?.querySelector("#channel-name a")?.textContent?.trim() ||
-          activeReel?.querySelector('a[href^="/@"]')?.textContent?.trim() ||
-          activeReel?.querySelector(".ytd-reel-player-header-renderer #text")?.textContent?.trim() ||
-          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
-          document.querySelector("#text.ytd-channel-name a")?.textContent?.trim() ||
-          document.querySelector(".ytd-video-owner-renderer #channel-name")?.textContent?.trim() ||
-          "알 수 없는 채널";
-
-        const failState = {
-          analysisStatus: "complete" as AnalysisStatus,
-          videoTitle: scrapedTitle,
-          channelName: scrapedChannel,
-          overallVerdict: "unknown" as Verdict,
-          trustScore: 0,
-          summary: "데이터 분석을 허용하지 않는 영상입니다. 하단의 버튼을 눌러 커뮤니티에서 직접 진위를 투표해 보세요!",
-          isWarningVisible: false,
-          warningCount: 0,
-          claims: [],
-        };
-
-        // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
-        if (get().currentVideoId !== videoId) return;
-
-        set((state) => ({
-          ...failState,
-          analyzedVideos: {
-            ...state.analyzedVideos,
-            [videoId]: failState,
-          },
-        }));
-        return;
-      }
-
-      // 검증 단계 연출
-      set({ analysisStatus: "verifying" });
-      await new Promise((r) => setTimeout(r, 1000));
-
-      const resultObj = data.result || {};
-
-      // 백엔드 응답(trustGrade) 매핑
-      let mappedVerdict: Verdict = "unknown";
-      if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
-      else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
-
-      const violations = resultObj.violations || [];
-      const claims: Claim[] = violations.map((v: any, idx: number) => ({
-        id: `v-${idx}`,
-        text: v.violationSentence || "내용 없음",
-        verdict: "warning" as Verdict,
-        evidence: v.reason || "",
-        sources: [],
-        votesTrue: 0,
-        votesFake: 0,
-      }));
-
-      const youtubeInfo = resultObj || {};
-      const finalState = {
-        analysisStatus: "complete" as AnalysisStatus,
-        videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
-        channelName: youtubeInfo.channelName || data.channelName || get().channelName,
-        overallVerdict: mappedVerdict,
-        trustScore: resultObj.confidenceScore || 0,
-        summary: resultObj.summary || "",
-        isWarningVisible: mappedVerdict === "warning",
-        warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
-        claims: claims,
-      };
-
-      // [개선] 결과 반영 전 현재 영상 ID가 여전히 동일한지 확인 (레이스 컨디션 방지)
-      if (get().currentVideoId !== videoId) return;
-
-      set((state) => ({
-        ...finalState,
-        analyzedVideos: {
-          ...state.analyzedVideos,
-          [videoId]: finalState,
-        },
-      }));
-    } catch (error) {
-      console.error("분석 중 오류 발생:", error);
-      set({
-        analysisStatus: "error",
-        overallVerdict: "unknown",
-        trustScore: 0,
-        summary: error instanceof Error && error.name === "AbortError"
-          ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요."
-          : "",
-        isWarningVisible: false,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  },
-
-  /**
-   * Legacy sync API flow (kept for compatibility / fallback)
-   * - POST /analysis/sync -> 200 + final result
-   */
   startAnalysisSync: async () => {
     const videoId = get().currentVideoId;
     if (!videoId) return;
 
     set({ analysisStatus: "detecting", isWarningVisible: false });
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const response = await fetch(`${baseUrl}/analysis/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ youtubeUrl: targetUrl }),
-        signal: controller.signal,
-      });
+      const response = await analysisApi.requestAnalysisSync(targetUrl, controller.signal);
 
       if (response.status === 401) {
         await initializeAuth();
@@ -545,8 +786,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           analysisStatus: "complete",
           overallVerdict: "unknown",
           trustScore: 0,
-          summary:
-            "데이터 분석을 지원하지 않는 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
+          summary: "데이터 분석을 지원하지 않는 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
           isWarningVisible: false,
           warningCount: 0,
           claims: [],
@@ -586,13 +826,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (get().currentVideoId !== videoId) return;
 
+      const analysisId = data.analysisId ? Number(data.analysisId) : null;
+
       set((state) => ({
         ...finalState,
+        analysisId,
         analyzedVideos: {
           ...state.analyzedVideos,
-          [videoId]: finalState,
+          [videoId]: { ...finalState, analysisId },
         },
       }));
+
+      if (analysisId !== null) {
+        get().fetchReactions(analysisId);
+      }
     } catch (error) {
       console.error("분석 중 오류 발생:", error);
       set({
@@ -614,61 +861,97 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     if (!isLoggedIn) {
       if (typeof chrome !== "undefined" && chrome.storage) {
         chrome.storage.local.remove("jwtToken");
+        chrome.storage.local.remove("checkmateUser");
       }
       localStorage.removeItem("jwtToken");
     }
+    
     set({ isLoggedIn, user });
+
+    const store = useCheckmateStore.getState();
+    if (isLoggedIn && store.analysisId) {
+      store.fetchReactions(store.analysisId);
+    }
+  },
+
+  setResultModalOpen: (open) => set({ isResultModalOpen: open }),
+
+  checkAnalysisStatus: async () => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+    await get().checkExistingAnalysis(videoId);
   },
 }));
 
 /**
  * 앱 로드 시 서버에 /auth/me 요청을 보내어 HttpOnly 쿠키 기반 인증 상태를 복원합니다.
+ * [하이브리드 자동 로그인 전략 (2-Phase)]
+ *
+ * 해결 전략:
+ *   Phase 1 - 즉시 복원 (0ms): chrome.storage.local에 캐시된 유저 정보가 있으면 
+ *             isLoggedIn: true로 즉시 설정하여 Flash 현상 제거.
+ *   Phase 2 - 백그라운드 검증: 서버에 /auth/me를 요청하여 세션 유효성 확인 및 갱신.
  */
 export const initializeAuth = async () => {
   const store = useCheckmateStore.getState();
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
+  // Phase 1: chrome.storage.local 캐시 즉시 복원
+  if (typeof chrome !== "undefined" && chrome.storage) {
+    try {
+      const cached = await new Promise<{ checkmateUser?: User }>((resolve) => {
+        chrome.storage.local.get(["checkmateUser"], (items) => {
+          resolve(items as { checkmateUser?: User });
+        });
+      });
+      if (cached.checkmateUser) {
+        useCheckmateStore.setState({ isLoggedIn: true, user: cached.checkmateUser });
+      }
+    } catch {}
+  }
+
+  // Phase 2: 서버 세션 유효성 백그라운드 검증
   try {
-    const response = await fetch(`${baseUrl}/auth/me`, {
-      method: "GET",
-      credentials: "include",
-    });
+    const response = await authApi.getMe();
 
     if (response.ok) {
       const result = await response.json();
       if (result.data && result.data.name) {
-        store.setLoginStatus(true, { name: result.data.name });
+        const userId = result.data.id || result.data.userId;
+        store.setLoginStatus(true, { id: userId, name: result.data.name });
+        
+        if (typeof chrome !== "undefined" && chrome.storage) {
+          chrome.storage.local.set({ checkmateUser: { id: userId, name: result.data.name } });
+        }
         return;
       }
     } else if (response.status === 401 || response.status === 403) {
-      // Access Token이 만료된 경우 (401/403) Refresh Token으로 재발급 시도
-      const reissueResponse = await fetch(`${baseUrl}/auth/reissue`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const reissueResponse = await authApi.reissue();
 
       if (reissueResponse.ok) {
-        // 토큰 재발급 성공 시 다시 내 정보 가져오기
-        const retryResponse = await fetch(`${baseUrl}/auth/me`, {
-          method: "GET",
-          credentials: "include",
-        });
+        const retryResponse = await authApi.getMe();
 
         if (retryResponse.ok) {
           const retryResult = await retryResponse.json();
           if (retryResult.data && retryResult.data.name) {
-            store.setLoginStatus(true, { name: retryResult.data.name });
+            const userId = retryResult.data.id || retryResult.data.userId;
+            store.setLoginStatus(true, { id: userId, name: retryResult.data.name });
+            if (typeof chrome !== "undefined" && chrome.storage) {
+              chrome.storage.local.set({ checkmateUser: { id: userId, name: retryResult.data.name } });
+            }
             return;
           }
         }
-      } else {
-        console.warn("리프레시 토큰 만료, 다시 로그인해야 합니다.");
       }
     }
     store.setLoginStatus(false, null);
   } catch (error) {
     console.error("인증 초기화 실패:", error);
-    store.setLoginStatus(false, null);
+    const currentState = useCheckmateStore.getState();
+    if (!currentState.isLoggedIn) {
+      store.setLoginStatus(false, null);
+    }
+  } finally {
+    useCheckmateStore.setState({ isAuthInitializing: false });
   }
 };
 
@@ -677,17 +960,11 @@ export const initializeAuth = async () => {
  */
 export const logoutAuth = async () => {
   const store = useCheckmateStore.getState();
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
   try {
-    await fetch(`${baseUrl}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
+    await authApi.logout();
   } catch (error) {
     console.error("로그아웃 요청 실패:", error);
   } finally {
-    // 백엔드 요청 성공 여부와 무관하게 프론트엔드 상태는 초기화
     store.setLoginStatus(false, null);
   }
 };

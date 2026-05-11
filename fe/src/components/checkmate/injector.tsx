@@ -86,3 +86,48 @@ export const renderDashboard = (container: HTMLElement) => {
     console.error("[Checkmate] 렌더링 에러:", err);
   }
 };
+
+import { GlobalResultModal } from "./shorts-dashboard";
+
+/**
+ * [Checkmate 글로벌 결과 모달 렌더러]
+ * 유튜브 영상 프레임 외부(document.body)에 독립적인 모달 루트를 생성합니다.
+ */
+export const renderGlobalModal = () => {
+  const rootId = "checkmate-global-modal-root";
+  if (document.getElementById(rootId)) return;
+
+  const rootContainer = document.createElement("div");
+  rootContainer.id = rootId;
+  rootContainer.style.display = "none"; // 기본 숨김 (클릭 방해 방지)
+  
+  const shadow = rootContainer.attachShadow({ mode: "open" });
+  const styleElement = document.createElement("style");
+  styleElement.textContent = `
+    :host { 
+      position: fixed !important; 
+      top: 0 !important; 
+      left: 0 !important; 
+      width: 100vw !important; 
+      height: 100vh !important; 
+      z-index: 2147483647 !important; 
+      pointer-events: none !important; 
+    }
+    :host(.modal-open) { 
+      pointer-events: auto !important; 
+    }
+    ${styles}
+  `;
+  shadow.appendChild(styleElement);
+  
+  const reactWrapper = document.createElement("div");
+  shadow.appendChild(reactWrapper);
+  document.body.appendChild(rootContainer);
+
+  try {
+    const root = createRoot(reactWrapper);
+    root.render(<GlobalResultModal shadowHost={rootContainer} />);
+  } catch (err) {
+    console.error("[Checkmate] 글로벌 모달 렌더링 에러:", err);
+  }
+};

@@ -15,13 +15,21 @@ public final class YoutubeUrlNormalizer {
 	}
 
 	public static String normalize(String input) {
+		String videoId = extractVideoId(input);
+		if (videoId == null || videoId.isBlank()) {
+			return input == null ? null : input.trim();
+		}
+		return "https://www.youtube.com/watch?v=" + videoId;
+	}
+
+	public static String extractVideoId(String input) {
 		if (input == null) {
 			return null;
 		}
 
 		String raw = input.trim();
 		if (raw.isEmpty()) {
-			return raw;
+			return null;
 		}
 
 		String candidate = raw;
@@ -33,7 +41,7 @@ public final class YoutubeUrlNormalizer {
 			URI uri = URI.create(candidate);
 			String host = uri.getHost();
 			if (host == null) {
-				return raw;
+				return null;
 			}
 
 			host = host.toLowerCase();
@@ -60,13 +68,9 @@ public final class YoutubeUrlNormalizer {
 				}
 			}
 
-			if (videoId == null || videoId.isBlank()) {
-				return raw;
-			}
-
-			return "https://www.youtube.com/watch?v=" + videoId;
+			return videoId;
 		} catch (Exception ignored) {
-			return raw;
+			return null;
 		}
 	}
 
