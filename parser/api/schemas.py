@@ -61,3 +61,16 @@ class AnalysisResponse(BaseModel):
     youtubeInfo: YouTubeInfoSchema
     analysisResult: AnalysisResultSchema
     violations: List[ViolationSchema]
+
+class VisualAnalysisRequest(BaseModel):
+    url: str
+
+class VisualSegmentSchema(BaseModel):
+    start_time: float
+    text: List[str]
+
+class VisualAnalysisResponse(BaseModel):
+    video_id: str
+    visual_segments: List[VisualSegmentSchema]
+    status: str
+    processing_time: Optional[float] = None

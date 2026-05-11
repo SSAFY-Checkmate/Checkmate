@@ -1,9 +1,15 @@
 import time
 import asyncio
 from fastapi import APIRouter
-from api.schemas import TranscriptRequest, TranscriptResponse, FrameRequest, FrameResponse, AnalysisRequest, AnalysisResponse
+from api.schemas import (
+    TranscriptRequest, TranscriptResponse, 
+    FrameRequest, FrameResponse, 
+    AnalysisRequest, AnalysisResponse,
+    VisualAnalysisRequest, VisualAnalysisResponse
+)
 from services.llm_engine import analyze_transcript_with_llm
 from services.youtube_service import extract_video_id, fetch_and_clean_transcript
+from services.visual_engine import analyze_visual_content
 
 router = APIRouter()
 
@@ -29,6 +35,31 @@ async def extract_transcript(request: TranscriptRequest):
     
     return result
 
+@router.post("/extract-visual-analysis", response_model=VisualAnalysisResponse)
+async def extract_visual_analysis(request: VisualAnalysisRequest):
+    """
+    영상 시각 정보(OCR 및 장면 분석)만 독립적으로 추출하여 반환합니다.
+    """
+    start_time = time.time()
+    
+    video_id = extract_video_id(request.url)
+    
+    # 별도 스레드에서 시각 분석 실행 (간격 30초 고정)
+    visual_segments = await asyncio.to_thread(
+        analyze_visual_content, 
+        request.url, 
+        30
+    )
+    
+    end_time = time.time()
+    
+    return VisualAnalysisResponse(
+        video_id=video_id,
+        visual_segments=visual_segments,
+        status="SUCCESS",
+        processing_time=round(end_time - start_time, 2)
+    )
+
 @router.post("/extract-frame", response_model=FrameResponse)
 async def extract_frame(request: FrameRequest):
     """
@@ -46,6 +77,7 @@ async def extract_frame(request: FrameRequest):
     result["processing_time"] = round(end_time - start_time, 2)
     
     return result
+
 
 @router.post("/analyze-transcript", response_model=AnalysisResponse)
 async def analyze_transcript(request: AnalysisRequest):
