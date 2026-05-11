@@ -67,8 +67,11 @@ public class AnalysisEventConsumer {
 				ack.acknowledge();
 				return;
 			}
+			log.error("analysis.completed handler failed. eventId={} jobId={} err={}",
+				envelope.eventId(), envelope.aggregateId(), e.toString(), e);
 			inboxService.markFailed(CONSUMER_NAME, eventId, e.getMessage());
-			throw e;
+			// Avoid poison-pill loops: mark FAILED and acknowledge.
+			ack.acknowledge();
 		}
 	}
 
@@ -111,8 +114,11 @@ public class AnalysisEventConsumer {
 				ack.acknowledge();
 				return;
 			}
+			log.error("analysis.failed handler failed. eventId={} jobId={} err={}",
+				envelope.eventId(), envelope.aggregateId(), e.toString(), e);
 			inboxService.markFailed(CONSUMER_NAME, eventId, e.getMessage());
-			throw e;
+			// Avoid poison-pill loops: mark FAILED and acknowledge.
+			ack.acknowledge();
 		}
 	}
 }

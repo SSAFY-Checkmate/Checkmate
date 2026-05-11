@@ -31,7 +31,8 @@ public class InboxService {
 	public boolean beginProcessing(String consumer, String eventId) {
 		InboxEvent existing = inboxEventRepository.findByConsumerAndEventId(consumer, eventId).orElse(null);
 		if (existing != null) {
-			return existing.getStatus() != InboxStatus.PROCESSED;
+			// Only RECEIVED events should be processed. FAILED/PROCESSED are terminal for this consumer.
+			return existing.getStatus() == InboxStatus.RECEIVED;
 		}
 
 		try {
@@ -40,7 +41,7 @@ public class InboxService {
 		} catch (DataIntegrityViolationException e) {
 			// Another thread/instance inserted first; decide based on stored status.
 			InboxEvent after = inboxEventRepository.findByConsumerAndEventId(consumer, eventId).orElse(null);
-			return after == null || after.getStatus() != InboxStatus.PROCESSED;
+			return after != null && after.getStatus() == InboxStatus.RECEIVED;
 		}
 	}
 

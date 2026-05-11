@@ -3,6 +3,7 @@ package com.ssafy.a405.global.outbox.repository;
 import com.ssafy.a405.global.outbox.entity.OutboxEvent;
 import com.ssafy.a405.global.outbox.entity.OutboxStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
@@ -37,4 +38,16 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, String
 		nativeQuery = true
 	)
 	List<OutboxEvent> findPendingSkipLocked(@Param("limit") int limit);
+
+	@Modifying
+	@Query(
+		value = """
+			update outbox_event
+			set status = 'PENDING'
+			where status = 'PROCESSING'
+			  and updated_at < date_sub(now(), interval :timeoutSeconds second)
+			""",
+		nativeQuery = true
+	)
+	int resetStuckProcessing(@Param("timeoutSeconds") long timeoutSeconds);
 }

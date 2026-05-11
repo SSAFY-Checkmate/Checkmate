@@ -65,6 +65,7 @@ public class InboxEvent extends BaseTimeEntity {
 	}
 
 	public void markFailed(String errorMessage) {
+		this.status = InboxStatus.FAILED;
 		this.lastError = errorMessage;
 	}
 }

@@ -4,15 +4,15 @@ import com.ssafy.a405.global.outbox.entity.OutboxEvent;
 import com.ssafy.a405.global.outbox.repository.OutboxEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.a405.domain.event.EventEnvelope;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,13 +20,13 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "outbox.publisher.enabled", havingValue = "true", matchIfMissing = false)
 public class OutboxPublishScheduler {
 
 	private final OutboxEventRepository outboxEventRepository;
 	private final KafkaTemplate<String, String> kafkaTemplate;
 	private final ObjectMapper objectMapper;
+	private final TransactionTemplate tx;
 
 	@Value("${outbox.publisher.batch-size:50}")
 	private int batchSize;
@@ -37,15 +37,30 @@ public class OutboxPublishScheduler {
 	@Value("${outbox.publisher.send-timeout-ms:5000}")
 	private long sendTimeoutMs;
 
+	@Value("${outbox.publisher.processing-timeout-seconds:60}")
+	private long processingTimeoutSeconds;
+
+	public OutboxPublishScheduler(
+		OutboxEventRepository outboxEventRepository,
+		KafkaTemplate<String, String> kafkaTemplate,
+		ObjectMapper objectMapper,
+		PlatformTransactionManager transactionManager
+	) {
+		this.outboxEventRepository = outboxEventRepository;
+		this.kafkaTemplate = kafkaTemplate;
+		this.objectMapper = objectMapper;
+		this.tx = new TransactionTemplate(transactionManager);
+	}
+
 	/**
 	 * Note:
 	 * - This is a basic skeleton. If you run multiple BE instances, use a distributed lock (e.g. ShedLock)
 	 *   or change the selection strategy to avoid duplicate publishing work.
 	 */
 	@Scheduled(fixedDelayString = "${outbox.publisher.fixed-delay-ms:1000}")
-	@Transactional
 	public void publishPending() {
-		List<OutboxEvent> pending = outboxEventRepository.findPendingSkipLocked(batchSize);
+		// Keep DB transaction short: claim rows quickly, then publish outside the lock window.
+		List<OutboxEvent> pending = claimPending(batchSize);
 		if (pending.isEmpty()) {
 			return;
 		}
@@ -55,7 +70,7 @@ public class OutboxPublishScheduler {
 				kafkaTemplate
 					.send(event.getTopic(), event.getMessageKey(), event.getPayload())
 					.get(sendTimeoutMs, TimeUnit.MILLISECONDS);
-				event.markSent(LocalDateTime.now());
+				markSent(event.getEventId());
 
 				// Best-effort MDC enrichment for operational traceability.
 				try (MDC.MDCCloseable mdcJobId = MDC.putCloseable("jobId", event.getMessageKey());
@@ -65,13 +80,45 @@ public class OutboxPublishScheduler {
 				}
 			} catch (Exception e) {
 				String msg = e.getMessage();
-				event.markFailed(msg, maxAttempts);
-				log.warn("Outbox publish failed. eventId={}, topic={}, attempts={}, status={}",
-					event.getEventId(), event.getTopic(), event.getAttempts(), event.getStatus(), e);
+				markFailed(event.getEventId(), msg);
+				log.warn("Outbox publish failed. eventId={} topic={} key={} err={}",
+					event.getEventId(), event.getTopic(), event.getMessageKey(), e.toString(), e);
 			}
 		}
 	}
 
+	protected List<OutboxEvent> claimPending(int limit) {
+		return tx.execute(status -> {
+			// Safety net for crashes: release rows that got stuck in PROCESSING.
+			outboxEventRepository.resetStuckProcessing(processingTimeoutSeconds);
+
+			List<OutboxEvent> pending = outboxEventRepository.findPendingSkipLocked(limit);
+			for (OutboxEvent e : pending) {
+				e.markProcessing();
+			}
+			return pending;
+		});
+	}
+
+	protected void markSent(String eventId) {
+		tx.executeWithoutResult(status -> {
+			OutboxEvent e = outboxEventRepository.findById(eventId).orElse(null);
+			if (e == null) {
+				return;
+			}
+			e.markSent(LocalDateTime.now());
+		});
+	}
+
+	protected void markFailed(String eventId, String errorMessage) {
+		tx.executeWithoutResult(status -> {
+			OutboxEvent e = outboxEventRepository.findById(eventId).orElse(null);
+			if (e == null) {
+				return;
+			}
+			e.markFailed(errorMessage, maxAttempts);
+		});
+	}
 	private String extractTraceId(String payload, String fallbackJobId) {
 		if (payload == null || payload.isBlank()) {
 			return "job:" + fallbackJobId;
