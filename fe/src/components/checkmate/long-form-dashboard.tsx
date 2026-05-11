@@ -395,7 +395,7 @@ export function LongFormDashboard() {
                     <div
                       style={{
                         position: "absolute",
-                        top: "-30px",
+                        top: "-26px",
                         right: "0",
                         backgroundColor: "white",
                         border: `2px solid ${analysisStatus === "error" ? "#ef4444" : "#0f172a"}`,

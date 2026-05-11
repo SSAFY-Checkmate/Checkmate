@@ -8,6 +8,7 @@ import { PIXEL_STYLES } from "../../lib/constants/styles";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 import { LoginView } from "./login-view";
+import { useAnalysisMonitor } from "../../hooks/use-analysis-monitor";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 const verdictConfig = {
@@ -29,8 +30,25 @@ export function ShortsDashboard() {
     setCurrentVideo,
     checkAnalysisStatus,
     currentVideoId,
+    startDemoAnalysis,
+    errorMsg,
+    setErrorMsg,
   } = useCheckmateStore();
+
+  // 숏폼 분석 모니터링 (3분 타임아웃)
+  useAnalysisMonitor(180000);
+
   const [showCheckAnim, setShowCheckAnim] = useState(false);
+
+  const handleStartAnalysis = () => {
+    setErrorMsg(null);
+    startAnalysis();
+  };
+
+  const handleStartDemo = () => {
+    setErrorMsg(null);
+    startDemoAnalysis();
+  };
 
   // 쇼츠 분석 진행률(%) 계산
   const getProgressPercent = () => {
@@ -43,15 +61,17 @@ export function ShortsDashboard() {
         return "75%";
       case "verifying":
         return "95%";
+      case "checking":
+        return "조회중";
       default:
-        return "";
+        return "준비중";
     }
   };
 
   // 컴포넌트 마운트 시 인증 초기화 및 URL 변경 감지
   useEffect(() => {
     initializeAuth();
-    
+
     const handleUrlChange = () => {
       const url = window.location.href;
       let videoId = "";
@@ -99,7 +119,7 @@ export function ShortsDashboard() {
           if (analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error") return;
 
           if (analysisStatus === "complete" || analysisStatus === "error") setResultModalOpen(true);
-          else startAnalysis();
+          else handleStartAnalysis();
         }}
         style={{
           width: "48px",
@@ -108,7 +128,7 @@ export function ShortsDashboard() {
           alignItems: "center",
           cursor:
             analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error"
-              ? "wait"
+              ? "not-allowed"
               : "pointer",
           gap: "6px",
           position: "relative",
@@ -122,7 +142,7 @@ export function ShortsDashboard() {
             background:
               analysisStatus === "idle" || analysisStatus === "complete" || analysisStatus === "error"
                 ? "#f2f2f2"
-                : "linear-gradient(135deg, #0ea5e9, #2563eb)",
+                : "linear-gradient(135deg, #0ea5e9, #8b5cf6)",
             borderRadius: "50%",
             display: "flex",
             justifyContent: "center",
@@ -143,12 +163,12 @@ export function ShortsDashboard() {
               transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
               style={{
                 position: "absolute",
-                inset: "-6px",
-                border: "4px solid transparent",
+                inset: "-2px",
+                border: "3px solid transparent",
                 borderTopColor: "#bbf7ff",
                 borderRadius: "50%",
                 zIndex: 0,
-                filter: "drop-shadow(0 0 5px rgba(191, 247, 255, 0.8))",
+                filter: "drop-shadow(0 0 3px rgba(191, 247, 255, 0.6))",
               }}
             />
           )}
@@ -167,9 +187,8 @@ export function ShortsDashboard() {
                 exit={{ opacity: 0, scale: 0.8 }}
                 style={{
                   position: "absolute",
-                  top: "-30px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
+                  top: "-26px",
+                  right: "4px",
                   backgroundColor: "white",
                   border: "2px solid #0f172a",
                   borderRadius: "6px",
@@ -187,8 +206,7 @@ export function ShortsDashboard() {
                   style={{
                     position: "absolute",
                     bottom: "-5px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
+                    right: "14px",
                     width: 0,
                     height: 0,
                     borderLeft: "5px solid transparent",
@@ -200,8 +218,7 @@ export function ShortsDashboard() {
                   style={{
                     position: "absolute",
                     bottom: "-2px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
+                    right: "16px",
                     width: 0,
                     height: 0,
                     borderLeft: "3px solid transparent",
@@ -259,11 +276,13 @@ export function ShortsDashboard() {
           style={{
             fontSize: "11px",
             fontWeight: "900",
-            color: "#0f172a",
+            color: analysisStatus === "error" ? "#ef4444" : "#0f172a",
             textAlign: "center",
             lineHeight: "1.2",
             marginTop: "4px",
-            padding: "2px 6px",
+            padding: "2px 2px", // 좌우 패딩 축소
+            whiteSpace: "nowrap", // 줄바꿈 방지
+            letterSpacing: "-0.5px", // 자간 축소
             backgroundColor: "transparent",
           }}
         >
@@ -271,11 +290,51 @@ export function ShortsDashboard() {
             ? "로그인"
             : analysisStatus === "complete"
               ? "결과확인"
-              : analysisStatus === "idle"
-                ? "분석"
-                : "분석중"}
+              : analysisStatus === "error"
+                ? "오류발생"
+                : analysisStatus === "idle"
+                  ? "수사시작"
+                  : "수사중"}
         </span>
       </motion.div>
+
+      {/* 데모 버튼 추가 (idle 상태거나 error 상태일 때만 노출) */}
+      <AnimatePresence>
+        {(analysisStatus === "idle" || analysisStatus === "error") && isLoggedIn && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0, y: -10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0, opacity: 0, y: -10 }}
+            whileHover={{ scale: 1.1 }}
+            onClick={() => handleStartDemo()}
+            style={{
+              marginTop: "12px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              cursor: "pointer",
+              gap: "4px",
+            }}
+          >
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                backgroundColor: "#f2f2f2",
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                border: "2px solid #94a3b8",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
+            >
+              <Search size={18} color="#64748b" />
+            </div>
+            <span style={{ fontSize: "9px", fontWeight: "900", color: "#64748b" }}>데모</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
