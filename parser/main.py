@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,6 +9,10 @@ from fastapi.responses import JSONResponse
 import json
 from dotenv import load_dotenv
 from api.endpoints import router as transcript_router
+
+# Windows 환경에서 WinError 10014 및 소켓 관련 에러 방지
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 load_dotenv()
 
