@@ -455,10 +455,10 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               style={{
                 flex: 1,
                 overflowY: "auto",
-                padding: "24px",
+                padding: "20px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "24px",
+                gap: "12px",
               }}
             >
               {analysisStatus === "error" ? (
@@ -579,6 +579,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         style={{
                           display: "flex",
                           gap: "8px",
+                          marginTop: "12px",
                           padding: "5px",
                           backgroundColor: "#f1f5f9", // 밝은 테마용 배경
                           borderRadius: "10px",
@@ -638,18 +639,26 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             cursor: "pointer",
                             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                             borderRadius: "7px",
-                            background: activeModalTab === "community" 
-                              ? "linear-gradient(135deg, #8b5cf6, #6d28d9)" 
-                              : "transparent",
+                            background:
+                              activeModalTab === "community"
+                                ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                                : "transparent",
                             color: activeModalTab === "community" ? "white" : "#64748b",
                             border: "none",
-                            boxShadow: activeModalTab === "community" 
-                              ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)" 
-                              : "none",
+                            boxShadow:
+                              activeModalTab === "community"
+                                ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
+                                : "none",
                             transform: activeModalTab === "community" ? "translateY(0)" : "none",
                           }}
                         >
-                          <Search size={15} style={{ filter: activeModalTab === "community" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none" }} />
+                          <Search
+                            size={15}
+                            style={{
+                              filter:
+                                activeModalTab === "community" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
+                            }}
+                          />
                           커뮤니티
                         </button>
                       </div>
@@ -688,12 +697,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.15 }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                              <Search size={14} color="#8b5cf6" />
-                              <h3 style={{ fontSize: "13px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
-                                수사 상황실 (커뮤니티)
-                              </h3>
-                            </div>
                             <div
                               style={{
                                 backgroundColor: "white",

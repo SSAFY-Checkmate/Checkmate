@@ -245,7 +245,7 @@ export function LongFormDashboard() {
             <div
               onClick={logoutAuth}
               style={{
-                backgroundColor: "#ef4444",
+                backgroundColor: "#0ea5e9",
                 color: "white",
                 padding: "4px 10px",
                 borderRadius: "20px",
@@ -255,8 +255,8 @@ export function LongFormDashboard() {
                 transition: "all 0.2s",
                 border: "1px solid rgba(255,255,255,0.2)",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0284c7")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#0ea5e9")}
             >
               LOGOUT
             </div>
