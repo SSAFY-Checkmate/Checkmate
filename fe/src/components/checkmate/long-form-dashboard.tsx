@@ -174,16 +174,21 @@ export function LongFormDashboard() {
   };
 
   return (
-    <div
+    <motion.div
       ref={dashboardRef}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
       style={{
         ...PIXEL_STYLES.dashboardContainer,
         fontFamily: pixelFont,
       }}
     >
       {/* --- 상단 메인 카드 영역 --- */}
-      <div
+      <motion.div
         id="checkmate-main-card"
+        layout
+        transition={{ layout: { duration: 0.4, ease: "easeOut" } }}
         style={{
           ...PIXEL_STYLES.border,
           ...PIXEL_STYLES.mainCard,
@@ -256,111 +261,124 @@ export function LongFormDashboard() {
           </div>
         )}
 
-        {analysisStatus === "complete" ? (
-          <>
-            <div
-              style={{
-                backgroundColor: "#ffffff",
-                padding: "4px",
-                borderRadius: "4px",
-                boxShadow: `0 4px 0 ${theme.iconShadow}`,
-                marginTop: "16px",
-              }}
+        <AnimatePresence mode="wait">
+          {analysisStatus === "complete" ? (
+            <motion.div
+              key="result-view"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.4 }}
+              style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}
             >
               <div
                 style={{
-                  backgroundColor: theme.bgLight,
-                  border: `2px solid ${theme.border}`,
-                  borderRadius: "2px",
-                  padding: "12px",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: "64px",
-                  height: "64px",
+                  backgroundColor: "#ffffff",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  boxShadow: `0 4px 0 ${theme.iconShadow}`,
+                  marginTop: "16px",
                 }}
               >
-                {(() => {
-                  const Icon = warningConfig[overallVerdict].icon;
-                  return <Icon size={40} color={theme.border} />;
-                })()}
+                <div
+                  style={{
+                    backgroundColor: theme.bgLight,
+                    border: `2px solid ${theme.border}`,
+                    borderRadius: "2px",
+                    padding: "12px",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    width: "64px",
+                    height: "64px",
+                  }}
+                >
+                  {(() => {
+                    const Icon = warningConfig[overallVerdict].icon;
+                    return <Icon size={40} color={theme.border} />;
+                  })()}
+                </div>
               </div>
-            </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "center" }}>
-              <h2
-                style={{
-                  fontSize: "24px",
-                  margin: 0,
-                  color: theme.titleColor,
-                  fontWeight: "900",
-                  fontFamily: pixelFont,
-                  letterSpacing: "2px",
-                  textShadow: `
-                    2px 0 0 ${theme.textShadowColor},
-                    -2px 0 0 ${theme.textShadowColor},
-                    0 2px 0 ${theme.textShadowColor},
-                    0 -2px 0 ${theme.textShadowColor},
-                    2px 2px 0 ${theme.textShadowColor},
-                    -2px -2px 0 ${theme.textShadowColor},
-                    2px -2px 0 ${theme.textShadowColor},
-                    -2px 2px 0 ${theme.textShadowColor}
-                  `,
-                }}
-              >
-                {warningConfig[overallVerdict].prefix}
-              </h2>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: theme.descColor,
-                  lineHeight: "1.5",
-                  margin: 0,
-                  fontWeight: "bold",
-                  fontFamily: pixelFont,
-                }}
-              >
-                {warningConfig[overallVerdict].title}
-                <br />
-                <span style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", display: "inline-block" }}>
-                  {summary || warningConfig[overallVerdict].desc}
-                </span>
-              </p>
-            </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", textAlign: "center" }}>
+                <h2
+                  style={{
+                    fontSize: "24px",
+                    margin: 0,
+                    color: theme.titleColor,
+                    fontWeight: "900",
+                    fontFamily: pixelFont,
+                    letterSpacing: "2px",
+                    textShadow: `
+                      2px 0 0 ${theme.textShadowColor},
+                      -2px 0 0 ${theme.textShadowColor},
+                      0 2px 0 ${theme.textShadowColor},
+                      0 -2px 0 ${theme.textShadowColor},
+                      2px 2px 0 ${theme.textShadowColor},
+                      -2px -2px 0 ${theme.textShadowColor},
+                      2px -2px 0 ${theme.textShadowColor},
+                      -2px 2px 0 ${theme.textShadowColor}
+                    `,
+                  }}
+                >
+                  {warningConfig[overallVerdict].prefix}
+                </h2>
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: theme.descColor,
+                    lineHeight: "1.5",
+                    margin: 0,
+                    fontWeight: "bold",
+                    fontFamily: pixelFont,
+                  }}
+                >
+                  {warningConfig[overallVerdict].title}
+                  <br />
+                  <span style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", display: "inline-block" }}>
+                    {summary || warningConfig[overallVerdict].desc}
+                  </span>
+                </p>
+              </div>
 
-            <div style={{ width: "100%", marginTop: "8px" }}>
-              <PixelButton
-                onClick={(e) => togglePanel(e)}
-                colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
-                text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                icon={
-                  isPanelOpen ? (
-                    <ChevronUp size={20} color="#1e293b" strokeWidth={3} />
-                  ) : (
-                    <ChevronDown size={20} color="#ffffff" strokeWidth={3} />
-                  )
-                }
-                size="md"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            {/* 경찰서 건물(항상 표시) + 분석 중 경찰관 오버레이 */}
-            <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
-              {/* 경찰서 건물 배경 */}
-              <PixelCharacter size="lg" />
+              <div style={{ width: "100%", marginTop: "8px" }}>
+                <PixelButton
+                  onClick={(e) => togglePanel(e)}
+                  colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
+                  text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
+                  icon={
+                    isPanelOpen ? (
+                      <ChevronUp size={20} color="#1e293b" strokeWidth={3} />
+                    ) : (
+                      <ChevronDown size={20} color="#ffffff" strokeWidth={3} />
+                    )
+                  }
+                  size="md"
+                />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="processing-view"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.4 }}
+              style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}
+            >
+              {/* 경찰서 건물 배경 + 오버레이 통합 관리 */}
+              <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
+                <PixelCharacter size="lg" />
 
-              {/* 분석 중일 때 경찰관 오버레이 */}
-              <AnimatePresence>
+                {/* 상태에 따른 경찰관 오버레이 (위치 우측 하단으로 고정) */}
                 {analysisStatus !== "idle" && analysisStatus !== "error" && (
                   <motion.div
-                    initial={{ x: -40, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
+                    key="officer-overlay"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
                     style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
                   >
-                    {/* 말풍선 */}
                     <div
                       style={{
                         position: "absolute",
@@ -374,204 +392,67 @@ export function LongFormDashboard() {
                         fontSize: "12px",
                         fontWeight: "900",
                         color: "#0f172a",
-                        boxShadow: "0 4px 0 rgba(0,0,0,0.2)",
+                        boxShadow: "0 4px 0 rgba(0,0,0,0.15)",
+                        fontFamily: pixelFont,
                         whiteSpace: "nowrap",
                         zIndex: 10,
-                        fontFamily: pixelFont,
                       }}
                     >
-                      {/* 말풍선 꼬리 외곽선 */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: "-6px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          width: 0,
-                          height: 0,
-                          borderLeft: "6px solid transparent",
-                          borderRight: "6px solid transparent",
-                          borderTop: "6px solid #0f172a",
-                        }}
-                      />
-                      {/* 말풍선 꼬리 내부 */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: "-3px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          width: 0,
-                          height: 0,
-                          borderLeft: "4px solid transparent",
-                          borderRight: "4px solid transparent",
-                          borderTop: "4px solid white",
-                        }}
-                      />
-                      {statusMsg}
+                      {/* 말풍선 꼬리 */}
+                      <div style={{ position: "absolute", bottom: "-6px", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid #0f172a" }} />
+                      <div style={{ position: "absolute", bottom: "-3px", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "4px solid white" }} />
+                      
+                      {analysisStatus === "loading" ? "수사 기록 조회 중..." : statusMsg}
                     </div>
                     <PixelOfficer size="sm" mood="thinking" isWalking />
                   </motion.div>
                 )}
-              </AnimatePresence>
-            </div>
+              </div>
 
-            <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
-              {analysisStatus === "idle" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-                  <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
-                  <PixelButton onClick={() => startDemoAnalysis()} colorType="neutral" text="데모 수사 시작 (토큰X)" />
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "12px" }}>
-                  {/* 경량화된 프리미엄 게이지 바 */}
-                  <div 
-                    ref={barRef}
-                    style={{ position: "relative", width: "100%", height: "24px" }}
-                  >
-                    <div
-                      style={{
-                        height: "24px",
-                        width: "100%",
-                        backgroundColor: "rgba(15, 23, 42, 0.05)",
-                        padding: "2px",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "12px",
-                        position: "relative",
-                        overflow: "hidden",
-                        display: "flex",
-                        alignItems: "center",
-                        boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
-                      }}
+              <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
+                {analysisStatus === "idle" || analysisStatus === "error" ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                    <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
+                    <PixelButton onClick={() => startDemoAnalysis()} colorType="neutral" text="데모 수사 시작 (토큰X)" />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "12px" }}>
+                    <div 
+                      ref={barRef}
+                      style={{ position: "relative", width: "100%", height: "24px" }}
                     >
-                      {/* 실제 게이지 및 텍스트 레이어링 */}
-                      {(() => {
-                        const progress =
-                          analysisStatus === "checking"
-                            ? 10
-                            : analysisStatus === "detecting"
-                              ? 25
-                              : analysisStatus === "analyzing_transcript"
-                                ? 50
-                                : analysisStatus === "analyzing_claims"
-                                  ? 75
-                                  : 95;
+                      <div style={{ height: "24px", width: "100%", backgroundColor: "rgba(15, 23, 42, 0.05)", padding: "2px", border: "1px solid #e2e8f0", borderRadius: "12px", position: "relative", overflow: "hidden", display: "flex", alignItems: "center", boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)" }}>
+                        {(() => {
+                          const progress = analysisStatus === "loading" ? 5 : analysisStatus === "checking" ? 10 : analysisStatus === "detecting" ? 25 : analysisStatus === "analyzing_transcript" ? 50 : analysisStatus === "analyzing_claims" ? 75 : 95;
+                          const progressText = `${progress}% COMPLETE`;
+                          const currentBarWidth = barWidth || 232;
+                          return (
+                            <>
+                              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, fontSize: "12px", color: "#1e293b", fontWeight: "900", fontFamily: pixelFont, pointerEvents: "none" }}>{progressText}</div>
+                              <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }} style={{ height: "100%", background: "linear-gradient(90deg, #38bdf8, #0ea5e9)", borderRadius: "10px", position: "relative", zIndex: 2, overflow: "hidden" }}>
+                                <div style={{ width: `${currentBarWidth}px`, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "12px", fontWeight: "900", fontFamily: pixelFont, position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>{progressText}</div>
+                                <motion.div animate={{ x: ["-100%", "400%"] }} transition={{ repeat: Infinity, duration: 3, ease: "linear" }} style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)", width: "100px", pointerEvents: "none" }} />
+                              </motion.div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
 
-                        const progressText = `${progress}% COMPLETE`;
-                        const currentBarWidth = barWidth || 232;
-
-                        return (
-                          <>
-                            {/* Layer 1: Base Black Text (Always Centered) */}
-                            <div style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              zIndex: 1,
-                              fontSize: "12px",
-                              color: "#1e293b",
-                              fontWeight: "900",
-                              fontFamily: pixelFont,
-                              pointerEvents: "none"
-                            }}>
-                              {progressText}
-                            </div>
-
-                            {/* Layer 2: Moving Gauge with Masked White Text */}
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${progress}%` }}
-                              transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
-                              style={{
-                                height: "100%",
-                                background: "linear-gradient(90deg, #38bdf8, #0ea5e9)",
-                                borderRadius: "10px",
-                                position: "relative",
-                                zIndex: 2,
-                                overflow: "hidden"
-                              }}
-                            >
-                              {/* White Text in a container that matches the FULL bar width */}
-                              {/* This container starts at the same left as the bar, so text stays perfectly centered */}
-                              <div style={{
-                                width: `${currentBarWidth}px`, 
-                                height: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "white",
-                                fontSize: "12px",
-                                fontWeight: "900",
-                                fontFamily: pixelFont,
-                                position: "absolute",
-                                left: 0, // Moves with gauge, but content offset matches bar
-                                top: 0,
-                                pointerEvents: "none"
-                              }}>
-                                {progressText}
-                              </div>
-
-                              {/* Subtle scan effect inside gauge */}
-                              <motion.div
-                                animate={{ x: ["-100%", "400%"] }}
-                                transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-                                style={{
-                                  position: "absolute",
-                                  inset: 0,
-                                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
-                                  width: "100px",
-                                  pointerEvents: "none",
-                                }}
-                              />
-                            </motion.div>
-                          </>
-                        );
-                      })()}
+                    <div style={{ minHeight: "24px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                      <AnimatePresence mode="wait">
+                        <motion.div key={tipMsg} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: 0.4 }} style={{ fontSize: "12px", fontWeight: "bold", fontFamily: pixelFont, textAlign: "center", background: "linear-gradient(110deg, #64748b 30%, #bae6fd 50%, #64748b 70%)", backgroundSize: "200% 100%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                          <motion.div animate={{ backgroundPosition: ["200% 0%", "-200% 0%"] }} transition={{ repeat: Infinity, duration: 6, ease: "linear" }} style={{ background: "inherit", WebkitBackgroundClip: "inherit", WebkitTextFillColor: "inherit" }}>{tipMsg}</motion.div>
+                        </motion.div>
+                      </AnimatePresence>
                     </div>
                   </div>
-
-                  {/* 은은한 메탈릭 쉬머 가이드 문구 */}
-                  <div style={{ minHeight: "24px", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={tipMsg}
-                        initial={{ opacity: 0, y: 3 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -3 }}
-                        transition={{ duration: 0.6 }}
-                        style={{
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                          fontFamily: pixelFont,
-                          textAlign: "center",
-                          background: "linear-gradient(110deg, #64748b 30%, #bae6fd 50%, #64748b 70%)",
-                          backgroundSize: "200% 100%",
-                          WebkitBackgroundClip: "text",
-                          WebkitTextFillColor: "transparent",
-                        }}
-                      >
-                        <motion.div
-                          animate={{ backgroundPosition: ["200% 0%", "-200% 0%"] }}
-                          transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
-                          style={{
-                            background: "inherit",
-                            WebkitBackgroundClip: "inherit",
-                            WebkitTextFillColor: "inherit",
-                          }}
-                        >
-                          {tipMsg}
-                        </motion.div>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       <AnimatePresence>
         {isPanelOpen && (
@@ -595,6 +476,6 @@ export function LongFormDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

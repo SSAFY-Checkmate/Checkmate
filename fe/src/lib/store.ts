@@ -43,6 +43,7 @@ export interface Claim {
  * 분석 진행 상태 타입
  */
 export type AnalysisStatus =
+  | "loading"
   | "idle"
   | "checking"
   | "detecting"
@@ -156,7 +157,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   activeTab: "report",
   isWarningVisible: false,
   warningCount: 0,
-  analysisStatus: "idle",
+  analysisStatus: "loading",
   videoTitle: "",
   channelName: "",
   currentVideoId: null,
