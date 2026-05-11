@@ -417,13 +417,13 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               height: "85vh",
               maxWidth: "520px",
               ...PIXEL_STYLES.border,
-              backgroundColor: "#1e293b",
+              backgroundColor: "#f8fafc", // 밝은 배경
               borderWidth: "6px",
-              borderColor: "#64748b",
+              borderColor: "#e2e8f0", // 밝은 테두리
               padding: "0px",
               position: "relative",
               fontFamily: pixelFont,
-              boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
+              boxShadow: "0 25px 60px rgba(15, 23, 42, 0.15)",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
@@ -431,21 +431,21 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
           >
             <div
               style={{
-                backgroundColor: "#0f172a",
+                backgroundColor: "#f1f5f9",
                 padding: "10px 16px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                borderBottom: "4px solid rgba(255,255,255,0.1)",
+                borderBottom: "2px solid #e2e8f0",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Search size={14} color="#94a3b8" />
-                <span style={{ color: "#cbd5e1", fontSize: "12px", fontWeight: "bold" }}>채널명: {channelName}</span>
+                <Search size={14} color="#64748b" />
+                <span style={{ color: "#475569", fontSize: "12px", fontWeight: "bold" }}>채널명: {channelName}</span>
               </div>
               <button
                 onClick={() => setResultModalOpen(false)}
-                style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex" }}
+                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex" }}
               >
                 <X size={18} />
               </button>
@@ -478,7 +478,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                   <AlertTriangle size={56} strokeWidth={1.5} />
                   <h3 style={{ fontSize: "20px", fontWeight: "900", margin: 0 }}>분석을 진행할 수 없습니다</h3>
                   <p
-                    style={{ fontSize: "14px", color: "#cbd5e1", lineHeight: "1.6", margin: 0, wordBreak: "keep-all" }}
+                    style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0, wordBreak: "keep-all" }}
                   >
                     {summary || "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다."}
                   </p>
@@ -490,7 +490,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                 <>
                   <div
                     style={{
-                      backgroundColor: "rgba(255,255,255,0.06)",
+                      backgroundColor: "white",
                       border: `2px solid ${verdictConfig[overallVerdict].color}`,
                       padding: "12px 16px",
                       display: "flex",
@@ -520,7 +520,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         })()}
                       </div>
                       <div>
-                        <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "bold" }}>최종 수사 결과</div>
+                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>최종 수사 결과</div>
                         <div
                           style={{ fontSize: "18px", fontWeight: "900", color: verdictConfig[overallVerdict].color }}
                         >
@@ -529,8 +529,8 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "11px", color: "#94a3b8", fontWeight: "bold" }}>수사 신뢰도</div>
-                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#fff" }}>
+                      <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>수사 신뢰도</div>
+                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>
                         {trustScore}
                         <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}>%</span>
                       </div>
@@ -544,20 +544,21 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                       <section>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                           <FileText size={16} color={verdictConfig[overallVerdict].color} />
-                          <h3 style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
-                            수사 개요
+                          <h3 style={{ fontSize: "14px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
+                            수사 개요 및 총평
                           </h3>
                         </div>
                         <div
                           style={{
-                            backgroundColor: "#0f172a",
+                            backgroundColor: "white",
                             padding: "20px",
                             fontSize: "14px",
                             lineHeight: "1.7",
-                            color: "#cbd5e1",
-                            border: "2px solid rgba(255,255,255,0.05)",
-                            borderRadius: "2px",
+                            color: "#475569",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
                             position: "relative",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                           }}
                         >
                           <div
@@ -578,10 +579,11 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         style={{
                           display: "flex",
                           gap: "8px",
-                          padding: "4px",
-                          backgroundColor: "rgba(255,255,255,0.05)",
-                          borderRadius: "6px",
-                          border: "2px solid rgba(255,255,255,0.08)",
+                          padding: "5px",
+                          backgroundColor: "#f1f5f9", // 밝은 테마용 배경
+                          borderRadius: "10px",
+                          border: "1px solid #e2e8f0",
+                          boxShadow: "inset 0 1px 3px rgba(0,0,0,0.05)",
                         }}
                       >
                         <button
@@ -589,25 +591,35 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                           onClick={() => setActiveModalTab("report")}
                           style={{
                             flex: 1,
-                            padding: "8px",
+                            padding: "10px",
                             fontSize: "13px",
                             fontWeight: "900",
                             fontFamily: pixelFont,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: "6px",
+                            gap: "8px",
                             cursor: "pointer",
-                            transition: "all 0.1s",
-                            borderRadius: "4px",
-                            backgroundColor: activeModalTab === "report" ? "#0ea5e9" : "transparent",
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            borderRadius: "7px",
+                            background:
+                              activeModalTab === "report" ? "linear-gradient(135deg, #0ea5e9, #2563eb)" : "transparent",
                             color: activeModalTab === "report" ? "white" : "#64748b",
-                            border: activeModalTab === "report" ? "2px solid #0284c7" : "2px solid transparent",
-                            boxShadow: activeModalTab === "report" ? "0 3px 0 #0369a1" : "none",
-                            transform: activeModalTab === "report" ? "translateY(-1px)" : "none",
+                            border: "none",
+                            boxShadow:
+                              activeModalTab === "report"
+                                ? "0 4px 12px rgba(14, 165, 233, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
+                                : "none",
+                            transform: activeModalTab === "report" ? "translateY(0)" : "none",
                           }}
                         >
-                          <FileText size={14} />
+                          <FileText
+                            size={15}
+                            style={{
+                              filter:
+                                activeModalTab === "report" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
+                            }}
+                          />
                           리포트
                         </button>
                         <button
@@ -615,25 +627,29 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                           onClick={() => setActiveModalTab("community")}
                           style={{
                             flex: 1,
-                            padding: "8px",
+                            padding: "10px",
                             fontSize: "13px",
                             fontWeight: "900",
                             fontFamily: pixelFont,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: "6px",
+                            gap: "8px",
                             cursor: "pointer",
-                            transition: "all 0.1s",
-                            borderRadius: "4px",
-                            backgroundColor: activeModalTab === "community" ? "#8b5cf6" : "transparent",
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            borderRadius: "7px",
+                            background: activeModalTab === "community" 
+                              ? "linear-gradient(135deg, #8b5cf6, #6d28d9)" 
+                              : "transparent",
                             color: activeModalTab === "community" ? "white" : "#64748b",
-                            border: activeModalTab === "community" ? "2px solid #7c3aed" : "2px solid transparent",
-                            boxShadow: activeModalTab === "community" ? "0 3px 0 #6d28d9" : "none",
-                            transform: activeModalTab === "community" ? "translateY(-1px)" : "none",
+                            border: "none",
+                            boxShadow: activeModalTab === "community" 
+                              ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)" 
+                              : "none",
+                            transform: activeModalTab === "community" ? "translateY(0)" : "none",
                           }}
                         >
-                          <Search size={14} />
+                          <Search size={15} style={{ filter: activeModalTab === "community" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none" }} />
                           커뮤니티
                         </button>
                       </div>
@@ -649,14 +665,15 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                               <FileText size={14} color={verdictConfig[overallVerdict].color} />
-                              <h3 style={{ fontSize: "13px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                              <h3 style={{ fontSize: "13px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
                                 수사관 정밀 판독 결과 (증거 목록)
                               </h3>
                             </div>
                             <div
                               style={{
-                                backgroundColor: "rgba(255,255,255,0.02)",
+                                backgroundColor: "white",
                                 borderRadius: "8px",
+                                border: "1px solid #e2e8f0",
                                 overflow: "hidden",
                               }}
                             >
@@ -673,14 +690,15 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                               <Search size={14} color="#8b5cf6" />
-                              <h3 style={{ fontSize: "13px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                              <h3 style={{ fontSize: "13px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
                                 수사 상황실 (커뮤니티)
                               </h3>
                             </div>
                             <div
                               style={{
-                                backgroundColor: "rgba(255,255,255,0.02)",
+                                backgroundColor: "white",
                                 borderRadius: "8px",
+                                border: "1px solid #e2e8f0",
                                 overflow: "hidden",
                               }}
                             >
@@ -698,8 +716,8 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
             <div
               style={{
                 padding: "16px 24px",
-                backgroundColor: "rgba(15, 23, 42, 0.5)",
-                borderTop: "2px solid rgba(255,255,255,0.05)",
+                backgroundColor: "#f1f5f9",
+                borderTop: "1px solid #e2e8f0",
               }}
             >
               <PixelButton text="보고서 닫기" size="md" colorType="primary" onClick={() => setResultModalOpen(false)} />
