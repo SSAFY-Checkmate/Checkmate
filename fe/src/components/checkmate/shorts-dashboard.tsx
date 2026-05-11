@@ -5,7 +5,7 @@ import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ShieldCheck, AlertTriangle, HelpCircle, Check, FileText, Search } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
-import { TrustMeter, ReportTab } from "./report-tab";
+import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 import { LoginView } from "./login-view";
 

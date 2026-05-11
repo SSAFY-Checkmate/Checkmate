@@ -137,11 +137,6 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       }
 
       if (videoId) {
-        // 활성화된 쇼츠 오버레이를 먼저 찾습니다 (쇼츠 대응)
-        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer")).find(
-          (el) => (el as HTMLElement).getBoundingClientRect().width > 0,
-        );
-
         // YouTube DOM에서 제목/채널명 추출
         const { title: videoTitle, channel: channelName } = scrapeMetadata();
 

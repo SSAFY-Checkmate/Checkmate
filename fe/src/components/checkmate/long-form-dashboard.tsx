@@ -14,7 +14,6 @@ import { PIXEL_STYLES } from "../../lib/constants/styles";
 export function LongFormDashboard() {
   const {
     startAnalysis,
-    startDemoAnalysis,
     analysisStatus,
     overallVerdict,
     openPanel,

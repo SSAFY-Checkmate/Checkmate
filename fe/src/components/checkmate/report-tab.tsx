@@ -1,6 +1,6 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink } from "lucide-react";
-import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
+import { COLORS } from "../../lib/constants/styles";
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const config = {
