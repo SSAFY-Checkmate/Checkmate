@@ -65,7 +65,6 @@ public class AnalysisJobService {
 			return latest;
 		}
 
-		// Backward compatibility: previously stored rows may have un-normalized URLs.
 		if (!normalized.equals(raw)) {
 			return analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(raw);
 		}
@@ -75,7 +74,6 @@ public class AnalysisJobService {
 
 	@Transactional(readOnly = true)
 	public AnalysisJobGetResponse getJob(String jobId) {
-		// Read-through cache: protects DB from tight polling loops.
 		Optional<AnalysisJobGetResponse> cached = analysisJobReadCache.get(jobId);
 		if (cached.isPresent()) {
 			return cached.get();
@@ -84,7 +82,6 @@ public class AnalysisJobService {
 		var summary = analysisJobRepository.findSummaryById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-		// Only load & parse the potentially large LONGTEXT result payload for COMPLETED.
 		JsonNode resultNode = null;
 		if (summary.getStatus() == AnalysisJobStatus.COMPLETED) {
 			var result = analysisJobRepository.findResultById(jobId)
@@ -93,7 +90,6 @@ public class AnalysisJobService {
 				try {
 					resultNode = objectMapper.readTree(result.getResultJson());
 				} catch (Exception ignored) {
-					// If stored payload isn't valid JSON, return null result instead of breaking the API.
 				}
 			}
 		}
@@ -107,7 +103,6 @@ public class AnalysisJobService {
 		if (summary.getStatus() == AnalysisJobStatus.COMPLETED) {
 			String ytVideoId = null;
 			
-			// 1. JSON 파싱 시도 (다양한 경로 확인)
 			if (resultNode != null) {
 				if (resultNode.path("analysis").path("youtubeInfo").has("videoId")) {
 					ytVideoId = resultNode.path("analysis").path("youtubeInfo").path("videoId").asText(null);
@@ -119,14 +114,13 @@ public class AnalysisJobService {
 					ytVideoId = resultNode.path("videoId").asText(null);
 				}
 			}
-			// 2. 파싱된 ID로 조회
+
 			if (ytVideoId != null && !ytVideoId.isBlank()) {
 				analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(ytVideoId)
 					.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
 					.orElse(null);
 			}
 			
-			// 3. Fallback: URL 정규화를 통해 직접 ID 추출 후 조회
 			if (analysisId == null && summary.getYoutubeUrl() != null) {
 				try {
 					String extractedId = YoutubeUrlNormalizer.extractVideoId(summary.getYoutubeUrl());
@@ -149,7 +143,6 @@ public class AnalysisJobService {
 			error
 		);
 
-		// If analysisId is missing for a COMPLETED job, don't cache the response yet.
 		if (summary.getStatus() == AnalysisJobStatus.COMPLETED && analysisId == null) {
 			return response;
 		}
@@ -165,7 +158,6 @@ public class AnalysisJobService {
 		if (status == AnalysisJobStatus.COMPLETED || status == AnalysisJobStatus.FAILED) {
 			return Duration.ofHours(1);
 		}
-		// Keep short to reduce staleness while still absorbing high-frequency polls.
 		return Duration.ofSeconds(2);
 	}
 
@@ -192,8 +184,6 @@ public class AnalysisJobService {
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.complete(LocalDateTime.now(), resultJson);
 		analysisJobReadCache.evict(jobId);
-		
-		// Map and save to RDB entities
 		analysisDataMappingService.mapAndSaveAnalysisResult(resultJson);
 	}
 
@@ -209,7 +199,6 @@ public class AnalysisJobService {
 	public void applyProcessing(String jobId) {
 		AnalysisJob job = analysisJobRepository.findById(jobId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
-		// Do not wipe transcript reference if it already exists.
 		job.markAiProcessing(LocalDateTime.now(), job.getTranscriptArtifactKey(), job.getTranscriptExpiresAt());
 		analysisJobReadCache.evict(jobId);
 	}
@@ -232,7 +221,6 @@ public class AnalysisJobService {
 			expiresAt = LocalDateTime.now().plusSeconds(payload.ttlSeconds());
 		}
 
-		// Idempotency: if we already stored the same transcript artifact key, don't enqueue another analysis request.
 		if (job.getTranscriptArtifactKey() != null && job.getTranscriptArtifactKey().equals(payload.artifactKey())) {
 			job.markAiProcessing(LocalDateTime.now(), payload.artifactKey(), expiresAt);
 			analysisJobReadCache.evict(job.getJobId());
@@ -256,7 +244,6 @@ public class AnalysisJobService {
 			job.getJobId(),
 			objectMapper.valueToTree(analysisPayload)
 		);
-		log.info("analysis.requested enqueued. topic={} jobId={} artifactKey={}", analysisRequestedTopic, job.getJobId(), payload.artifactKey());
 		outboxService.enqueue(analysisRequestedTopic, job.getJobId(), analysisRequested);
 	}
 

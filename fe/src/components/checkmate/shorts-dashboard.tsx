@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
+import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,11 +28,11 @@ export function ShortsDashboard() {
     setResultModalOpen,
     setCurrentVideo,
     checkAnalysisStatus,
-    currentVideoId, // 현재 저장된 영상 ID 가져오기
+    currentVideoId,
   } = useCheckmateStore();
   const [showCheckAnim, setShowCheckAnim] = useState(false);
 
-  // [추가] 숏폼 분석 진행률(%) 계산
+  // 쇼츠 분석 진행률(%) 계산
   const getProgressPercent = () => {
     switch (analysisStatus) {
       case "detecting":
@@ -48,8 +48,10 @@ export function ShortsDashboard() {
     }
   };
 
-  // 쇼츠 영상 변경 감지 및 상태 체크 로직 개선
+  // 컴포넌트 마운트 시 인증 초기화 및 URL 변경 감지
   useEffect(() => {
+    initializeAuth();
+    
     const handleUrlChange = () => {
       const url = window.location.href;
       let videoId = "";
@@ -60,7 +62,6 @@ export function ShortsDashboard() {
         videoId = new URLSearchParams(window.location.search).get("v") || "";
       }
 
-      // [중요] 영상 ID가 실제로 바뀌었을 때만 스토어 업데이트 및 체크 실행
       if (videoId && videoId !== currentVideoId) {
         setCurrentVideo(videoId);
         checkAnalysisStatus();
@@ -68,11 +69,11 @@ export function ShortsDashboard() {
     };
 
     handleUrlChange();
-
     const interval = setInterval(handleUrlChange, 2000);
     return () => clearInterval(interval);
   }, [setCurrentVideo, checkAnalysisStatus, currentVideoId]);
 
+  // 분석 완료 시 체크 애니메이션 트리거
   useEffect(() => {
     if (analysisStatus === "complete") {
       setShowCheckAnim(true);
@@ -95,7 +96,6 @@ export function ShortsDashboard() {
             return;
           }
 
-          // [수정] 분석 진행 중일 때는 클릭 무시 (error 상태는 클릭 허용)
           if (analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error") return;
 
           if (analysisStatus === "complete" || analysisStatus === "error") setResultModalOpen(true);
@@ -121,7 +121,7 @@ export function ShortsDashboard() {
             height: "48px",
             background:
               analysisStatus === "idle" || analysisStatus === "complete" || analysisStatus === "error"
-                ? "#f2f2f2" // 요청하신 완전 불투명한 유튜브 라이트/기본 톤으로 모두 통일
+                ? "#f2f2f2"
                 : "linear-gradient(135deg, #0ea5e9, #2563eb)",
             borderRadius: "50%",
             display: "flex",
@@ -132,12 +132,12 @@ export function ShortsDashboard() {
                 ? `2px solid ${verdictConfig[overallVerdict].color}`
                 : analysisStatus === "error"
                   ? "2px solid #ef4444"
-                  : "none", // 유튜브 기본 버튼처럼 평상시에는 테두리 없음
+                  : "none",
             boxShadow: analysisStatus === "idle" ? "none" : "0 4px 12px rgba(37, 99, 235, 0.3)",
             position: "relative",
           }}
         >
-          {analysisStatus !== "idle" && analysisStatus !== "complete" && (
+          {analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error" && (
             <motion.div
               animate={{ rotate: 360, scale: [1, 1.15, 1] }}
               transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
@@ -183,7 +183,6 @@ export function ShortsDashboard() {
                   fontFamily: pixelFont,
                 }}
               >
-                {/* 말풍선 꼬리 외곽선 */}
                 <div
                   style={{
                     position: "absolute",
@@ -197,7 +196,6 @@ export function ShortsDashboard() {
                     borderTop: "5px solid #0f172a",
                   }}
                 />
-                {/* 말풍선 꼬리 내부 */}
                 <div
                   style={{
                     position: "absolute",
@@ -261,12 +259,12 @@ export function ShortsDashboard() {
           style={{
             fontSize: "11px",
             fontWeight: "900",
-            color: "#0f172a", // 검은 색상
+            color: "#0f172a",
             textAlign: "center",
             lineHeight: "1.2",
             marginTop: "4px",
             padding: "2px 6px",
-            backgroundColor: "transparent", // 배경 없음
+            backgroundColor: "transparent",
           }}
         >
           {!isLoggedIn
@@ -292,13 +290,11 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
     overallVerdict,
     trustScore,
     summary,
-    videoTitle,
     channelName,
     isLoggedIn,
     analysisStatus,
   } = useCheckmateStore();
 
-  /** 모달 내부 탭 상태 (리포트 / 커뮤니티) */
   const [activeModalTab, setActiveModalTab] = useState<"report" | "community">("report");
 
   useEffect(() => {
@@ -343,7 +339,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               ...PIXEL_STYLES.border,
               backgroundColor: "#1e293b",
               borderWidth: "6px",
-              borderColor: "#64748b", // 기본 테두리
+              borderColor: "#64748b",
               padding: "0px",
               position: "relative",
               fontFamily: pixelFont,
@@ -353,7 +349,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               overflow: "hidden",
             }}
           >
-            {/* [TOP HEADER] 채널명 표시 */}
             <div
               style={{
                 backgroundColor: "#0f172a",
@@ -376,7 +371,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               </button>
             </div>
 
-            {/* [MAIN BODY] 수사 보고서 본문 */}
             <div
               style={{
                 flex: 1,
@@ -414,10 +408,9 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                 </div>
               ) : (
                 <>
-                  {/* 1. 핵심 수사 결과 (슬림 가로형 배치) */}
                   <div
                     style={{
-                      backgroundColor: "rgba(255,255,255,0.06)", // 배경색 추가
+                      backgroundColor: "rgba(255,255,255,0.06)",
                       border: `2px solid ${verdictConfig[overallVerdict].color}`,
                       padding: "12px 16px",
                       display: "flex",
@@ -468,7 +461,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                     <LoginView />
                   ) : (
                     <>
-                      {/* 2. 사건 개요 (Summary) */}
                       <section>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                           <FileText size={16} color={verdictConfig[overallVerdict].color} />
@@ -502,7 +494,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         </div>
                       </section>
 
-                      {/* 2. 탭 전환 버튼 (리포트 / 커뮤니티) */}
                       <div
                         style={{
                           display: "flex",
@@ -516,7 +507,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         <button
                           type="button"
                           onClick={() => setActiveModalTab("report")}
-                          aria-label="리포트 탭"
                           style={{
                             flex: 1,
                             padding: "8px",
@@ -543,7 +533,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         <button
                           type="button"
                           onClick={() => setActiveModalTab("community")}
-                          aria-label="커뮤니티 탭"
                           style={{
                             flex: 1,
                             padding: "8px",
@@ -569,7 +558,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         </button>
                       </div>
 
-                      {/* 3. 탭 컨텐츠 영역 */}
                       <AnimatePresence mode="wait">
                         {activeModalTab === "report" ? (
                           <motion.section
@@ -578,7 +566,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.15 }}
-                            style={{ marginBottom: "20px" }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                               <FileText size={14} color={verdictConfig[overallVerdict].color} />
@@ -603,7 +590,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.15 }}
-                            style={{ marginBottom: "20px" }}
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                               <Search size={14} color="#8b5cf6" />
@@ -629,7 +615,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               )}
             </div>
 
-            {/* [BOTTOM] 확인 버튼 */}
             <div
               style={{
                 padding: "16px 24px",

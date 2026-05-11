@@ -1,306 +1,456 @@
 import { useState, useEffect } from "react";
-import { useCheckmateStore } from "../../lib/store";
-import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users } from "lucide-react";
+import { useCheckmateStore, type ChatMessage } from "../../lib/store";
+import { Send, ThumbsUp, ThumbsDown, MessageSquare, Users, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import { PixelConfirmModal } from "../common/pixel-confirm-modal";
+
+const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
+const BORDER_COLOR = "#475569";
+const SHADOW_COLOR = "#94a3b8";
 
 const STYLES = {
   container: {
+    padding: "16px",
     display: "flex",
     flexDirection: "column" as const,
     gap: "20px",
-    padding: "16px",
-    backgroundColor: "white",
-    height: "100%",
-    overflowY: "auto" as const,
+    backgroundColor: "#f8fafc",
+    minHeight: "100%",
+    fontFamily: PIXEL_FONT,
   },
-  sectionTitle: {
-    fontSize: "14px",
-    fontWeight: "bold",
-    color: "#94a3b8",
-    margin: "0 0 12px 0",
+  headerTitle: {
+    fontSize: "16px",
+    fontWeight: "normal" as const,
+    color: "#334155",
     display: "flex",
     alignItems: "center",
-    gap: "8px",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.025em",
+    gap: "10px",
+    fontFamily: PIXEL_FONT,
   },
-  voteCard: {
-    padding: "20px",
+  pixelCard: {
     backgroundColor: "#ffffff",
-    border: "2px solid #e2e8f0",
-    borderRadius: "8px",
-    boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+    border: `3px solid ${BORDER_COLOR}`,
+    boxShadow: `4px 4px 0px 0px ${SHADOW_COLOR}`,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "20px",
   },
   gaugeContainer: {
-    display: "flex",
-    height: "12px",
-    borderRadius: "9999px",
-    overflow: "hidden",
+    height: "28px",
     backgroundColor: "#f1f5f9",
-    width: "100%",
+    border: `3px solid ${BORDER_COLOR}`,
+    display: "flex",
+    position: "relative" as const,
+    overflow: "hidden",
+    boxShadow: "inset 2px 2px 0px 0px rgba(0,0,0,0.05)",
   },
-  voteButton: {
+  voteButton: (color: string, shadow: string, active: boolean) => ({
     flex: 1,
-    padding: "10px",
-    borderRadius: "6px",
-    border: "2px solid",
+    padding: "12px",
+    backgroundColor: active ? color : "#ffffff",
+    color: active ? "#ffffff" : color,
+    border: `3px solid ${active ? BORDER_COLOR : color}`,
+    boxShadow: active
+      ? `0px 0px 15px ${color}, inset 3px 3px 0px 0px rgba(255,255,255,0.3)`
+      : `3px 3px 0px 0px ${shadow}`,
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "center",
+    gap: "4px",
     cursor: "pointer",
-    fontWeight: "900" as const,
-    fontSize: "13px",
+    fontFamily: PIXEL_FONT,
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    transform: active ? "scale(1.05)" : "none",
+    zIndex: active ? 10 : 1,
+  }),
+  sectionTitle: {
+    fontSize: "14px",
+    fontWeight: "normal" as const,
+    color: "#64748b",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
     gap: "8px",
-    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-    zIndex: 10,
-    position: "relative" as const,
-  },
-  chatInput: {
-    flex: 1,
-    padding: "10px 14px",
-    borderRadius: "4px",
-    border: "2px solid #e2e8f0",
-    fontSize: "13px",
-    outline: "none",
-    backgroundColor: "#f8fafc",
-    transition: "border-color 0.2s",
-  },
-  card: {
-    padding: "16px",
-    backgroundColor: "white",
-    border: "2px solid #e2e8f0",
-    borderRadius: "6px",
     marginBottom: "12px",
+    fontFamily: PIXEL_FONT,
+  },
+  chatBox: {
+    flex: 1,
+    backgroundColor: "#334155",
+    border: `3px solid ${BORDER_COLOR}`,
+    boxShadow: `3px 3px 0px 0px ${SHADOW_COLOR}`,
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "8px",
+    minHeight: "120px",
   },
 };
 
 export function CommunityTab() {
   const {
+    channelName,
+    videoTitle,
+    communityVotes,
+    postReaction,
     isLoggedIn,
     analysisId,
-    reactionSummary,
-    myReaction,
-    postReaction,
-    fetchReactions, // [추가]
-    analysisStatus,
-    videoTitle,
-    claims,
     chatMessages,
-    voteOnClaim,
-    addChatMessage,
+    fetchComments,
+    addComment,
+    updateComment,
+    deleteComment,
+    commentPagination,
+    user,
   } = useCheckmateStore();
+  
   const [newMsg, setNewMsg] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [idToDelete, setIdToDelete] = useState<string | null>(null);
 
-  // [추가] 탭 진입 시 또는 로그인 상태 변경 시 투표 데이터 로드
+  const votes = communityVotes || { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null };
+  const totalVotes = votes.trueVotes + votes.fakeVotes;
+  const truePercent = totalVotes > 0 ? Math.round((votes.trueVotes / totalVotes) * 100) : 50;
+  const fakePercent = 100 - truePercent;
+
   useEffect(() => {
     if (analysisId) {
-      fetchReactions(analysisId);
+      fetchComments(analysisId);
     }
-  }, [analysisId, fetchReactions, isLoggedIn]);
+  }, [analysisId, fetchComments]);
+
+  /**
+   * 진실/허위 투표 핸들러
+   * 데모 영상 판별 및 분석 상태에 따른 피드백 제공
+   */
+  const handleVote = (type: boolean) => {
+    if (!isLoggedIn) {
+      alert("판정에 참여하려면 로그인이 필요합니다! 상단 요원 아이콘을 눌러 로그인해 주세요.");
+      return;
+    }
+
+    if (analysisId) {
+      // 데모 영상 판별 (analysisId가 999이면 데모)
+      if (analysisId === 999 || videoTitle.includes("데모")) {
+        alert("데모 영상은 실제 투표가 불가능합니다. 실제 영상을 분석해 주세요.");
+        return;
+      }
+      postReaction(analysisId, type);
+    } else {
+      // 분석 ID가 없는 경우 (아직 분석 중이거나 결과가 없는 경우)
+      alert("분석 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요. (ID Missing)");
+    }
+  };
 
   const handleSend = () => {
-    if (!newMsg.trim()) return;
-    addChatMessage({ username: "나", message: newMsg });
+    if (!newMsg.trim() || !isLoggedIn) return;
+    addComment(newMsg);
     setNewMsg("");
   };
 
-  const handleVote = async (type: boolean) => {
-    console.log("handleVote 클릭됨:", { type, isLoggedIn, analysisId });
-    if (!isLoggedIn) {
-      alert("투표를 위해 로그인이 필요합니다.");
-      return;
-    }
-    if (analysisId) {
-      await postReaction(analysisId, type);
-    } else {
-      console.error("handleVote: analysisId가 없습니다.");
-      // 영상 제목이나 스토어 상태를 통해 데모 여부 판별 (데모 버튼은 삭제했지만 기존 결과가 캐시되어 있을 수 있음)
-      if (videoTitle.includes("데모")) {
-        alert("데모 영상은 실제 투표가 불가능합니다. 실제 영상을 분석해 주세요.");
-      } else {
-        alert("분석 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요. (ID Missing)");
-      }
+  const startEditing = (msg: ChatMessage) => {
+    setEditingId(msg.id);
+    setEditContent(msg.message);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editContent.trim()) return;
+    await updateComment(editingId, editContent);
+    setEditingId(null);
+  };
+
+  const handleDelete = (id: string) => {
+    setIdToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (idToDelete) {
+      await deleteComment(idToDelete);
+      setIdToDelete(null);
     }
   };
 
-  // 게이지 비율 계산 (0명일 경우 50:50으로 표시)
-  const proCount = reactionSummary.proCount;
-  const conCount = reactionSummary.conCount;
-  const total = proCount + conCount;
-  const proPercent = total === 0 ? 50 : Math.round((proCount / total) * 100);
-  const conPercent = total === 0 ? 50 : 100 - proPercent;
-
   return (
     <div style={STYLES.container}>
-      {/* ─── 1. Citizens Investigation Vote Section ─── */}
-      <div>
-        <h4 style={STYLES.sectionTitle}>
-          <Users style={{ width: "18px", height: "18px", color: "#6366f1" }} />
-          시민 수사관 투표
-        </h4>
+      <h4 style={STYLES.headerTitle}>
+        <Users size={20} color="#6366f1" />
+        시민 배심원 판정 시스템
+      </h4>
 
-        <div style={STYLES.voteCard}>
-          {analysisStatus !== "complete" ? (
-            <div
-              style={{ textAlign: "center", padding: "16px 0", color: "#94a3b8", fontSize: "13px", fontWeight: "bold" }}
-            >
-              분석 완료 후 시민 수사에 참여할 수 있습니다.
+      <div style={STYLES.pixelCard}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              background: "#475569",
+              border: `2px solid ${BORDER_COLOR}`,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              boxShadow: `3px 3px 0px 0px ${SHADOW_COLOR}`,
+            }}
+          >
+            <ShieldCheck size={28} color="#94a3b8" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "12px", color: "#64748b", fontWeight: "normal", fontFamily: PIXEL_FONT }}>
+              수사 대상 채널
             </div>
-          ) : (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "8px",
-                  fontSize: "12px",
-                  fontWeight: "bold",
-                }}
-              >
-                <span style={{ color: "#10b981" }}>진실 {proPercent}%</span>
-                <span style={{ color: "#ef4444" }}>허위 {conPercent}%</span>
-              </div>
+            <div
+              style={{
+                fontSize: "16px",
+                color: "#334155",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: PIXEL_FONT,
+              }}
+            >
+              {channelName || "감지 중..."}
+            </div>
+          </div>
+        </div>
 
-              <div style={STYLES.gaugeContainer}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${proPercent}%` }}
-                  style={{ backgroundColor: "#10b981", height: "100%" }}
-                />
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${conPercent}%` }}
-                  style={{ backgroundColor: "#ef4444", height: "100%" }}
-                />
-              </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontSize: "12px", color: "#10b981", fontFamily: PIXEL_FONT }}>진실</span>
+              <span style={{ fontSize: "20px", color: "#10b981", lineHeight: 1, fontFamily: PIXEL_FONT }}>
+                {truePercent}%
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <span style={{ fontSize: "12px", color: "#ef4444", fontFamily: PIXEL_FONT }}>허위</span>
+              <span style={{ fontSize: "20px", color: "#ef4444", lineHeight: 1, fontFamily: PIXEL_FONT }}>
+                {fakePercent}%
+              </span>
+            </div>
+          </div>
 
-              <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-                <button
-                  type="button"
-                  onClick={() => handleVote(true)}
-                  style={{
-                    ...STYLES.voteButton,
-                    borderColor: myReaction === true ? "#10b981" : "#e2e8f0",
-                    backgroundColor: myReaction === true ? "#ecfdf5" : "white",
-                    color: myReaction === true ? "#059669" : "#64748b",
-                    transform: myReaction === true ? "translateY(-2px)" : "none",
-                    boxShadow: myReaction === true ? "0 4px 6px -1px rgba(16, 185, 129, 0.2)" : "none",
-                  }}
-                >
-                  <ThumbsUp style={{ width: "16px", height: "16px" }} />
-                  진실
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleVote(false)}
-                  style={{
-                    ...STYLES.voteButton,
-                    borderColor: myReaction === false ? "#ef4444" : "#e2e8f0",
-                    backgroundColor: myReaction === false ? "#fef2f2" : "white",
-                    color: myReaction === false ? "#ef4444" : "#64748b",
-                    transform: myReaction === false ? "translateY(-2px)" : "none",
-                    boxShadow: myReaction === false ? "0 4px 6px -1px rgba(239, 68, 68, 0.2)" : "none",
-                  }}
-                >
-                  <ThumbsDown style={{ width: "16px", height: "16px" }} />
-                  허위
-                </button>
-              </div>
+          <div style={STYLES.gaugeContainer}>
+            <motion.div
+              initial={{ width: "50%" }}
+              animate={{ width: `${truePercent}%` }}
+              style={{ height: "100%", backgroundColor: "#10b981", borderRight: `3px solid ${BORDER_COLOR}` }}
+            />
+            <motion.div
+              initial={{ width: "50%" }}
+              animate={{ width: `${fakePercent}%` }}
+              style={{ height: "100%", backgroundColor: "#ef4444" }}
+            />
+          </div>
 
-              <p
-                style={{
-                  fontSize: "11px",
-                  color: "#94a3b8",
-                  marginTop: "12px",
-                  textAlign: "center",
-                  fontWeight: "500",
-                }}
-              >
-                수사관님들의 실시간 투표로 영상의 신뢰도를 결정합니다.
-              </p>
-            </>
-          )}
+          <div style={{ fontSize: "12px", color: "#94a3b8", textAlign: "center", fontFamily: PIXEL_FONT }}>
+            참여 배심원 수: {totalVotes}명
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "16px" }}>
+          <button
+            onClick={() => handleVote(true)}
+            style={STYLES.voteButton("#10b981", "#6ee7b7", votes.userVote === true)}
+          >
+            <ThumbsUp size={22} color={votes.userVote === true ? "#ffffff" : "#10b981"} />
+            <span style={{ fontSize: "14px", fontFamily: PIXEL_FONT }}>진실 증언</span>
+          </button>
+          <button
+            onClick={() => handleVote(false)}
+            style={STYLES.voteButton("#ef4444", "#fca5a5", votes.userVote === false)}
+          >
+            <ThumbsDown size={22} color={votes.userVote === false ? "#ffffff" : "#ef4444"} />
+            <span style={{ fontSize: "14px", fontFamily: PIXEL_FONT }}>허위 고발</span>
+          </button>
         </div>
       </div>
 
-      {/* ─── 2. 채팅 섹션 ─── */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      <section style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <h4 style={STYLES.sectionTitle}>
-          <MessageSquare style={{ width: "18px", height: "18px", color: "#3b82f6" }} />
+          <MessageSquare size={16} color="#64748b" />
           실시간 수사 상황실
         </h4>
-        <div
-          style={{
-            flex: 1,
-            maxHeight: "350px",
-            overflowY: "auto",
-            backgroundColor: "#f8fafc",
-            border: "2px solid #e2e8f0",
-            padding: "16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-            borderRadius: "4px",
-          }}
-        >
-          {chatMessages.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "24px 16px",
-                color: "#94a3b8",
-                fontSize: "13px",
-                fontWeight: "bold",
-              }}
-            >
-              💬 아직 대화가 없습니다
-            </div>
-          ) : (
-            chatMessages.map((msg) => (
-              <div key={msg.id} style={{ fontSize: "12px", lineHeight: 1.5 }}>
+        <div style={STYLES.chatBox}>
+          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+            {commentPagination.hasNext && (
+              <button
+                onClick={() => fetchComments(analysisId!, commentPagination.currentPage + 1)}
+                style={{
+                  padding: "4px 0",
+                  fontSize: "10px",
+                  color: "#94a3b8",
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: PIXEL_FONT,
+                  marginBottom: "8px",
+                }}
+              >
+                --- 이전 수사 기록 더 보기 ({commentPagination.currentPage + 1}/{commentPagination.totalPages}) ---
+              </button>
+            )}
+
+            {(chatMessages || []).map((msg) => (
+              <div
+                key={msg.id}
+                style={{
+                  fontSize: "14px",
+                  lineHeight: 1.8,
+                  fontFamily: PIXEL_FONT,
+                  marginBottom: "8px",
+                }}
+              >
                 <span
                   style={{
-                    fontWeight: "900",
-                    color: msg.badge === "verifier" ? "#10b981" : "#3b82f6",
+                    color: msg.badge === "verifier" ? "#10b981" : "#38bdf8",
                     marginRight: "8px",
-                    fontSize: "10px",
-                    textTransform: "uppercase",
+                    fontFamily: PIXEL_FONT,
+                    fontWeight: "bold",
                   }}
                 >
-                  [{msg.badge === "verifier" ? "검증자" : msg.badge === "reporter" ? "제보자" : "참여자"}]{" "}
-                  {msg.username}
+                  {msg.username}:
                 </span>
-                <span style={{ color: "#334155" }}>{msg.message}</span>
+                
+                {editingId === msg.id ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", width: "calc(100% - 80px)" }}>
+                    <input
+                      autoFocus
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit();
+                        if (e.key === "Escape") cancelEditing();
+                      }}
+                      style={{
+                        flex: 1,
+                        fontSize: "14px",
+                        fontFamily: PIXEL_FONT,
+                        backgroundColor: "#0f172a",
+                        color: "white",
+                        border: `1px solid ${BORDER_COLOR}`,
+                        padding: "2px 6px",
+                        outline: "none",
+                      }}
+                    />
+                    <span style={{ fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap", marginLeft: "4px" }}>
+                      [
+                      <span 
+                        onClick={saveEdit} 
+                        style={{ cursor: "pointer", color: "#10b981", textDecoration: "underline", padding: "0 6px" }}
+                      >
+                        저장
+                      </span>
+                      <span style={{ opacity: 0.3 }}>|</span>
+                      <span 
+                        onClick={cancelEditing} 
+                        style={{ cursor: "pointer", color: "#ef4444", textDecoration: "underline", padding: "0 6px" }}
+                      >
+                        취소
+                      </span>
+                      ]
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <span style={{ color: "#f1f5f9", fontFamily: PIXEL_FONT }}>{msg.message}</span>
+                    
+                    {user && String(user.id) === String(msg.userId) && (
+                      <span style={{ marginLeft: "10px", fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap" }}>
+                        [
+                        <span 
+                          onClick={() => startEditing(msg)} 
+                          style={{ cursor: "pointer", textDecoration: "underline", padding: "0 4px" }}
+                        >
+                          수정
+                        </span>
+                        |
+                        <span 
+                          onClick={() => handleDelete(msg.id)}
+                          style={{ cursor: "pointer", textDecoration: "underline", padding: "0 4px" }}
+                        >
+                          삭제
+                        </span>
+                        ]
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
-            ))
-          )}
+            ))}
+            {(!chatMessages || chatMessages.length === 0) && (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#94a3b8",
+                  textAlign: "center",
+                  marginTop: "20px",
+                  fontFamily: PIXEL_FONT,
+                }}
+              >
+                수신된 데이터가 없습니다
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+
+        <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
           <input
             value={newMsg}
             onChange={(e) => setNewMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="상황 보고 및 의견 공유..."
-            style={STYLES.chatInput}
+            disabled={!isLoggedIn}
+            placeholder={isLoggedIn ? "제보 내용을 입력하세요..." : "로그인이 필요합니다"}
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              backgroundColor: "#ffffff",
+              border: `3px solid ${BORDER_COLOR}`,
+              boxShadow: `3px 3px 0px 0px ${SHADOW_COLOR}`,
+              fontSize: "13px",
+              fontFamily: PIXEL_FONT,
+              outline: "none",
+            }}
           />
           <button
-            type="button"
             onClick={handleSend}
-            aria-label="메시지 전송"
+            disabled={!isLoggedIn}
             style={{
-              backgroundColor: "#3b82f6",
+              backgroundColor: BORDER_COLOR,
               color: "white",
               border: "none",
               padding: "0 16px",
-              cursor: "pointer",
-              borderRadius: "4px",
-              transition: "background-color 0.2s",
+              boxShadow: `3px 3px 0px 0px ${SHADOW_COLOR}`,
+              cursor: isLoggedIn ? "pointer" : "not-allowed",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: PIXEL_FONT,
             }}
           >
-            <Send style={{ width: "18px", height: "18px" }} />
+            <Send size={18} />
           </button>
         </div>
-      </div>
+      </section>
+
+      <PixelConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setIdToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="수사 기록 삭제"
+        message="작성하신 수사 기록(댓글)을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다."
+        confirmText="삭제"
+        cancelText="취소"
+      />
     </div>
   );
 }
