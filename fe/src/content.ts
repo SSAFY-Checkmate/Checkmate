@@ -136,7 +136,28 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
       }
 
       if (videoId) {
-        useCheckmateStore.getState().setCurrentVideo(videoId);
+        // 활성화된 쇼츠 오버레이를 먼저 찾습니다 (쇼츠 대응)
+        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer")).find(
+          (el) => (el as HTMLElement).getBoundingClientRect().width > 0,
+        );
+
+        // YouTube DOM에서 제목/채널명 추출
+        const videoTitle =
+          (document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string') as HTMLElement)?.innerText ||
+          (document.querySelector('ytd-watch-metadata h1 yt-formatted-string') as HTMLElement)?.innerText ||
+          (activeReel?.querySelector('h2.title yt-formatted-string') as HTMLElement)?.innerText ||
+          (document.querySelector('h1.title.style-scope.ytd-video-primary-info-renderer') as HTMLElement)?.innerText ||
+          (document.querySelector('#title h1 yt-formatted-string') as HTMLElement)?.innerText ||
+          '';
+
+        const channelName =
+          (document.querySelector('ytd-channel-name #channel-name a') as HTMLElement)?.innerText ||
+          (document.querySelector('ytd-video-owner-renderer #channel-name a') as HTMLElement)?.innerText ||
+          (activeReel?.querySelector('ytd-channel-name #channel-name a') as HTMLElement)?.innerText ||
+          (document.querySelector('#owner #channel-name a') as HTMLElement)?.innerText ||
+          '';
+
+        useCheckmateStore.getState().setCurrentVideo(videoId, videoTitle.trim(), channelName.trim());
       }
 
       if (isWatchPage) {
