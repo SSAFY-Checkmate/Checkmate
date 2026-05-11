@@ -67,8 +67,11 @@ public class TranscriptEventConsumer {
                 ack.acknowledge();
                 return;
             }
+            log.error("transcript.completed handler failed. eventId={} jobId={} err={}",
+                envelope.eventId(), envelope.aggregateId(), e.toString(), e);
             inboxService.markFailed(CONSUMER_NAME, eventId, e.getMessage());
-            throw e;
+            // Avoid poison-pill loops: mark FAILED and acknowledge.
+            ack.acknowledge();
         }
     }
 
@@ -104,8 +107,11 @@ public class TranscriptEventConsumer {
                 ack.acknowledge();
                 return;
             }
+            log.error("transcript.failed handler failed. eventId={} jobId={} err={}",
+                envelope.eventId(), envelope.aggregateId(), e.toString(), e);
             inboxService.markFailed(CONSUMER_NAME, eventId, e.getMessage());
-            throw e;
+            // Avoid poison-pill loops: mark FAILED and acknowledge.
+            ack.acknowledge();
         }
     }
 }

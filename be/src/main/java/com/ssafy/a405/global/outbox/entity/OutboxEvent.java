@@ -72,12 +72,22 @@ public class OutboxEvent extends BaseTimeEntity {
 		this.lastError = null;
 	}
 
+	public void markProcessing() {
+		if (this.status != OutboxStatus.PENDING) {
+			return;
+		}
+		this.status = OutboxStatus.PROCESSING;
+	}
+
 	public void markFailed(String errorMessage, int maxAttempts) {
 		this.attempts += 1;
 		this.lastError = errorMessage;
 		if (this.attempts >= maxAttempts) {
 			this.status = OutboxStatus.DEAD;
+			return;
 		}
+		// Allow retry on next poll.
+		this.status = OutboxStatus.PENDING;
 	}
 
 	public void resetToPending() {
