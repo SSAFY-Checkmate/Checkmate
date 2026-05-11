@@ -140,16 +140,18 @@ export function ShortsDashboard() {
             width: "48px",
             height: "48px",
             background:
-              analysisStatus === "idle" || analysisStatus === "complete" || analysisStatus === "error"
-                ? "#f2f2f2"
-                : "linear-gradient(135deg, #0ea5e9, #8b5cf6)",
+              analysisStatus === "complete"
+                ? "linear-gradient(135deg, #34d399, #10b981)"
+                : analysisStatus === "idle" || analysisStatus === "error"
+                  ? "#f2f2f2"
+                  : "linear-gradient(135deg, #0ea5e9, #8b5cf6)",
             borderRadius: "50%",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             border:
               analysisStatus === "complete"
-                ? `2px solid ${verdictConfig[overallVerdict].color}`
+                ? "2px solid white" // 주황색 대신 화이트 테두리로 깔끔하게
                 : analysisStatus === "error"
                   ? "2px solid #ef4444"
                   : "none",
@@ -253,37 +255,56 @@ export function ShortsDashboard() {
           )}
           <AnimatePresence>
             {showCheckAnim && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1.5, opacity: 1 }}
-                exit={{ scale: 2, opacity: 0 }}
-                style={{
-                  position: "absolute",
-                  zIndex: 10,
-                  color: "#22c55e",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  filter: "drop-shadow(0 0 5px rgba(255,255,255,0.8))",
-                }}
-              >
-                <Check size={36} strokeWidth={2.5} />
-              </motion.div>
+              <>
+                {/* 외곽 버스트 링 효과 */}
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.8 }}
+                  animate={{ scale: 1.8, opacity: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  style={{
+                    position: "absolute",
+                    inset: "-4px",
+                    border: "4px solid #34d399",
+                    borderRadius: "50%",
+                    zIndex: 5,
+                  }}
+                />
+                <motion.div
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: [0, 1.3, 1], rotate: 0 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
+                  style={{
+                    position: "absolute",
+                    zIndex: 10,
+                    color: "white",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.2))",
+                  }}
+                >
+                  <Check size={32} strokeWidth={4} />
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
         <span
           style={{
-            fontSize: "11px",
+            fontSize: "10px",
             fontWeight: "900",
-            color: analysisStatus === "error" ? "#ef4444" : "#0f172a",
+            color: analysisStatus === "complete" ? "#10b981" : analysisStatus === "error" ? "#ef4444" : "#0f172a",
             textAlign: "center",
             lineHeight: "1.2",
-            marginTop: "4px",
-            padding: "2px 2px", // 좌우 패딩 축소
-            whiteSpace: "nowrap", // 줄바꿈 방지
-            letterSpacing: "-0.5px", // 자간 축소
-            backgroundColor: "transparent",
+            marginTop: "6px",
+            padding: analysisStatus === "complete" ? "2px 8px" : "2px 2px",
+            backgroundColor: analysisStatus === "complete" ? "rgba(16, 185, 129, 0.1)" : "transparent",
+            borderRadius: "10px",
+            whiteSpace: "nowrap",
+            letterSpacing: "-0.5px",
+            transition: "all 0.3s ease",
+            border: analysisStatus === "complete" ? "1px solid rgba(16, 185, 129, 0.2)" : "none",
           }}
         >
           {!isLoggedIn
