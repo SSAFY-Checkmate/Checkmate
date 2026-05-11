@@ -30,6 +30,9 @@ public class AnalysisDataMappingService {
     private final AnalysisResultRepository analysisResultRepository;
     private final ViolationDetailRepository violationDetailRepository;
 
+    private static final String UNKNOWN_CHANNEL_PREFIX = "__UNKNOWN_CHANNEL__:";
+    private static final String DEFAULT_CHANNEL_NAME = "Unknown Channel";
+
     @Transactional
     public void mapAndSaveAnalysisResult(String resultJson) {
         if (resultJson == null || resultJson.isBlank()) {
@@ -43,22 +46,25 @@ public class AnalysisDataMappingService {
 
             boolean legacyShape = !(transcriptNode.isMissingNode() || analysisNode.isMissingNode());
             if (!legacyShape) {
-                // Kafka mode typically stores the analysis.completed payload directly (final result shape),
-                // which does not include "transcript"/"analysis" wrapper nodes.
                 mapAndSaveFromFinalPayload(root);
                 return;
             }
 
             // 2. Video
-            String videoIdStr = transcriptNode.path("video_id").asText();
-            String videoTitle = transcriptNode.path("title").asText();
+            String videoIdStr = transcriptNode.path("video_id").asText(null);
+            if (videoIdStr == null || videoIdStr.isBlank()) {
+                log.warn("Missing video_id in transcript payload. Skipping RDB mapping for channel/video.");
+                return;
+            }
+            String videoTitle = transcriptNode.path("title").asText("");
 
             // 1. Channel
             String channelIdStr = transcriptNode.path("channel_id").asText(null);
             if (channelIdStr == null || channelIdStr.isBlank()) {
-                channelIdStr = "UNKNOWN_CHANNEL_" + videoIdStr;
+                // [AI 리뷰 반영] 실제 채널 ID와 절대 충돌하지 않을 패턴으로 수정
+                channelIdStr = UNKNOWN_CHANNEL_PREFIX + videoIdStr;
             }
-            String channelName = transcriptNode.path("author").asText("Unknown Channel");
+            String channelName = transcriptNode.path("author").asText(DEFAULT_CHANNEL_NAME);
 
             final String finalChannelId = channelIdStr;
             Channel channel = channelRepository.findByYtChannelId(finalChannelId)
@@ -74,11 +80,10 @@ public class AnalysisDataMappingService {
                             .ytVideoId(videoIdStr)
                             .title(videoTitle)
                             .channel(channel)
-                            // thumbnailUrl, description, publishedAt can be updated later if Youtube API is used directly
                             .build()));
 
             // 3. VideoScript
-            String content = transcriptNode.path("content").asText();
+            String content = transcriptNode.path("content").asText("");
             boolean isWhisper = transcriptNode.path("is_whisper").asBoolean(false);
 
             VideoScript videoScript = videoScriptRepository.findByVideoId(video.getId())
@@ -138,25 +143,23 @@ public class AnalysisDataMappingService {
             log.info("Successfully mapped and saved AnalysisResult for videoId={}", videoIdStr);
 
         } catch (Exception e) {
-            // Avoid logging full payload: it may be large and can contain transcript content.
             log.error("analysis.mapping_failed payloadChars={}", resultJson == null ? 0 : resultJson.length(), e);
         }
     }
 
     private void mapAndSaveFromFinalPayload(JsonNode root) {
-        // Expected payload fields (recommended): videoId, videoTitle, channelId, channelName, trustGrade, confidenceScore, summary, violations[]
         String videoIdStr = root.path("videoId").asText(null);
         if (videoIdStr == null || videoIdStr.isBlank()) {
-            log.warn("Missing videoId in final payload resultJson");
+            log.warn("Missing videoId in final payload resultJson. Skipping mapping.");
             return;
         }
 
         String channelIdStr = root.path("channelId").asText(null);
         if (channelIdStr == null || channelIdStr.isBlank()) {
-            channelIdStr = "UNKNOWN_CHANNEL_" + videoIdStr;
+            channelIdStr = UNKNOWN_CHANNEL_PREFIX + videoIdStr;
         }
 
-        String channelName = root.path("channelName").asText("");
+        String channelName = root.path("channelName").asText(DEFAULT_CHANNEL_NAME);
         final String finalChannelId = channelIdStr;
         Channel channel = channelRepository.findByYtChannelId(finalChannelId)
             .orElseGet(() -> channelRepository.save(Channel.builder()
@@ -175,29 +178,34 @@ public class AnalysisDataMappingService {
                 .build()));
 
         String trustGradeStr = root.path("trustGrade").asText("UNKNOWN");
-        TrustGrade trustGrade;
+        TrustGrade tempTrustGrade;
         try {
-            trustGrade = TrustGrade.valueOf(trustGradeStr.toUpperCase());
+            tempTrustGrade = TrustGrade.valueOf(trustGradeStr.toUpperCase());
         } catch (IllegalArgumentException e) {
-            trustGrade = TrustGrade.UNKNOWN;
+            tempTrustGrade = TrustGrade.UNKNOWN;
         }
+        final TrustGrade trustGrade = tempTrustGrade;
 
         Integer confidenceScore = root.path("confidenceScore").isMissingNode() ? null : root.path("confidenceScore").asInt();
         String summary = root.path("summary").asText("");
-
-        // Kafka mock/worker payload currently doesn't carry modelVersion; keep a sensible default.
         String modelVersion = root.path("modelVersion").asText("unknown");
 
-        AnalysisResult analysisResult = analysisResultRepository.save(AnalysisResult.builder()
-            .video(video)
-            .status(trustGrade)
-            .confidenceScore(confidenceScore == null ? 0 : confidenceScore)
-            .summary(summary)
-            .modelVersion(modelVersion)
-            .build());
+        AnalysisResult analysisResult = analysisResultRepository.findByVideoId(video.getId())
+            .orElseGet(() -> AnalysisResult.builder()
+                .video(video)
+                .status(trustGrade)
+                .confidenceScore(confidenceScore == null ? 0 : confidenceScore)
+                .summary(summary)
+                .modelVersion(modelVersion)
+                .build());
+        analysisResult.updateResult(confidenceScore == null ? 0 : confidenceScore, trustGrade, summary, modelVersion);
+        analysisResult = analysisResultRepository.save(analysisResult);
 
         JsonNode violationsNode = root.path("violations");
         if (violationsNode.isArray()) {
+            if (analysisResult.getId() != null) {
+                violationDetailRepository.deleteByAnalysisResultId(analysisResult.getId());
+            }
             for (JsonNode vNode : violationsNode) {
                 Integer startTime = vNode.path("startTime").isMissingNode() ? null : vNode.path("startTime").asInt();
                 String violationSentence = vNode.path("violationSentence").asText("");

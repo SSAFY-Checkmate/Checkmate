@@ -101,26 +101,22 @@ public class AnalysisJobService {
 
 		Long analysisId = null;
 		if (summary.getStatus() == AnalysisJobStatus.COMPLETED) {
-			String ytVideoId = null;
-			
-			if (resultNode != null) {
-				if (resultNode.path("analysis").path("youtubeInfo").has("videoId")) {
-					ytVideoId = resultNode.path("analysis").path("youtubeInfo").path("videoId").asText(null);
-				} else if (resultNode.path("transcript").has("video_id")) {
-					ytVideoId = resultNode.path("transcript").path("video_id").asText(null);
-				} else if (resultNode.path("transcript").has("videoId")) {
-					ytVideoId = resultNode.path("transcript").path("videoId").asText(null);
-				} else if (resultNode.has("videoId")) {
-					ytVideoId = resultNode.path("videoId").asText(null);
-				}
-			}
+			// [AI 리뷰 반영] 비디오 ID 추출 로직 메서드 분리
+			String ytVideoId = extractVideoIdFromResult(resultNode);
 
 			if (ytVideoId != null && !ytVideoId.isBlank()) {
 				analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(ytVideoId)
 					.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
 					.orElse(null);
+				
+				if (analysisId != null) {
+					log.debug("Resolved analysisId={} from ytVideoId={} (jobId={})", analysisId, ytVideoId, jobId);
+				} else {
+					log.warn("AnalysisResult not found for ytVideoId={} even though job is COMPLETED (jobId={})", ytVideoId, jobId);
+				}
 			}
 			
+			// [AI 리뷰 반영] Fallback 로직 강화 및 로깅 추가
 			if (analysisId == null && summary.getYoutubeUrl() != null) {
 				try {
 					String extractedId = YoutubeUrlNormalizer.extractVideoId(summary.getYoutubeUrl());
@@ -128,8 +124,15 @@ public class AnalysisJobService {
 						analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(extractedId)
 							.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
 							.orElse(null);
+						
+						if (analysisId != null) {
+							log.info("Fallback resolved analysisId={} from youtubeUrl={} (jobId={})", analysisId, summary.getYoutubeUrl(), jobId);
+						} else {
+							log.warn("Fallback AnalysisResult not found for extractedId={} (jobId={})", extractedId, jobId);
+						}
 					}
-				} catch (Exception ignored) {
+				} catch (Exception e) {
+					log.error("Failed to extract videoId from youtubeUrl={} for fallback (jobId={})", summary.getYoutubeUrl(), jobId, e);
 				}
 			}
 		}
@@ -143,12 +146,39 @@ public class AnalysisJobService {
 			error
 		);
 
+		// [AI 리뷰 반영] COMPLETED 상태이나 analysisId가 아직 생성되지 않은 경우 캐싱하지 않음.
+		// 의도: AnalysisResult가 AnalysisJob 완료 처리 직후 비동기적으로 생성될 수 있으므로, 
+		// 다음 폴링 시점에 다시 조회하여 ID를 채울 수 있도록 기회를 제공함.
 		if (summary.getStatus() == AnalysisJobStatus.COMPLETED && analysisId == null) {
 			return response;
 		}
 
 		analysisJobReadCache.put(jobId, response, cacheTtlFor(summary.getStatus()));
 		return response;
+	}
+
+	/**
+	 * 분석 결과 JSON 노드에서 다양한 경로로 YouTube 비디오 ID를 추출합니다.
+	 * [AI 리뷰 반영] 유지보수성을 위해 별도 메서드로 추출
+	 */
+	private String extractVideoIdFromResult(JsonNode resultNode) {
+		if (resultNode == null) return null;
+
+		// 탐색 대상 경로 목록 (우선순위 순)
+		JsonNode[] candidates = new JsonNode[] {
+			resultNode.path("analysis").path("youtubeInfo").path("videoId"),
+			resultNode.path("transcript").path("video_id"),
+			resultNode.path("transcript").path("videoId"),
+			resultNode.path("videoId")
+		};
+
+		for (JsonNode node : candidates) {
+			String val = node.asText(null);
+			if (val != null && !val.isBlank()) {
+				return val;
+			}
+		}
+		return null;
 	}
 
 	private Duration cacheTtlFor(AnalysisJobStatus status) {
