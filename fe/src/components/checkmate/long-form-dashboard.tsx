@@ -376,37 +376,6 @@ export function LongFormDashboard() {
                       text="팩트체크 수사 시작"
                     />
                   </div>
-                  <button
-                    onClick={() => startDemoAnalysis()}
-                    title="API를 호출하지 않고 목업 데이터로 데모를 실행합니다"
-                    style={{
-                      backgroundColor: "#e2e8f0",
-                      border: "2px solid #94a3b8",
-                      borderRadius: "6px",
-                      padding: "0 12px",
-                      cursor: "pointer",
-                      fontFamily: pixelFont,
-                      fontWeight: "bold",
-                      color: "#475569",
-                      boxShadow: "0 4px 0 #94a3b8",
-                      transition: "all 0.1s",
-                      flexShrink: 0,
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.transform = "translateY(4px)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "translateY(0px)";
-                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0px)";
-                      e.currentTarget.style.boxShadow = "0 4px 0 #94a3b8";
-                    }}
-                  >
-                    데모
-                  </button>
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>

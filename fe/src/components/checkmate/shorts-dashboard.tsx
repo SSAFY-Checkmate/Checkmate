@@ -35,11 +35,16 @@ export function ShortsDashboard() {
   // [추가] 숏폼 분석 진행률(%) 계산
   const getProgressPercent = () => {
     switch (analysisStatus) {
-      case "detecting": return "25%";
-      case "analyzing_transcript": return "50%";
-      case "analyzing_claims": return "75%";
-      case "verifying": return "95%";
-      default: return "";
+      case "detecting":
+        return "25%";
+      case "analyzing_transcript":
+        return "50%";
+      case "analyzing_claims":
+        return "75%";
+      case "verifying":
+        return "95%";
+      default:
+        return "";
     }
   };
 
@@ -115,20 +120,20 @@ export function ShortsDashboard() {
             width: "48px",
             height: "48px",
             background:
-              analysisStatus === "complete" || analysisStatus === "error"
-                ? verdictConfig[overallVerdict].color
-                : analysisStatus === "idle"
-                  ? "linear-gradient(135deg, #2563eb, #1e40af)"
-                  : "linear-gradient(135deg, #0ea5e9, #2563eb)",
+              analysisStatus === "idle" || analysisStatus === "complete" || analysisStatus === "error"
+                ? "#f2f2f2" // 요청하신 완전 불투명한 유튜브 라이트/기본 톤으로 모두 통일
+                : "linear-gradient(135deg, #0ea5e9, #2563eb)",
             borderRadius: "50%",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             border:
-              analysisStatus === "complete" || analysisStatus === "error"
-                ? "2px solid white"
-                : "2px solid rgba(255,255,255,0.2)",
-            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+              analysisStatus === "complete"
+                ? `2px solid ${verdictConfig[overallVerdict].color}`
+                : analysisStatus === "error"
+                  ? "2px solid #ef4444"
+                  : "none", // 유튜브 기본 버튼처럼 평상시에는 테두리 없음
+            boxShadow: analysisStatus === "idle" ? "none" : "0 4px 12px rgba(37, 99, 235, 0.3)",
             position: "relative",
           }}
         >
@@ -179,29 +184,33 @@ export function ShortsDashboard() {
                 }}
               >
                 {/* 말풍선 꼬리 외곽선 */}
-                <div style={{
-                  position: "absolute",
-                  bottom: "-5px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 0,
-                  height: 0,
-                  borderLeft: "5px solid transparent",
-                  borderRight: "5px solid transparent",
-                  borderTop: "5px solid #0f172a",
-                }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "-5px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderLeft: "5px solid transparent",
+                    borderRight: "5px solid transparent",
+                    borderTop: "5px solid #0f172a",
+                  }}
+                />
                 {/* 말풍선 꼬리 내부 */}
-                <div style={{
-                  position: "absolute",
-                  bottom: "-2px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 0,
-                  height: 0,
-                  borderLeft: "3px solid transparent",
-                  borderRight: "3px solid transparent",
-                  borderTop: "3px solid white",
-                }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "-2px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderLeft: "3px solid transparent",
+                    borderRight: "3px solid transparent",
+                    borderTop: "3px solid white",
+                  }}
+                />
                 {getProgressPercent()}
               </motion.div>
             )}
@@ -252,14 +261,12 @@ export function ShortsDashboard() {
           style={{
             fontSize: "11px",
             fontWeight: "900",
-            color: "#ffffff",
-            textShadow: "0px 1px 4px rgba(0,0,0,0.8)",
+            color: "#0f172a", // 검은 색상
             textAlign: "center",
             lineHeight: "1.2",
             marginTop: "4px",
             padding: "2px 6px",
-            backgroundColor: "rgba(30, 58, 138, 0.7)",
-            borderRadius: "4px",
+            backgroundColor: "transparent", // 배경 없음
           }}
         >
           {!isLoggedIn
@@ -290,6 +297,9 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
     isLoggedIn,
     analysisStatus,
   } = useCheckmateStore();
+
+  /** 모달 내부 탭 상태 (리포트 / 커뮤니티) */
+  const [activeModalTab, setActiveModalTab] = useState<"report" | "community">("report");
 
   useEffect(() => {
     if (!shadowHost) return;
@@ -492,24 +502,127 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         </div>
                       </section>
 
-                      {/* 3. 핵심 증거 목록 (The "Why" - ReportTab) */}
-                      <section style={{ marginBottom: "20px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                          <h3 style={{ fontSize: "14px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
-                            수사관 정밀 판독 결과 (증거 목록)
-                          </h3>
-                        </div>
-                        <div
+                      {/* 2. 탭 전환 버튼 (리포트 / 커뮤니티) */}
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          padding: "4px",
+                          backgroundColor: "rgba(255,255,255,0.05)",
+                          borderRadius: "6px",
+                          border: "2px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveModalTab("report")}
+                          aria-label="리포트 탭"
                           style={{
-                            backgroundColor: "rgba(255,255,255,0.02)",
-                            borderRadius: "8px",
-                            overflow: "hidden",
+                            flex: 1,
+                            padding: "8px",
+                            fontSize: "13px",
+                            fontWeight: "900",
+                            fontFamily: pixelFont,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            cursor: "pointer",
+                            transition: "all 0.1s",
+                            borderRadius: "4px",
+                            backgroundColor: activeModalTab === "report" ? "#0ea5e9" : "transparent",
+                            color: activeModalTab === "report" ? "white" : "#64748b",
+                            border: activeModalTab === "report" ? "2px solid #0284c7" : "2px solid transparent",
+                            boxShadow: activeModalTab === "report" ? "0 3px 0 #0369a1" : "none",
+                            transform: activeModalTab === "report" ? "translateY(-1px)" : "none",
                           }}
                         >
-                          {/* [핵심] 사용자가 가장 궁금해하는 문장별 분석 내역 (쇼츠용 콤팩트 모드) */}
-                          <ReportTab isCompact={true} />
-                        </div>
-                      </section>
+                          <FileText size={14} />
+                          리포트
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveModalTab("community")}
+                          aria-label="커뮤니티 탭"
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            fontSize: "13px",
+                            fontWeight: "900",
+                            fontFamily: pixelFont,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            cursor: "pointer",
+                            transition: "all 0.1s",
+                            borderRadius: "4px",
+                            backgroundColor: activeModalTab === "community" ? "#8b5cf6" : "transparent",
+                            color: activeModalTab === "community" ? "white" : "#64748b",
+                            border: activeModalTab === "community" ? "2px solid #7c3aed" : "2px solid transparent",
+                            boxShadow: activeModalTab === "community" ? "0 3px 0 #6d28d9" : "none",
+                            transform: activeModalTab === "community" ? "translateY(-1px)" : "none",
+                          }}
+                        >
+                          <Search size={14} />
+                          커뮤니티
+                        </button>
+                      </div>
+
+                      {/* 3. 탭 컨텐츠 영역 */}
+                      <AnimatePresence mode="wait">
+                        {activeModalTab === "report" ? (
+                          <motion.section
+                            key="report"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.15 }}
+                            style={{ marginBottom: "20px" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                              <FileText size={14} color={verdictConfig[overallVerdict].color} />
+                              <h3 style={{ fontSize: "13px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                                수사관 정밀 판독 결과 (증거 목록)
+                              </h3>
+                            </div>
+                            <div
+                              style={{
+                                backgroundColor: "rgba(255,255,255,0.02)",
+                                borderRadius: "8px",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <ReportTab isCompact={true} />
+                            </div>
+                          </motion.section>
+                        ) : (
+                          <motion.section
+                            key="community"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.15 }}
+                            style={{ marginBottom: "20px" }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                              <Search size={14} color="#8b5cf6" />
+                              <h3 style={{ fontSize: "13px", color: "#f1f5f9", margin: 0, fontWeight: "bold" }}>
+                                수사 상황실 (커뮤니티)
+                              </h3>
+                            </div>
+                            <div
+                              style={{
+                                backgroundColor: "rgba(255,255,255,0.02)",
+                                borderRadius: "8px",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <CommunityTab />
+                            </div>
+                          </motion.section>
+                        )}
+                      </AnimatePresence>
                     </>
                   )}
                 </>
