@@ -223,73 +223,7 @@ export function CommunityTab() {
         </div>
       </div>
 
-      {/* ─── 2. 팩트체크 수사 요청 (Claims) ─── */}
-      <div>
-        <h4 style={STYLES.sectionTitle}>
-          <ThumbsUp style={{ width: "16px", height: "16px" }} />
-          팩트체크 수사 요청
-        </h4>
-        {claims.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "24px 16px",
-              color: "#94a3b8",
-              fontSize: "13px",
-              fontWeight: "bold",
-              border: "2px dashed #e2e8f0",
-              borderRadius: "4px",
-            }}
-          >
-            📋 등록된 수사 요청이 없습니다
-          </div>
-        ) : (
-          claims.map((claim) => (
-            <div key={claim.id} style={STYLES.card}>
-              <p style={{ fontSize: "14px", fontWeight: "bold", margin: "0 0 6px 0", color: "#1e293b" }}>
-                {claim.text}
-              </p>
-              {claim.evidence && (
-                <p style={{ fontSize: "12px", color: "#64748b", margin: "0 0 12px 0", lineHeight: 1.5 }}>
-                  {claim.evidence}
-                </p>
-              )}
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => voteOnClaim(claim.id, "true")}
-                  style={{
-                    ...STYLES.voteButton,
-                    flex: 1,
-                    borderColor: claim.userVote === "true" ? "#22c55e" : "#e2e8f0",
-                    backgroundColor: claim.userVote === "true" ? "#ecf7ed" : "white",
-                    color: claim.userVote === "true" ? "#1e8e3e" : "#64748b",
-                  }}
-                >
-                  <ThumbsUp style={{ width: "14px", height: "14px" }} />
-                  진실 {claim.votesTrue}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => voteOnClaim(claim.id, "fake")}
-                  style={{
-                    ...STYLES.voteButton,
-                    flex: 1,
-                    borderColor: claim.userVote === "fake" ? "#ef4444" : "#e2e8f0",
-                    backgroundColor: claim.userVote === "fake" ? "#fef2f2" : "white",
-                    color: claim.userVote === "fake" ? "#ef4444" : "#64748b",
-                  }}
-                >
-                  <ThumbsDown style={{ width: "14px", height: "14px" }} />
-                  허위 {claim.votesFake}
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* ─── 3. 채팅 섹션 ─── */}
+      {/* ─── 2. 채팅 섹션 ─── */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
         <h4 style={STYLES.sectionTitle}>
           <MessageSquare style={{ width: "18px", height: "18px", color: "#3b82f6" }} />
