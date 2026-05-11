@@ -154,8 +154,8 @@ def seed_markdown_documents():
     if all_texts:
         logger.info(f"Upserting {len(all_texts)} chunks into Qdrant collection: {TARGET_COLLECTION}...")
         
-        # 100개씩 배치 처리 (옵션)
-        batch_size = 100
+        # 20개씩 배치 처리 
+        batch_size = 20
         for i in range(0, len(all_texts), batch_size):
             end_idx = min(i + batch_size, len(all_texts))
             logger.info(f"Upserting batch {i} to {end_idx}...")
