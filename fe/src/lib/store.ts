@@ -48,6 +48,7 @@ export type AnalysisStatus =
   | "error";
 
 export interface User {
+  id: number; // [추가] 유저 식별자 (투표 연동용)
   name: string;
 }
 
@@ -92,6 +93,14 @@ interface CheckmateState {
   wantedCards: WantedCard[];
   chatMessages: ChatMessage[];
 
+  // [영상 단위 커뮤니티 반응]
+  /** 백엔드 분석 ID (커뮤니티 투표 연동에 필요) */
+  analysisId: number | null;
+  /** 전체 반응 요약 */
+  reactionSummary: { proCount: number; conCount: number };
+  /** 현재 유저의 투표 여부 (true=찬성, false=반대, null=미투표) */
+  myReaction: boolean | null;
+
   // 분석 결과 캐시
   analyzedVideos: Record<string, Partial<CheckmateState>>;
 
@@ -101,8 +110,8 @@ interface CheckmateState {
   setActiveTab: (tab: Tab) => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
-  startAnalysis: () => void;
-  startAnalysisSync: () => void;
+  startAnalysis: () => Promise<void>;
+  startAnalysisSync: () => Promise<void>;
   startDemoAnalysis: () => void;
   setCurrentVideo: (id: string, title?: string, channel?: string) => void;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
@@ -113,6 +122,10 @@ interface CheckmateState {
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
+
+  // [추가] 투표 연동 액션
+  fetchReactions: (analysisId: number) => Promise<void>;
+  postReaction: (analysisId: number, reactionType: boolean) => Promise<void>;
 }
 
 /**
@@ -134,6 +147,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   summary: "",
   claims: [],
   analyzedVideos: {},
+
+  // 커뮤니티 투표 초기 상태
+  analysisId: null,
+  reactionSummary: { proCount: 0, conCount: 0 },
+  myReaction: null,
 
   // 인증 초기 상태
   // [중요] isAuthInitializing: true로 시작 → initializeAuth() 완료 전까지 LoginView 표시 차단
@@ -177,11 +195,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       wantedCards: state.wantedCards.map((card) =>
         card.id === cardId
           ? {
-            ...card,
-            userVote: vote,
-            votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
-            votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
-          }
+              ...card,
+              userVote: vote,
+              votesTrue: vote === "true" ? card.votesTrue + 1 : card.votesTrue,
+              votesFake: vote === "fake" ? card.votesFake + 1 : card.votesFake,
+            }
           : card,
       ),
     })),
@@ -191,11 +209,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       claims: state.claims.map((claim) =>
         claim.id === claimId
           ? {
-            ...claim,
-            userVote: vote,
-            votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
-            votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
-          }
+              ...claim,
+              userVote: vote,
+              votesTrue: vote === "true" ? claim.votesTrue + 1 : claim.votesTrue,
+              votesFake: vote === "fake" ? claim.votesFake + 1 : claim.votesFake,
+            }
           : claim,
       ),
     })),
@@ -221,15 +239,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         currentVideoId: id,
         videoTitle: title || (cachedData.videoTitle as string) || "",
         channelName: channel || (cachedData.channelName as string) || "",
-        isPanelOpen: false, // 영상 전환 시 서랍은 닫음
+        isPanelOpen: false,
         ...cachedData,
       });
+
+      // 캐시 복원 시 분석 ID가 있으면 반응 정보도 가져오기
+      if (cachedData.analysisId) {
+        get().fetchReactions(cachedData.analysisId as number);
+      }
     } else {
       // 새로운 영상이면 초기화
       set({
         currentVideoId: id,
-        videoTitle: title, // 빈 문자열 혹은 전달된 값
-        channelName: channel, // 빈 문자열 혹은 전달된 값
+        videoTitle: title,
+        channelName: channel,
         analysisStatus: "idle",
         overallVerdict: "unknown",
         trustScore: 0,
@@ -238,6 +261,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false,
         claims: [],
         warningCount: 0,
+        analysisId: null,
+        reactionSummary: { proCount: 0, conCount: 0 },
+        myReaction: null,
       });
     }
   },
@@ -404,8 +430,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       // [추가] 분석 실패(FAILED) 케이스 처리
       if (data.status === "FAILED") {
         // 활성화된 쇼츠 오버레이를 먼저 찾습니다.
-        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer"))
-          .find(el => (el as HTMLElement).getBoundingClientRect().width > 0);
+        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer")).find(
+          (el) => (el as HTMLElement).getBoundingClientRect().width > 0,
+        );
 
         // DOM에서 직접 타이틀과 채널명 추출 (쇼츠/롱폼 레이아웃 대응)
         const scrapedTitle =
@@ -455,14 +482,12 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       await new Promise((r) => setTimeout(r, 1000));
 
       // [핵심 수정] 폴링 API의 응답 구조(래퍼 유무) 차이 완벽 대응
-      const resultObj = data.result?.analysis?.analysisResult 
-                      || data.result?.analysis 
-                      || data.result || {};
+      const resultObj = data.result?.analysis?.analysisResult || data.result?.analysis || data.result || {};
 
       // [보완] 실제 분석 데이터가 유효한지 다시 한 번 확인
-      if (!resultObj.summary && (!resultObj.trustGrade && !resultObj.confidenceScore)) {
-         set({ analysisStatus: "idle" });
-         return;
+      if (!resultObj.summary && !resultObj.trustGrade && !resultObj.confidenceScore) {
+        set({ analysisStatus: "idle" });
+        return;
       }
 
       // 백엔드 응답(trustGrade) 매핑
@@ -510,9 +535,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         analysisStatus: "error",
         overallVerdict: "unknown",
         trustScore: 0,
-        summary: error instanceof Error && error.name === "AbortError"
-          ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요."
-          : "",
+        summary:
+          error instanceof Error && error.name === "AbortError"
+            ? "분석 시간이 너무 오래 걸려 중단되었습니다. 다시 시도해 주세요."
+            : "",
         isWarningVisible: false,
       });
     } finally {
@@ -575,9 +601,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }
 
       // [핵심 수정] 동기 API의 응답 구조(래퍼 유무) 차이 완벽 대응
-      const resultObj = data.result?.analysis?.analysisResult 
-                      || data.result?.analysis 
-                      || data.result || {};
+      const resultObj = data.result?.analysis?.analysisResult || data.result?.analysis || data.result || {};
 
       let mappedVerdict: Verdict = "unknown";
       if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
@@ -597,7 +621,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       // [보완] 신뢰도 점수(trustScore) 추출 로직 강화 (checkAnalysisStatus와 통일)
       const rawScore = resultObj.confidenceScore ?? resultObj.confidence_score;
       const rawGrade = resultObj.trustGrade ?? resultObj.trust_grade;
-      
+
       let extractedScore = 0;
       if (rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore))) {
         extractedScore = Number(rawScore);
@@ -608,8 +632,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
-        videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
-        channelName: youtubeInfo.channelName || data.channelName || get().channelName,
+        videoTitle: resultObj.videoTitle || youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
+        channelName: resultObj.channelName || youtubeInfo.channelName || data.channelName || get().channelName,
         overallVerdict: mappedVerdict,
         trustScore: extractedScore,
         summary: resultObj.summary || "",
@@ -618,15 +642,29 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         claims: claims,
       };
 
-      if (get().currentVideoId !== videoId) return;
+      // 분석 ID 추출 (백엔드 수정 반영: data.analysisId 확인)
+      const finalAnalysisId = data.analysisId || data.id || resultObj.analysisId || resultObj.id || null;
+
+      if (get().currentVideoId !== videoId) {
+        return;
+      }
 
       set((state) => ({
         ...finalState,
+        analysisId: finalAnalysisId,
+        // 분석 완료 시 반응 상태 초기화
+        reactionSummary: { proCount: 0, conCount: 0 },
+        myReaction: null,
         analyzedVideos: {
           ...state.analyzedVideos,
-          [videoId]: finalState,
+          [videoId]: { ...finalState, analysisId: finalAnalysisId },
         },
       }));
+
+      // 분석 완료 즉시 투표 정보 조회
+      if (finalAnalysisId) {
+        get().fetchReactions(finalAnalysisId as number);
+      }
     } catch (error) {
       console.error("분석 중 오류 발생:", error);
       set({
@@ -687,7 +725,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         // 동적으로 상단 스코프의 initializeAuth 사용 (store.ts 하단에 선언되어 있음)
         const { initializeAuth } = await import("./store");
         await initializeAuth();
-        
+
         if (get().isLoggedIn) {
           // 복구 성공 시 다시 요청
           response = await fetch(`${baseUrl}/analysis/latest?youtubeUrl=${encodeURIComponent(targetUrl)}`, {
@@ -705,7 +743,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       const responseData = await response.json();
       console.log("checkAnalysisStatus: responseData", responseData);
-      
+
       if (responseData.status === 200 && responseData.data) {
         const data = responseData.data;
         console.log("checkAnalysisStatus: data", data);
@@ -716,7 +754,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
             analysisStatus: "error",
             overallVerdict: "unknown",
             trustScore: 0,
-            summary: "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
+            summary:
+              "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다. 판단은 커뮤니티에서 직접 진행해 주세요.",
             isWarningVisible: false,
             warningCount: 0,
             claims: [],
@@ -725,11 +764,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         }
 
         // [핵심 수정] /sync API와 /latest API의 응답 구조(래퍼 유무) 차이 완벽 대응
-        const resultObj = data.result?.analysis?.analysisResult 
-                        || data.result?.analysis 
-                        || data.result || {};
+        const resultObj = data.result?.analysis?.analysisResult || data.result?.analysis || data.result || {};
         console.log("checkAnalysisStatus: resultObj", resultObj);
-        
+
         if (!resultObj.summary && !resultObj.trustGrade && !resultObj.confidenceScore) {
           console.log("checkAnalysisStatus: missing summary/trustGrade/confidenceScore");
           set({ analysisStatus: "idle" });
@@ -754,7 +791,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
         const rawScore = resultObj.confidenceScore ?? resultObj.confidence_score;
         const rawGrade = resultObj.trustGrade ?? resultObj.trust_grade;
-        
+
         let extractedScore = 0;
         if (rawScore !== undefined && rawScore !== null && !isNaN(Number(rawScore))) {
           extractedScore = Number(rawScore);
@@ -765,8 +802,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         const youtubeInfo = data.result?.analysis?.youtubeInfo || {};
         const finalState = {
           analysisStatus: "complete" as AnalysisStatus,
-          videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
-          channelName: youtubeInfo.channelName || data.channelName || get().channelName,
+          videoTitle: resultObj.videoTitle || youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
+          channelName: resultObj.channelName || youtubeInfo.channelName || data.channelName || get().channelName,
           overallVerdict: mappedVerdict,
           trustScore: extractedScore,
           summary: resultObj.summary || "",
@@ -775,14 +812,91 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           claims: claims,
         };
 
+        // 분석 ID 추출 (백엔드 수정 반영: data.analysisId 확인)
+        const finalAnalysisId = data.analysisId || data.id || resultObj.analysisId || resultObj.id || null;
+
         set((state) => ({
           ...finalState,
-          analyzedVideos: { ...state.analyzedVideos, [videoId]: finalState },
+          analysisId: finalAnalysisId,
+          // 영상 변경 시 반응 상태 초기화
+          reactionSummary: { proCount: 0, conCount: 0 },
+          myReaction: null,
+          analyzedVideos: { ...state.analyzedVideos, [videoId]: { ...finalState, analysisId: finalAnalysisId } },
         }));
+
+        // ID가 있으면 즉시 투표 현황 조회
+        if (finalAnalysisId) {
+          get().fetchReactions(finalAnalysisId as number);
+        }
       }
     } catch (error) {
       console.error("분석 상태 체크 실패:", error);
       set({ analysisStatus: "idle" });
+    }
+  },
+
+  fetchReactions: async (analysisId) => {
+    console.log("fetchReactions 호출:", analysisId);
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+    try {
+      const response = await fetch(`${baseUrl}/community/reactions?analysisId=${analysisId}`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log("fetchReactions 결과:", result);
+        const reactions: any[] = result.data || [];
+
+        const proCount = reactions.filter((r) => r.reactionType === true).length;
+        const conCount = reactions.filter((r) => r.reactionType === false).length;
+
+        const myUser = get().user;
+        const myReactionObj = myUser ? reactions.find((r) => String(r.userId) === String(myUser.id)) : null;
+
+        set({
+          reactionSummary: { proCount, conCount },
+          myReaction: myReactionObj ? myReactionObj.reactionType : null,
+        });
+      }
+    } catch (error) {
+      console.error("반응 조회 실패:", error);
+    }
+  },
+
+  postReaction: async (analysisId, reactionType) => {
+    console.log("postReaction 호출:", { analysisId, reactionType });
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+    // Optimistic UI
+    const prevState = { ...get().reactionSummary, myReaction: get().myReaction };
+    set((state) => {
+      if (state.myReaction === reactionType) return state;
+      const newPro = state.reactionSummary.proCount + (reactionType ? 1 : 0) - (state.myReaction === true ? 1 : 0);
+      const newCon = state.reactionSummary.conCount + (!reactionType ? 1 : 0) - (state.myReaction === false ? 1 : 0);
+      return {
+        myReaction: reactionType,
+        reactionSummary: { proCount: Math.max(0, newPro), conCount: Math.max(0, newCon) },
+      };
+    });
+
+    try {
+      const response = await fetch(`${baseUrl}/community/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ analysisId, reactionType }),
+      });
+
+      if (!response.ok) throw new Error("투표 요청 실패");
+      await get().fetchReactions(analysisId);
+    } catch (error) {
+      console.error("투표 실패:", error);
+      set({
+        myReaction: prevState.myReaction,
+        reactionSummary: { proCount: prevState.proCount, conCount: prevState.conCount },
+      });
+      alert("투표 중 오류가 발생했습니다. (ID Missing 이슈가 지속되면 재로그인 해주세요)");
     }
   },
 }));
@@ -839,8 +953,8 @@ export const initializeAuth = async () => {
     if (response.ok) {
       const result = await response.json();
       if (result.data && result.data.name) {
-        // 서버 검증 성공: 최신 유저 정보로 갱신 + 캐시 업데이트
-        store.setLoginStatus(true, { name: result.data.name });
+        // 서버 검증 성공: 최신 유저 정보로 갱신 (백엔드 필드 userId 대응)
+        store.setLoginStatus(true, { id: result.data.userId, name: result.data.name });
         return;
       }
     } else if (response.status === 401 || response.status === 403) {
@@ -860,7 +974,8 @@ export const initializeAuth = async () => {
         if (retryResponse.ok) {
           const retryResult = await retryResponse.json();
           if (retryResult.data && retryResult.data.name) {
-            store.setLoginStatus(true, { name: retryResult.data.name });
+            // 백엔드 필드 userId 대응
+            store.setLoginStatus(true, { id: retryResult.data.userId, name: retryResult.data.name });
             return;
           }
         }
