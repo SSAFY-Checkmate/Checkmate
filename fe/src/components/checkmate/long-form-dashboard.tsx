@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { useCheckmateStore, logoutAuth, initializeAuth } from "../../lib/store";
+import { useAnalysisMonitor } from "../../hooks/use-analysis-monitor";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
@@ -23,8 +24,13 @@ export function LongFormDashboard() {
     closePanel,
     user,
     summary,
-    startDemoAnalysis, // 데모 기능 추가
+    startDemoAnalysis,
+    errorMsg,
+    setErrorMsg,
   } = useCheckmateStore();
+
+  // 분석 모니터링 훅 (90초 타임아웃)
+  useAnalysisMonitor(90000);
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -74,6 +80,8 @@ export function LongFormDashboard() {
         return "추출된 주요 주장들의 논리적 타당성을 검토하고 있습니다.";
       case "verifying":
         return "공신력 있는 자료를 바탕으로 최종 검증을 수행 중입니다.";
+      case "error":
+        return "통신 상태를 확인하거나 잠시 후 다시 시도해주세요.";
       default:
         return "안전한 시청을 위해 팩트체크를 진행하고 있습니다.";
     }
@@ -171,6 +179,11 @@ export function LongFormDashboard() {
       else setActiveTab("report");
       openPanel();
     }
+  };
+
+  const handleStartAnalysis = () => {
+    setErrorMsg(null);
+    startAnalysis();
   };
 
   return (
@@ -367,53 +380,97 @@ export function LongFormDashboard() {
               style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}
             >
               {/* 경찰서 건물 배경 + 오버레이 통합 관리 */}
-              <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
+              <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => analysisStatus === "idle" || analysisStatus === "error" ? handleStartAnalysis() : null}>
                 <PixelCharacter size="lg" />
 
-                {/* 상태에 따른 경찰관 오버레이 (위치 우측 하단으로 고정) */}
-                {analysisStatus !== "idle" && analysisStatus !== "error" && (
+                {/* 상태에 따른 경찰관 오버레이 (에러 상태 포함) */}
+                {analysisStatus !== "idle" && (
                   <motion.div
                     key="officer-overlay"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
-                    style={{ position: "absolute", bottom: "-10px", right: "-15px" }}
+                    style={{ position: "absolute", bottom: "-10px", right: "5px" }}
                   >
                     <div
                       style={{
                         position: "absolute",
                         top: "-30px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
+                        right: "0",
                         backgroundColor: "white",
-                        border: "2px solid #0f172a",
+                        border: `2px solid ${analysisStatus === "error" ? "#ef4444" : "#0f172a"}`,
                         borderRadius: "8px",
                         padding: "4px 10px",
                         fontSize: "12px",
                         fontWeight: "900",
-                        color: "#0f172a",
+                        color: analysisStatus === "error" ? "#ef4444" : "#0f172a",
                         boxShadow: "0 4px 0 rgba(0,0,0,0.15)",
                         fontFamily: pixelFont,
                         whiteSpace: "nowrap",
                         zIndex: 10,
                       }}
                     >
-                      {/* 말풍선 꼬리 */}
-                      <div style={{ position: "absolute", bottom: "-6px", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid #0f172a" }} />
-                      <div style={{ position: "absolute", bottom: "-3px", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "4px solid white" }} />
+                      {/* 말풍선 꼬리 (우측 정렬에 맞춰 위치 조정) */}
+                      <div style={{ position: "absolute", bottom: "-6px", right: "15px", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: `6px solid ${analysisStatus === "error" ? "#ef4444" : "#0f172a"}` }} />
+                      <div style={{ position: "absolute", bottom: "-3px", right: "17px", width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "4px solid white" }} />
                       
-                      {analysisStatus === "loading" ? "수사 기록 조회 중..." : statusMsg}
+                      {analysisStatus === "loading" ? "수사 기록 조회 중..." : analysisStatus === "error" ? "분석 오류 발생!" : statusMsg}
                     </div>
-                    <PixelOfficer size="sm" mood="thinking" isWalking />
+                    <PixelOfficer 
+                      size="sm" 
+                      mood={analysisStatus === "error" ? "alert" : "thinking"} 
+                      isWalking={analysisStatus !== "error"} 
+                    />
                   </motion.div>
                 )}
               </div>
 
               <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
                 {analysisStatus === "idle" || analysisStatus === "error" ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-                    <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
-                    <PixelButton onClick={() => startDemoAnalysis()} colorType="neutral" text="데모 수사 시작 (토큰X)" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+                    {analysisStatus === "error" && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10, x: 0 }}
+                        animate={{ 
+                          opacity: 1, 
+                          y: 0,
+                          x: [0, -2, 2, -2, 2, 0], // 미세한 쉐이크 효과
+                        }}
+                        transition={{ duration: 0.5 }}
+                        style={{ 
+                          width: "100%",
+                          padding: "12px",
+                          backgroundColor: "#fef2f2",
+                          border: "2px solid #fecaca",
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          marginBottom: "4px",
+                          boxShadow: "0 2px 4px rgba(239, 68, 68, 0.1)"
+                        }}
+                      >
+                        <div style={{ color: "#ef4444", flexShrink: 0 }}>
+                          <AlertTriangle size={20} />
+                        </div>
+                        <div style={{ textAlign: "left" }}>
+                          <p style={{ margin: 0, fontSize: "13px", color: "#b91c1c", fontWeight: "900", fontFamily: pixelFont }}>
+                            {errorMsg || "알 수 없는 수사 오류"}
+                          </p>
+                          <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#ef4444", fontWeight: "bold", fontFamily: pixelFont, opacity: 0.8 }}>
+                            통신 상태를 확인하거나 잠시 후 다시 시도해 주세요.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                    <PixelButton 
+                      onClick={() => handleStartAnalysis()} 
+                      colorType={analysisStatus === "error" ? "error" : "primary"} 
+                      text={analysisStatus === "error" ? "수사 재개하기" : "팩트체크 수사 시작"} 
+                    />
+                    {analysisStatus === "idle" && (
+                      <PixelButton onClick={() => startDemoAnalysis()} colorType="neutral" text="데모 수사 시작 (토큰X)" />
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "12px" }}>
@@ -442,7 +499,9 @@ export function LongFormDashboard() {
                     <div style={{ minHeight: "24px", display: "flex", justifyContent: "center", alignItems: "center" }}>
                       <AnimatePresence mode="wait">
                         <motion.div key={tipMsg} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: 0.4 }} style={{ fontSize: "12px", fontWeight: "bold", fontFamily: pixelFont, textAlign: "center", background: "linear-gradient(110deg, #64748b 30%, #bae6fd 50%, #64748b 70%)", backgroundSize: "200% 100%", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                          <motion.div animate={{ backgroundPosition: ["200% 0%", "-200% 0%"] }} transition={{ repeat: Infinity, duration: 6, ease: "linear" }} style={{ background: "inherit", WebkitBackgroundClip: "inherit", WebkitTextFillColor: "inherit" }}>{tipMsg}</motion.div>
+                          <motion.div animate={{ backgroundPosition: ["200% 0%", "-200% 0%"] }} transition={{ repeat: Infinity, duration: 6, ease: "linear" }} style={{ background: "inherit", WebkitBackgroundClip: "inherit", WebkitTextFillColor: "inherit" }}>
+                            {tipMsg}
+                          </motion.div>
                         </motion.div>
                       </AnimatePresence>
                     </div>

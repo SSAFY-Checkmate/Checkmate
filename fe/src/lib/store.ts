@@ -95,6 +95,7 @@ interface CheckmateState {
   summary: string;
   analysisId: number | null; // RDB PK
   claims: Claim[];
+  errorMsg: string | null;
 
   // 커뮤니티 데이터
   communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null; userReactionId: number | null };
@@ -145,6 +146,8 @@ interface CheckmateState {
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
+  setAnalysisStatus: (status: AnalysisStatus) => void;
+  setErrorMsg: (msg: string | null) => void;
 }
 
 /**
@@ -166,6 +169,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   summary: "",
   analysisId: null,
   claims: [],
+  errorMsg: null,
   communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
   commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
@@ -871,11 +875,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     
     set({ isLoggedIn, user });
 
-    const store = useCheckmateStore.getState();
-    if (isLoggedIn && store.analysisId) {
-      store.fetchReactions(store.analysisId);
+    if (isLoggedIn && get().analysisId) {
+      get().fetchReactions(get().analysisId!);
     }
   },
+
+  setAnalysisStatus: (status) => set({ analysisStatus: status }),
+
+  setErrorMsg: (msg) => set({ errorMsg: msg }),
 
   setResultModalOpen: (open) => set({ isResultModalOpen: open }),
 
