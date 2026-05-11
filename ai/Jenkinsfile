@@ -9,6 +9,11 @@ pipeline {
         HOST_IP = "172.26.5.216"
 
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        LANGCHAIN_API_KEY = credentials('LANGCHAIN_API_KEY')
+
+        LANGCHAIN_TRACING_V2 = 'true'
+        LANGCHAIN_PROJECT = 'a405-ai'
+        LANGCHAIN_ENDPOINT = 'https://api.smith.langchain.com'
 
         OPENAI_BASE_URL = 'https://gms.ssafy.io/gmsapi/api.openai.com/v1'
         EMBEDDING_MODEL = 'text-embedding-3-small'
@@ -96,6 +101,10 @@ pipeline {
 
                         # 3. worker compose에서 사용할 환경변수 export
                         export OPENAI_API_KEY="${OPENAI_API_KEY}"
+                        export LANGCHAIN_API_KEY="${LANGCHAIN_API_KEY}"
+                        export LANGCHAIN_TRACING_V2="${LANGCHAIN_TRACING_V2}"
+                        export LANGCHAIN_PROJECT="${LANGCHAIN_PROJECT}"
+                        export LANGCHAIN_ENDPOINT="${LANGCHAIN_ENDPOINT}"
                         export OPENAI_BASE_URL="${OPENAI_BASE_URL}"
                         export EMBEDDING_MODEL="${EMBEDDING_MODEL}"
                         export LLM_MODEL="${LLM_MODEL}"
@@ -120,6 +129,10 @@ pipeline {
                         # 6. host 서버에서 AI API Blue-Green 배포 실행
                         ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<EOF
 export OPENAI_API_KEY='${OPENAI_API_KEY}'
+export LANGCHAIN_API_KEY='${LANGCHAIN_API_KEY}'
+export LANGCHAIN_TRACING_V2='${LANGCHAIN_TRACING_V2}'
+export LANGCHAIN_PROJECT='${LANGCHAIN_PROJECT}'
+export LANGCHAIN_ENDPOINT='${LANGCHAIN_ENDPOINT}'
 export OPENAI_BASE_URL='${OPENAI_BASE_URL}'
 export EMBEDDING_MODEL='${EMBEDDING_MODEL}'
 export LLM_MODEL='${LLM_MODEL}'
