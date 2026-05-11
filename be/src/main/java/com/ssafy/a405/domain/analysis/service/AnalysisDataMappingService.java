@@ -49,21 +49,25 @@ public class AnalysisDataMappingService {
                 return;
             }
 
-            // 1. Channel
-            String channelIdStr = transcriptNode.path("channel_id").asText();
-            String channelName = transcriptNode.path("author").asText();
-
-            Channel channel = channelRepository.findByYtChannelId(channelIdStr)
-                    .orElseGet(() -> channelRepository.save(Channel.builder()
-                            .ytChannelId(channelIdStr)
-                            .channelName(channelName)
-                            .trustGrade(TrustGrade.UNKNOWN) // Will be updated later if needed
-                            .totalViolationCount(0)
-                            .build()));
-
             // 2. Video
             String videoIdStr = transcriptNode.path("video_id").asText();
             String videoTitle = transcriptNode.path("title").asText();
+
+            // 1. Channel
+            String channelIdStr = transcriptNode.path("channel_id").asText(null);
+            if (channelIdStr == null || channelIdStr.isBlank()) {
+                channelIdStr = "UNKNOWN_CHANNEL_" + videoIdStr;
+            }
+            String channelName = transcriptNode.path("author").asText("Unknown Channel");
+
+            final String finalChannelId = channelIdStr;
+            Channel channel = channelRepository.findByYtChannelId(finalChannelId)
+                    .orElseGet(() -> channelRepository.save(Channel.builder()
+                            .ytChannelId(finalChannelId)
+                            .channelName(channelName)
+                            .trustGrade(TrustGrade.UNKNOWN)
+                            .totalViolationCount(0)
+                            .build()));
 
             Video video = videoRepository.findByYtVideoId(videoIdStr)
                     .orElseGet(() -> videoRepository.save(Video.builder()
@@ -149,15 +153,14 @@ public class AnalysisDataMappingService {
 
         String channelIdStr = root.path("channelId").asText(null);
         if (channelIdStr == null || channelIdStr.isBlank()) {
-            // Channel.ytChannelId is non-null in RDB schema; without it we cannot persist consistently.
-            log.warn("Missing channelId in final payload for videoId={}. Skipping RDB mapping.", videoIdStr);
-            return;
+            channelIdStr = "UNKNOWN_CHANNEL_" + videoIdStr;
         }
 
         String channelName = root.path("channelName").asText("");
-        Channel channel = channelRepository.findByYtChannelId(channelIdStr)
+        final String finalChannelId = channelIdStr;
+        Channel channel = channelRepository.findByYtChannelId(finalChannelId)
             .orElseGet(() -> channelRepository.save(Channel.builder()
-                .ytChannelId(channelIdStr)
+                .ytChannelId(finalChannelId)
                 .channelName(channelName)
                 .trustGrade(TrustGrade.UNKNOWN)
                 .totalViolationCount(0)
