@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { MOCK_ANALYSIS_RESULTS } from "./constants/mock-data";
+import { isUnknown, scrapeMetadata } from "./youtube-utils";
 
 export type Tab = "report" | "community";
 export type Verdict = "safe" | "warning" | "unknown";
@@ -231,14 +232,24 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     // 이미 같은 영상이면 무시
     if (state.currentVideoId === id) return;
 
+    let finalTitle = title;
+    let finalChannel = channel;
+
+    // [개선] 전달받은 정보가 부실하면(Unknown) DOM에서 직접 스크래핑 시도
+    if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
+      const scraped = scrapeMetadata();
+      if (isUnknown(finalTitle)) finalTitle = scraped.title;
+      if (isUnknown(finalChannel)) finalChannel = scraped.channel;
+    }
+
     const cachedData = state.analyzedVideos[id];
 
     if (cachedData) {
-      // 캐시된 분석 결과가 있으면 복원
+      // 캐시된 분석 결과가 있으면 복원 (단, Unknown이 아닐 때만 캐시값 우선)
       set({
         currentVideoId: id,
-        videoTitle: title || (cachedData.videoTitle as string) || "",
-        channelName: channel || (cachedData.channelName as string) || "",
+        videoTitle: !isUnknown(finalTitle) ? finalTitle : (cachedData.videoTitle as string) || "",
+        channelName: !isUnknown(finalChannel) ? finalChannel : (cachedData.channelName as string) || "",
         isPanelOpen: false,
         ...cachedData,
       });
@@ -251,8 +262,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       // 새로운 영상이면 초기화
       set({
         currentVideoId: id,
-        videoTitle: title,
-        channelName: channel,
+        videoTitle: finalTitle,
+        channelName: finalChannel,
         analysisStatus: "idle",
         overallVerdict: "unknown",
         trustScore: 0,
@@ -429,29 +440,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       // [추가] 분석 실패(FAILED) 케이스 처리
       if (data.status === "FAILED") {
-        // 활성화된 쇼츠 오버레이를 먼저 찾습니다.
-        const activeReel = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer")).find(
-          (el) => (el as HTMLElement).getBoundingClientRect().width > 0,
-        );
-
-        // DOM에서 직접 타이틀과 채널명 추출 (쇼츠/롱폼 레이아웃 대응)
-        const scrapedTitle =
-          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
-          activeReel?.querySelector("h2.ytd-reel-player-header-renderer")?.textContent?.trim() ||
-          document.querySelector("h1.ytd-watch-metadata")?.textContent?.trim() ||
-          document.querySelector("yt-formatted-string.ytd-video-primary-info-renderer")?.textContent?.trim() ||
-          document.title.replace(" - YouTube", "").trim() ||
-          "알 수 없는 영상";
-
-        const scrapedChannel =
-          activeReel?.querySelector("#channel-name yt-formatted-string")?.textContent?.trim() ||
-          activeReel?.querySelector("#channel-name a")?.textContent?.trim() ||
-          activeReel?.querySelector('a[href^="/@"]')?.textContent?.trim() ||
-          activeReel?.querySelector(".ytd-reel-player-header-renderer #text")?.textContent?.trim() ||
-          activeReel?.querySelector(".ytd-reel-player-header-renderer yt-formatted-string")?.textContent?.trim() ||
-          document.querySelector("#text.ytd-channel-name a")?.textContent?.trim() ||
-          document.querySelector(".ytd-video-owner-renderer #channel-name")?.textContent?.trim() ||
-          "알 수 없는 채널";
+        const { title: scrapedTitle, channel: scrapedChannel } = scrapeMetadata();
 
         const failState = {
           analysisStatus: "error" as AnalysisStatus, // idle에서 error로 변경
@@ -507,10 +496,21 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }));
 
       const youtubeInfo = resultObj || {};
+
+      // [개선] 백엔드에서 정보가 없거나(Unknown) 부족할 경우 로컬 데이터 또는 DOM 스크래핑 데이터 사용
+      let finalTitle = youtubeInfo.videoTitle || data.videoTitle || get().videoTitle;
+      let finalChannel = youtubeInfo.channelName || data.channelName || get().channelName;
+
+      if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
+        const scraped = scrapeMetadata();
+        if (isUnknown(finalTitle)) finalTitle = scraped.title;
+        if (isUnknown(finalChannel)) finalChannel = scraped.channel;
+      }
+
       const finalState = {
         analysisStatus: "complete" as AnalysisStatus,
-        videoTitle: youtubeInfo.videoTitle || data.videoTitle || get().videoTitle,
-        channelName: youtubeInfo.channelName || data.channelName || get().channelName,
+        videoTitle: finalTitle,
+        channelName: finalChannel,
         overallVerdict: mappedVerdict,
         trustScore: resultObj.confidenceScore || 0,
         summary: resultObj.summary || "",

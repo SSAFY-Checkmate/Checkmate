@@ -3,6 +3,7 @@
  */
 
 import { useCheckmateStore } from "./lib/store";
+import { scrapeMetadata } from "./lib/youtube-utils";
 
 if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
@@ -142,20 +143,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
         );
 
         // YouTube DOM에서 제목/채널명 추출
-        const videoTitle =
-          (document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string') as HTMLElement)?.innerText ||
-          (document.querySelector('ytd-watch-metadata h1 yt-formatted-string') as HTMLElement)?.innerText ||
-          (activeReel?.querySelector('h2.title yt-formatted-string') as HTMLElement)?.innerText ||
-          (document.querySelector('h1.title.style-scope.ytd-video-primary-info-renderer') as HTMLElement)?.innerText ||
-          (document.querySelector('#title h1 yt-formatted-string') as HTMLElement)?.innerText ||
-          '';
-
-        const channelName =
-          (document.querySelector('ytd-channel-name #channel-name a') as HTMLElement)?.innerText ||
-          (document.querySelector('ytd-video-owner-renderer #channel-name a') as HTMLElement)?.innerText ||
-          (activeReel?.querySelector('ytd-channel-name #channel-name a') as HTMLElement)?.innerText ||
-          (document.querySelector('#owner #channel-name a') as HTMLElement)?.innerText ||
-          '';
+        const { title: videoTitle, channel: channelName } = scrapeMetadata();
 
         useCheckmateStore.getState().setCurrentVideo(videoId, videoTitle.trim(), channelName.trim());
       }
