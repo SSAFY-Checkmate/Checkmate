@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { useCheckmateStore, logoutAuth, initializeAuth } from "../../lib/store";
 import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
@@ -21,17 +21,22 @@ export function LongFormDashboard() {
     setActiveTab,
     isPanelOpen,
     closePanel,
-
     user,
     summary,
+    startDemoAnalysis, // 데모 기능 추가
   } = useCheckmateStore();
 
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barWidth, setBarWidth] = useState(232);
 
-  // 컴포넌트 마운트 시 인증 초기화
+  // 컴포넌트 마운트 및 상태 변경 시 인증 초기화 및 너비 측정
   useEffect(() => {
     initializeAuth();
-  }, []);
+    if (barRef.current) {
+      setBarWidth(barRef.current.offsetWidth);
+    }
+  }, [analysisStatus]);
 
   /**
    * 분석 상태에 따른 메시지 매핑
@@ -49,9 +54,28 @@ export function LongFormDashboard() {
       case "verifying":
         return "신뢰도 검증 중...";
       case "complete":
-        return "수사 완료";
+        return "수사 완료!";
+      case "error":
+        return "수사 오류 발생";
       default:
-        return "";
+        return "준비 중...";
+    }
+  }, [analysisStatus]);
+
+  const tipMsg = useMemo(() => {
+    switch (analysisStatus) {
+      case "checking":
+        return "데이터베이스에서 기존 분석 기록을 검색하고 있습니다.";
+      case "detecting":
+        return "영상 내 유료 광고 및 메타데이터 정보를 스캔 중입니다.";
+      case "analyzing_transcript":
+        return "자막의 문맥을 파악하여 핵심 수사 내용을 분석합니다.";
+      case "analyzing_claims":
+        return "추출된 주요 주장들의 논리적 타당성을 검토하고 있습니다.";
+      case "verifying":
+        return "공신력 있는 자료를 바탕으로 최종 검증을 수행 중입니다.";
+      default:
+        return "안전한 시청을 위해 팩트체크를 진행하고 있습니다.";
     }
   }, [analysisStatus]);
 
@@ -323,10 +347,7 @@ export function LongFormDashboard() {
         ) : (
           <>
             {/* 경찰서 건물(항상 표시) + 분석 중 경찰관 오버레이 */}
-            <div
-              style={{ position: "relative", cursor: "pointer", marginTop: "16px" }}
-              onClick={() => startAnalysis()}
-            >
+            <div style={{ position: "relative", cursor: "pointer", marginTop: "16px" }} onClick={() => startAnalysis()}>
               {/* 경찰서 건물 배경 */}
               <PixelCharacter size="lg" />
 
@@ -397,99 +418,153 @@ export function LongFormDashboard() {
 
             <div style={{ width: "100%", minHeight: "44px", marginTop: "8px" }}>
               {analysisStatus === "idle" ? (
-                <div style={{ display: "flex", gap: "8px", width: "100%" }}>
-                  <div style={{ flex: 1 }}>
-                    <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
-                  </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                  <PixelButton onClick={() => startAnalysis()} colorType="primary" text="팩트체크 수사 시작" />
+                  <PixelButton onClick={() => startDemoAnalysis()} colorType="neutral" text="데모 수사 시작 (토큰X)" />
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: "14px",
-                      color: "#0ea5e9",
-                      fontFamily: pixelFont,
-                      fontWeight: "900",
-                      textShadow: "1px 1px 0 rgba(14, 165, 233, 0.2)",
-                    }}
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "12px" }}>
+                  {/* 경량화된 프리미엄 게이지 바 */}
+                  <div 
+                    ref={barRef}
+                    style={{ position: "relative", width: "100%", height: "24px" }}
                   >
-                    <span style={{ animation: "pulse 1.5s infinite" }}>{statusMsg}</span>
-                    <span>
-                      {analysisStatus === "checking"
-                        ? "10%"
-                        : analysisStatus === "detecting"
-                          ? "25%"
-                          : analysisStatus === "analyzing_transcript"
-                            ? "50%"
-                            : analysisStatus === "analyzing_claims"
-                              ? "75%"
-                              : "95%"}
-                    </span>
+                    <div
+                      style={{
+                        height: "24px",
+                        width: "100%",
+                        backgroundColor: "rgba(15, 23, 42, 0.05)",
+                        padding: "2px",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "12px",
+                        position: "relative",
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      {/* 실제 게이지 및 텍스트 레이어링 */}
+                      {(() => {
+                        const progress =
+                          analysisStatus === "checking"
+                            ? 10
+                            : analysisStatus === "detecting"
+                              ? 25
+                              : analysisStatus === "analyzing_transcript"
+                                ? 50
+                                : analysisStatus === "analyzing_claims"
+                                  ? 75
+                                  : 95;
+
+                        const progressText = `${progress}% COMPLETE`;
+                        const currentBarWidth = barWidth || 232;
+
+                        return (
+                          <>
+                            {/* Layer 1: Base Black Text (Always Centered) */}
+                            <div style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              zIndex: 1,
+                              fontSize: "12px",
+                              color: "#1e293b",
+                              fontWeight: "900",
+                              fontFamily: pixelFont,
+                              pointerEvents: "none"
+                            }}>
+                              {progressText}
+                            </div>
+
+                            {/* Layer 2: Moving Gauge with Masked White Text */}
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
+                              style={{
+                                height: "100%",
+                                background: "linear-gradient(90deg, #38bdf8, #0ea5e9)",
+                                borderRadius: "10px",
+                                position: "relative",
+                                zIndex: 2,
+                                overflow: "hidden"
+                              }}
+                            >
+                              {/* White Text in a container that matches the FULL bar width */}
+                              {/* This container starts at the same left as the bar, so text stays perfectly centered */}
+                              <div style={{
+                                width: `${currentBarWidth}px`, 
+                                height: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "white",
+                                fontSize: "12px",
+                                fontWeight: "900",
+                                fontFamily: pixelFont,
+                                position: "absolute",
+                                left: 0, // Moves with gauge, but content offset matches bar
+                                top: 0,
+                                pointerEvents: "none"
+                              }}>
+                                {progressText}
+                              </div>
+
+                              {/* Subtle scan effect inside gauge */}
+                              <motion.div
+                                animate={{ x: ["-100%", "400%"] }}
+                                transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                                  width: "100px",
+                                  pointerEvents: "none",
+                                }}
+                              />
+                            </motion.div>
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
 
-                  <div
-                    style={{
-                      height: "24px",
-                      width: "100%",
-                      backgroundColor: "#0f172a",
-                      padding: "4px",
-                      border: "3px solid #475569",
-                      boxShadow: "inset 0 4px 0 rgba(0,0,0,0.5), 2px 2px 0 rgba(255,255,255,0.1)",
-                      display: "flex",
-                      gap: "3px",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {Array.from({ length: 15 }).map((_, i) => {
-                      const progress =
-                        analysisStatus === "checking"
-                          ? 10
-                          : analysisStatus === "detecting"
-                            ? 25
-                            : analysisStatus === "analyzing_transcript"
-                              ? 50
-                              : analysisStatus === "analyzing_claims"
-                                ? 75
-                                : 95;
-
-                      const isFilled = i + 1 <= (progress / 100) * 15;
-
-                      return (
+                  {/* 은은한 메탈릭 쉬머 가이드 문구 */}
+                  <div style={{ minHeight: "24px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={tipMsg}
+                        initial={{ opacity: 0, y: 3 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -3 }}
+                        transition={{ duration: 0.6 }}
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: "bold",
+                          fontFamily: pixelFont,
+                          textAlign: "center",
+                          background: "linear-gradient(110deg, #64748b 30%, #bae6fd 50%, #64748b 70%)",
+                          backgroundSize: "200% 100%",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                        }}
+                      >
                         <motion.div
-                          key={i}
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{
-                            opacity: isFilled ? 1 : 0.2,
-                            scale: isFilled ? 1 : 0.9,
-                            backgroundColor: isFilled ? "#38bdf8" : "#1e293b",
-                          }}
+                          animate={{ backgroundPosition: ["200% 0%", "-200% 0%"] }}
+                          transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
                           style={{
-                            flex: 1,
-                            height: "100%",
-                            boxShadow: isFilled
-                              ? "inset 2px 2px 0 rgba(255,255,255,0.5), inset -2px -2px 0 #0369a1"
-                              : "none",
-                            position: "relative",
+                            background: "inherit",
+                            WebkitBackgroundClip: "inherit",
+                            WebkitTextFillColor: "inherit",
                           }}
                         >
-                          {isFilled && (
-                            <motion.div
-                              animate={{ x: ["-100%", "200%"] }}
-                              transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: i * 0.1 }}
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
-                                pointerEvents: "none",
-                              }}
-                            />
-                          )}
+                          {tipMsg}
                         </motion.div>
-                      );
-                    })}
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
                 </div>
               )}

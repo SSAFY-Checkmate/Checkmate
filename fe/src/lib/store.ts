@@ -710,17 +710,19 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const videoId = get().currentVideoId;
     if (!videoId) return;
 
-    set({ analysisStatus: "detecting", isWarningVisible: false });
+    set({ analysisStatus: "checking", isWarningVisible: false });
 
     try {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
+      set({ analysisStatus: "detecting" });
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "analyzing_transcript" });
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "analyzing_claims" });
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "verifying" });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
       const mockData = MOCK_ANALYSIS_RESULTS.warn;
       const finalState = {
