@@ -160,3 +160,18 @@ export const authApi = {
     return res;
   },
 };
+
+/**
+ * 신고 관련 API
+ */
+export const reportApi = {
+  /** 유튜브 영상 신고 */
+  submitReport: async (videoId: string, reasonId: string, secondaryReasonId: string, googleAccessToken: string) => {
+    const res = await doFetch(`/api/videos/${videoId}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasonId, secondaryReasonId, googleAccessToken }),
+    });
+    return res.json();
+  },
+};

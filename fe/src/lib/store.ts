@@ -1,10 +1,47 @@
 import { create } from "zustand";
 import { MOCK_ANALYSIS_RESULTS } from "./constants/mock-data";
 import { isUnknown, scrapeMetadata } from "./youtube-utils";
-import { analysisApi, communityApi, authApi } from "./api";
+import { analysisApi, communityApi, authApi, reportApi } from "./api";
 
 export type Tab = "report" | "community";
 export type Verdict = "safe" | "warning" | "unknown";
+export type AnalysisStatus =
+  | "loading"
+  | "idle"
+  | "checking"
+  | "detecting"
+  | "analyzing_transcript"
+  | "analyzing_claims"
+  | "verifying"
+  | "complete"
+  | "error";
+
+/**
+ * [원터치 신고 사유 매핑 상수]
+ */
+export const REPORT_REASONS = [
+  {
+    id: "medical",
+    label: "가짜 의료/건강 정보",
+    reasonId: "M",
+    secondaryReasonId: "",
+    description: "잘못된 의료 정보 (잘못된 치료법 등)",
+  },
+  {
+    id: "dangerous",
+    label: "위험한 허위 정보",
+    reasonId: "V",
+    secondaryReasonId: "40",
+    description: "기타 위험한 행위 (사회적 혼란 야기 등)",
+  },
+  {
+    id: "defamation",
+    label: "비방 및 명예훼손",
+    reasonId: "H",
+    secondaryReasonId: "",
+    description: "특정인에 대한 허위 비방 및 폭로",
+  },
+];
 
 export interface WantedCard {
   id: string;
@@ -38,20 +75,6 @@ export interface Claim {
   votesFake: number;
   userVote?: "true" | "fake";
 }
-
-/**
- * 분석 진행 상태 타입
- */
-export type AnalysisStatus =
-  | "loading"
-  | "idle"
-  | "checking"
-  | "detecting"
-  | "analyzing_transcript"
-  | "analyzing_claims"
-  | "verifying"
-  | "complete"
-  | "error";
 
 export interface User {
   id: number;
@@ -111,6 +134,10 @@ interface CheckmateState {
   // 분석 결과 캐시
   analyzedVideos: Record<string, Partial<CheckmateState>>;
 
+  // 신고 상태
+  isReportModalOpen: boolean;
+  reportingStatus: "idle" | "loading" | "success" | "error";
+
   // 페이지네이션 상태
   commentPagination: {
     currentPage: number;
@@ -148,6 +175,10 @@ interface CheckmateState {
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
   setAnalysisStatus: (status: AnalysisStatus) => void;
   setErrorMsg: (msg: string | null) => void;
+  
+  // 신고 액션
+  setReportModalOpen: (open: boolean) => void;
+  submitReport: (reasonId: string, secondaryReasonId: string) => Promise<void>;
 }
 
 /**
@@ -177,6 +208,10 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   // 커뮤니티 투표 초기 상태
   reactionSummary: { proCount: 0, conCount: 0 },
   myReaction: null,
+
+  // 신고 초기 상태
+  isReportModalOpen: false,
+  reportingStatus: "idle",
 
   // 인증 초기 상태
   isLoggedIn: false,
@@ -823,7 +858,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       const violations = data.result?.analysis?.violations || [];
       const claims: Claim[] = violations.map((v: any, idx: number) => ({
-        id: `v-${idx}`,
+        id: v.violationId?.toString() || `claim-${videoId}-${idx}`, // 고유 ID 보장
         text: v.violationSentence || "내용 없음",
         verdict: "warning" as Verdict,
         evidence: v.reason || "",
@@ -899,6 +934,52 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   setErrorMsg: (msg) => set({ errorMsg: msg }),
 
   setResultModalOpen: (open) => set({ isResultModalOpen: open }),
+
+  setReportModalOpen: (open) => set({ isReportModalOpen: open }),
+
+  submitReport: async (reasonId: string, secondaryReasonId: string) => {
+    const videoId = get().currentVideoId;
+    if (!videoId) return;
+
+    set({ reportingStatus: "loading" });
+
+    try {
+      // 1. 구글 액세스 토큰 획득 (실제 익스텐션 환경)
+      const token: string = await new Promise((resolve, reject) => {
+        if (typeof chrome === "undefined" || !chrome.identity) {
+          reject(new Error("크롬 익스텐션 환경이 아닙니다. 실제 브라우저에 로드 후 테스트해 주세요."));
+          return;
+        }
+        chrome.identity.getAuthToken({ interactive: true }, (result) => {
+          if (chrome.runtime.lastError || !result) {
+            reject(new Error(chrome.runtime.lastError?.message || "Google 인증에 실패했습니다."));
+          } else {
+            const tokenStr = typeof result === "string" ? result : (result as any).token;
+            if (!tokenStr) {
+              reject(new Error("유효한 토큰을 획득하지 못했습니다."));
+            } else {
+              resolve(tokenStr);
+            }
+          }
+        });
+      });
+
+      // 2. 백엔드 전송
+      console.log(`[Report] Submitting Data:`, { videoId, reasonId, secondaryReasonId });
+      const res = await reportApi.submitReport(videoId, reasonId, secondaryReasonId, token);
+
+      if (res.status === 200 || res.status === 201 || res.ok) {
+        set({ reportingStatus: "success" });
+        // 성공 시 2초 후 모달 닫기
+        setTimeout(() => set({ reportingStatus: "idle", isReportModalOpen: false }), 2000);
+      } else {
+        throw new Error(res.message || "신고 처리에 실패했습니다.");
+      }
+    } catch (err: any) {
+      console.error("[Report] Failed", err);
+      set({ reportingStatus: "error" });
+    }
+  },
 
   checkAnalysisStatus: async () => {
     const videoId = get().currentVideoId;

@@ -407,7 +407,7 @@ export function LongFormDashboard() {
                 </p>
 
                 {/* Detail Action Button (moved inside) */}
-                <div style={{ width: "100%", marginTop: "8px" }}>
+                <div style={{ width: "100%", marginTop: "16px" }}>
                   <PixelButton
                     onClick={(e) => togglePanel(e)}
                     colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}

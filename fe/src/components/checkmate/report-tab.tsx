@@ -1,13 +1,6 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import {
-  AlertTriangle,
-  CheckCircle,
-  HelpCircle,
-  ExternalLink,
-  FileSearch,
-  ShieldCheck,
-  Fingerprint,
-} from "lucide-react";
+import { OneTouchReportButton } from "./one-touch-report-button";
+import { AlertTriangle, CheckCircle, HelpCircle, FileSearch, ShieldCheck, Fingerprint } from "lucide-react";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 
@@ -526,10 +519,13 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
             </p>
           </div>
         )}
+
+        {/* 리포트 기반 원터치 신고 버튼 (Siren Bar) */}
+        <OneTouchReportButton />
       </section>
 
       {/* Footer Info */}
-      <div style={{ textAlign: "center", padding: "20px 0 40px 0" }}>
+      <div style={{ textAlign: "center", padding: "10px 0 5px 0" }}>
         <p style={{ fontSize: "11px", color: "#94a3b8", lineHeight: "1.6", fontWeight: "bold" }}>
           본 리포트는 Checkmate AI 감정 엔진에 의해 실시간 생성되었으며
           <br />
