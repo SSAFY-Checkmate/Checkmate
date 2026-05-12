@@ -283,6 +283,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         videoTitle: !isUnknown(finalTitle) ? finalTitle : (cachedData.videoTitle as string) || "",
         channelName: !isUnknown(finalChannel) ? finalChannel : (cachedData.channelName as string) || "",
         isPanelOpen: false,
+        isResultModalOpen: false,
+        errorMsg: null, // 캐시된 영상으로 돌아올 때도 에러 메시지 초기화
         ...cachedData,
       });
 
@@ -301,7 +303,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         summary: "",
         analysisId: null,
         isWarningVisible: false,
-        isPanelOpen: false,
+        isPanelOpen: false, // 영상 변경 시 패널 닫기
+        isResultModalOpen: false, // 영상 변경 시 모달 닫기
+        errorMsg: null, // 에러 메시지 초기화
         claims: [],
         warningCount: 0,
         chatMessages: [],
