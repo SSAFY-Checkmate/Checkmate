@@ -76,14 +76,11 @@ const AuthLoadingSkeleton = () => (
   </div>
 );
 
+const URL_CHECK_INTERVAL_MS = 2000;
+
 /**
  * [Checkmate 대시보드 - 라우터 버전]
  * 영상 타입(Long-form / Shorts)에 따라 최적화된 대시보드를 렌더링합니다.
- *
- * 렌더링 우선순위:
- * 1. isAuthInitializing: true → AuthLoadingSkeleton (인증 확인 중)
- * 2. !isLoggedIn → LoginView (미로그인 확정)
- * 3. isLoggedIn → LongFormDashboard (대시보드)
  */
 export function AnalysisDashboard() {
   const {
@@ -93,6 +90,7 @@ export function AnalysisDashboard() {
     currentVideoId,
     analysisStatus,
     checkAnalysisStatus,
+    setCurrentVideo,
   } = useCheckmateStore();
 
   // 앱 시작 시 2-Phase 하이브리드 인증 복원
@@ -100,9 +98,37 @@ export function AnalysisDashboard() {
     initializeAuth();
   }, [setLoginStatus]);
 
-  // 영상 변경 시 기존 분석 결과 자동 조회
+  // 영상 변경 및 URL 변경 감지 (롱폼/쇼츠 통합 대응)
   useEffect(() => {
-    if (currentVideoId && analysisStatus === 'idle') {
+    const handleUrlChange = () => {
+      try {
+        const url = new URL(window.location.href);
+        let videoId = "";
+
+        if (url.pathname.startsWith("/shorts/")) {
+          // 쇼츠 URL 파싱 (/shorts/videoId)
+          videoId = url.pathname.split("/shorts/")[1]?.split("/")[0] || "";
+        } else {
+          // 롱폼 URL 파싱 (?v=videoId)
+          videoId = url.searchParams.get("v") || "";
+        }
+
+        if (videoId && videoId !== currentVideoId) {
+          setCurrentVideo(videoId);
+        }
+      } catch (err) {
+        console.error("[Checkmate] URL 파싱 실패:", err);
+      }
+    };
+
+    handleUrlChange();
+    const interval = setInterval(handleUrlChange, URL_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [currentVideoId, setCurrentVideo]);
+
+  // 분석 결과 자동 조회
+  useEffect(() => {
+    if (currentVideoId && analysisStatus === "idle") {
       checkAnalysisStatus();
     }
   }, [currentVideoId, analysisStatus, checkAnalysisStatus]);

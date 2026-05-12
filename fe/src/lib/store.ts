@@ -43,6 +43,7 @@ export interface Claim {
  * 분석 진행 상태 타입
  */
 export type AnalysisStatus =
+  | "loading"
   | "idle"
   | "checking"
   | "detecting"
@@ -94,6 +95,7 @@ interface CheckmateState {
   summary: string;
   analysisId: number | null; // RDB PK
   claims: Claim[];
+  errorMsg: string | null;
 
   // 커뮤니티 데이터
   communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null; userReactionId: number | null };
@@ -144,6 +146,8 @@ interface CheckmateState {
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
+  setAnalysisStatus: (status: AnalysisStatus) => void;
+  setErrorMsg: (msg: string | null) => void;
 }
 
 /**
@@ -156,7 +160,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   activeTab: "report",
   isWarningVisible: false,
   warningCount: 0,
-  analysisStatus: "idle",
+  analysisStatus: "loading",
   videoTitle: "",
   channelName: "",
   currentVideoId: null,
@@ -165,6 +169,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   summary: "",
   analysisId: null,
   claims: [],
+  errorMsg: null,
   communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
   commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
@@ -278,6 +283,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         videoTitle: !isUnknown(finalTitle) ? finalTitle : (cachedData.videoTitle as string) || "",
         channelName: !isUnknown(finalChannel) ? finalChannel : (cachedData.channelName as string) || "",
         isPanelOpen: false,
+        isResultModalOpen: false,
+        errorMsg: null, // 캐시된 영상으로 돌아올 때도 에러 메시지 초기화
         ...cachedData,
       });
 
@@ -296,7 +303,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         summary: "",
         analysisId: null,
         isWarningVisible: false,
-        isPanelOpen: false,
+        isPanelOpen: false, // 영상 변경 시 패널 닫기
+        isResultModalOpen: false, // 영상 변경 시 모달 닫기
+        errorMsg: null, // 에러 메시지 초기화
         claims: [],
         warningCount: 0,
         chatMessages: [],
@@ -332,10 +341,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       votesFake: 0,
     }));
 
+    // [개선] 백엔드 응답에서 제목/채널명이 부실할 경우 기존 값 유지 및 DOM 재추출 시도
+    let finalTitle = resultObj.videoTitle || data.videoTitle || get().videoTitle;
+    let finalChannel = resultObj.channelName || data.channelName || get().channelName;
+
+    if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
+      const scraped = scrapeMetadata();
+      if (isUnknown(finalTitle)) finalTitle = scraped.title;
+      if (isUnknown(finalChannel)) finalChannel = scraped.channel;
+    }
+
     const finalState = {
       analysisStatus: "complete" as AnalysisStatus,
-      videoTitle: resultObj.videoTitle || data.videoTitle || get().videoTitle,
-      channelName: resultObj.channelName || data.channelName || get().channelName,
+      videoTitle: finalTitle,
+      channelName: finalChannel,
       overallVerdict: mappedVerdict,
       trustScore: resultObj.confidenceScore || 0,
       summary: resultObj.summary || "",
@@ -710,17 +729,19 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const videoId = get().currentVideoId;
     if (!videoId) return;
 
-    set({ analysisStatus: "detecting", isWarningVisible: false });
+    set({ analysisStatus: "checking", isWarningVisible: false });
 
     try {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
+      set({ analysisStatus: "detecting" });
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "analyzing_transcript" });
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "analyzing_claims" });
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 4000));
       set({ analysisStatus: "verifying" });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 4000));
 
       const mockData = MOCK_ANALYSIS_RESULTS.warn;
       const finalState = {
@@ -868,11 +889,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     
     set({ isLoggedIn, user });
 
-    const store = useCheckmateStore.getState();
-    if (isLoggedIn && store.analysisId) {
-      store.fetchReactions(store.analysisId);
+    if (isLoggedIn && get().analysisId) {
+      get().fetchReactions(get().analysisId!);
     }
   },
+
+  setAnalysisStatus: (status) => set({ analysisStatus: status }),
+
+  setErrorMsg: (msg) => set({ errorMsg: msg }),
 
   setResultModalOpen: (open) => set({ isResultModalOpen: open }),
 
