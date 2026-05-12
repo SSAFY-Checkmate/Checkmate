@@ -22,7 +22,45 @@ export interface ChatMessage {
   message: string;
   badge?: "verifier" | "reporter";
   createdAt?: string;
+  parentId?: string | null;
+  replies?: ChatMessage[];
 }
+
+const mapCommentTree = (comment: any): ChatMessage => ({
+  id: String(comment.id),
+  userId: comment.userId,
+  username: comment.userName,
+  message: comment.content,
+  createdAt: comment.createdAt,
+  parentId: comment.parentCommentId == null ? null : String(comment.parentCommentId),
+  replies: Array.isArray(comment.replies) ? comment.replies.map(mapCommentTree) : [],
+});
+
+const appendReplyToTree = (messages: ChatMessage[], parentId: string, reply: ChatMessage): ChatMessage[] =>
+  messages.map((message) => {
+    if (message.id === parentId) {
+      return { ...message, replies: [...(message.replies || []), reply] };
+    }
+    return {
+      ...message,
+      replies: message.replies ? appendReplyToTree(message.replies, parentId, reply) : [],
+    };
+  });
+
+const updateMessageTree = (messages: ChatMessage[], commentId: string, content: string): ChatMessage[] =>
+  messages.map((message) => ({
+    ...message,
+    message: message.id === commentId ? content : message.message,
+    replies: message.replies ? updateMessageTree(message.replies, commentId, content) : [],
+  }));
+
+const deleteMessageTree = (messages: ChatMessage[], commentId: string): ChatMessage[] =>
+  messages
+    .filter((message) => message.id !== commentId)
+    .map((message) => ({
+      ...message,
+      replies: message.replies ? deleteMessageTree(message.replies, commentId) : [],
+    }));
 
 /**
  * 분석된 주장(Claim) 인터페이스
@@ -137,7 +175,7 @@ interface CheckmateState {
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
   voteOnClaim: (claimId: string, vote: "true" | "fake") => void;
   fetchComments: (analysisId: number, page?: number) => Promise<void>;
-  addComment: (content: string) => Promise<void>;
+  addComment: (content: string, parentCommentId?: string | number | null) => Promise<void>;
   updateComment: (commentId: string | number, content: string) => Promise<void>;
   deleteComment: (commentId: string | number) => Promise<void>;
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
@@ -620,15 +658,9 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       const body = await communityApi.getComments(analysisId, page);
       if (body.status === 200 && body.data) {
         const { content, page: currentPage, hasNext, totalPages, totalElements } = body.data;
-        
-        const newComments = content.map((c: any) => ({
-          id: String(c.id),
-          userId: c.userId,
-          username: c.userName,
-          message: c.content,
-          createdAt: c.createdAt,
-        })).reverse();
-        
+
+        const newComments = content.map(mapCommentTree).reverse();
+
         set((state) => ({
           chatMessages: page === 0 ? newComments : [...newComments, ...state.chatMessages],
           commentPagination: {
@@ -644,31 +676,27 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
-  addComment: async (content: string) => {
+  addComment: async (content: string, parentCommentId = null) => {
     const { isLoggedIn, analysisId } = get();
     if (!isLoggedIn || !analysisId) return;
 
     try {
-      const body = await communityApi.postComment(analysisId, content);
+      const body = await communityApi.postComment(analysisId, content, parentCommentId);
 
       if (body.status === 401) {
         await initializeAuth();
-        if (get().isLoggedIn) return get().addComment(content);
+        if (get().isLoggedIn) return get().addComment(content, parentCommentId);
         return;
       }
 
       if (body.status === 201 || body.status === 200) {
         const newC = body.data;
         if (newC) {
-          const mapped = {
-            id: String(newC.id),
-            userId: newC.userId || get().user?.id || 0,
-            username: newC.userName,
-            message: newC.content,
-            createdAt: newC.createdAt,
-          };
+          const mapped = mapCommentTree(newC);
           set((state) => ({
-            chatMessages: [...state.chatMessages, mapped],
+            chatMessages: parentCommentId
+              ? appendReplyToTree(state.chatMessages, String(parentCommentId), mapped)
+              : [...state.chatMessages, mapped],
           }));
         }
       }
@@ -692,9 +720,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (body.status === 200) {
         set((state) => ({
-          chatMessages: state.chatMessages.map((msg) =>
-            msg.id === String(commentId) ? { ...msg, message: content } : msg
-          ),
+          chatMessages: updateMessageTree(state.chatMessages, String(commentId), content),
         }));
       }
     } catch (err) {
@@ -717,7 +743,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (body.status === 200) {
         set((state) => ({
-          chatMessages: state.chatMessages.filter((msg) => msg.id !== String(commentId)),
+          chatMessages: deleteMessageTree(state.chatMessages, String(commentId)),
         }));
       }
     } catch (err) {
