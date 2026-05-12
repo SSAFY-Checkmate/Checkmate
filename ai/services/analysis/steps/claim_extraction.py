@@ -18,8 +18,8 @@ async def extract_claims_step(state: dict, llm_client) -> dict:
         try:
             # 비동기로 Claimify 내부 파이프라인(Selection -> Disambiguation -> Decomposition) 실행
             claims = await claimify_pipeline.run_async(text)
-            # 결과에 start_time과 추출 전 원본 문장(original_text) 매핑
-            return [{"start_time": start_time, "original_text": text, "claim": c} for c in claims]
+            # claims is now a List[dict] where each dict has 'text' and 'search_keywords'
+            return [{"start_time": start_time, "original_text": text, "claim": c["text"], "search_keywords": c.get("search_keywords", [])} for c in claims]
         except Exception as e:
             print(f"[Claimify Error at {start_time}s] {e}")
             return []
@@ -35,7 +35,7 @@ async def extract_claims_step(state: dict, llm_client) -> dict:
     print(f"\n[Step 6: Claim Extraction Completed]")
     print(f"-> Extracted {len(extracted_claims)} discrete claims.")
     for c in extracted_claims:
-        print(f"   - [Original: {c['original_text']}] -> [Claim: {c['claim']}]")
+        print(f"   - [Original: {c['original_text']}] -> [Claim: {c['claim']}] [Keywords: {c['search_keywords']}]")
         
     state["extracted_claims"] = extracted_claims
     return state

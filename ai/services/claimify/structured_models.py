@@ -69,6 +69,11 @@ class Claim(BaseModel):
         description="Always True - indicates this claim can be fact-checked as true or false",
         default=True
     )
+    
+    search_keywords: List[str] = Field(
+        description="List of 3-4 optimal noun keywords extracted from this claim for use in DuckDuckGo web search (e.g., ['성장판', '연골 세포', '키 성장'])",
+        default_factory=list
+    )
 
 
 class DecompositionResponse(BaseModel):

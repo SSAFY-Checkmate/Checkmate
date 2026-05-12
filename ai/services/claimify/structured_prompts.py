@@ -154,12 +154,13 @@ Important rules:
 For the final claims, you must create structured objects with:
 - text: The claim text with essential context/clarifications in brackets
 - verifiable: Always set to true (this helps you focus on creating claims that can be fact-checked)
+- search_keywords: An array of 3-4 optimal noun keywords extracted from this claim that would be best for searching on DuckDuckGo (e.g., ["성장판", "연골 세포", "키 성장"])
 
 It is EXTREMELY important that you consider that each fact-checker in the group will only have access to one of the propositions - they will not have access to the video title, the context, and the other propositions. Therefore, you must include **all essential clarifications and context** enclosed in square brackets [...]. For example, the proposition "The local council expects its law to pass in January 2025" might become "The [Boston] local council expects its law [banning plastic bags] to pass in January 2025"; the proposition "Other agencies decreased their deficit" might become "Other agencies [besides the Department of Education and the Department of Defense] increased their deficit [relative to 2023]". NOTE: Even if the input is in another language like Spanish, all propositions must be in the same language as the input sentence; the proposition "The CGP has called for the termination of hostilities" might become "The CGP [Committee for Global Peace] has called for the termination of hostilities [in the context of a discussion on the Middle East]".
 
 Example format for final claims:
-- {"text": "La proposición en español [con contexto esencial]", "verifiable": true}
-- {"text": "The proposition in English [with essential context]", "verifiable": true}
+- {"text": "La proposición en español [con contexto esencial]", "verifiable": true, "search_keywords": ["palabra1", "palabra2"]}
+- {"text": "The proposition in English [with essential context]", "verifiable": true, "search_keywords": ["keyword1", "keyword2"]}
 
 Provide your analysis following the required structure:
 1. Identify referential terms whose referents must be clarified (e.g., "other" in "the Department of Education, the Department of Defense, and other agencies" refers to the Department of Education and the Department of Defense; "earlier" in "unlike the 2023 annual report, earlier reports" refers to the 2023 annual report) or None if there are no referential terms
@@ -176,8 +177,8 @@ IMPORTANT: You MUST respond with ONLY a valid JSON object matching this exact sc
   "proposition_range": "<range like '3-5'>",
   "propositions": ["<proposition 1>", "<proposition 2>", ...],
   "final_claims": [
-    {"text": "<claim with [clarifications]>", "verifiable": true},
-    {"text": "<claim with [clarifications]>", "verifiable": true}
+    {"text": "<claim with [clarifications]>", "verifiable": true, "search_keywords": ["<kw1>", "<kw2>"]},
+    {"text": "<claim with [clarifications]>", "verifiable": true, "search_keywords": ["<kw1>", "<kw2>"]}
   ]
 }
 

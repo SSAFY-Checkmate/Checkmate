@@ -188,7 +188,7 @@ def parse_structured_disambiguation_output(response: DisambiguationResponse, ori
         return 'error', None
 
 
-def run_decomposition_stage(llm_client, video_title: str, excerpt: str, sentence: str) -> List[str]:
+def run_decomposition_stage(llm_client, video_title: str, excerpt: str, sentence: str) -> List[dict]:
     """
     Executes the Decomposition stage of the Claimify pipeline using structured outputs.
     
@@ -199,7 +199,7 @@ def run_decomposition_stage(llm_client, video_title: str, excerpt: str, sentence
         sentence: The sentence to process
         
     Returns:
-        A list of extracted claim strings
+        A list of dicts containing 'text' and 'search_keywords'
     """
     user_prompt = f"Question:\n{video_title}\n\nExcerpt:\n{excerpt}\n\nSentence:\n{sentence}"
     
@@ -216,7 +216,7 @@ def run_decomposition_stage(llm_client, video_title: str, excerpt: str, sentence
     return parse_structured_decomposition_output(structured_response)
 
 
-def parse_structured_decomposition_output(response: DecompositionResponse) -> List[str]:
+def parse_structured_decomposition_output(response: DecompositionResponse) -> List[dict]:
     """
     Parses the structured output from the Decomposition stage.
     
@@ -224,11 +224,11 @@ def parse_structured_decomposition_output(response: DecompositionResponse) -> Li
         response: The structured response from the LLM
         
     Returns:
-        A list of extracted claim strings
+        A list of dicts containing 'text' and 'search_keywords'
     """
     try:
-        # Extract text from the Claim objects in final_claims
-        return [claim.text for claim in response.final_claims]
+        # Extract text and keywords from the Claim objects in final_claims
+        return [{"text": claim.text, "search_keywords": claim.search_keywords} for claim in response.final_claims]
     except Exception as e:
         return []
 
@@ -313,7 +313,7 @@ async def run_disambiguation_stage_async(llm_client, video_title: str, excerpt: 
     return parse_structured_disambiguation_output(structured_response, sentence)
 
 
-async def run_decomposition_stage_async(llm_client, video_title: str, excerpt: str, sentence: str) -> List[str]:
+async def run_decomposition_stage_async(llm_client, video_title: str, excerpt: str, sentence: str) -> List[dict]:
     """Async version of run_decomposition_stage."""
     user_prompt = f"Question:\n{video_title}\n\nExcerpt:\n{excerpt}\n\nSentence:\n{sentence}"
     
@@ -396,7 +396,7 @@ class ClaimifyPipeline:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
-    async def run_async(self, text_to_process: str) -> List[str]:
+    async def run_async(self, text_to_process: str) -> List[dict]:
         """
         Async version - runs the full Claimify pipeline on a given text.
         
@@ -404,7 +404,7 @@ class ClaimifyPipeline:
             text_to_process: The input text to process
             
         Returns:
-            A list of extracted claim strings
+            A list of dicts containing 'text' and 'search_keywords'
         """
         if not text_to_process.strip():
             return []
@@ -485,15 +485,20 @@ class ClaimifyPipeline:
             if extracted_claims:
                 all_claims.extend(extracted_claims)
         
-        # Return a de-duplicated list of claims
-        unique_claims = list(dict.fromkeys(all_claims))
+        # Return a de-duplicated list of claims based on text
+        unique_claims = []
+        seen_texts = set()
+        for claim in all_claims:
+            if claim["text"] not in seen_texts:
+                seen_texts.add(claim["text"])
+                unique_claims.append(claim)
         
         if self.logger:
             self.logger.info(f"Pipeline completed: {len(unique_claims)} unique claims extracted")
         
         return unique_claims
 
-    def run(self, text_to_process: str) -> List[str]:
+    def run(self, text_to_process: str) -> List[dict]:
         """
         Runs the full Claimify pipeline on a given text.
         
@@ -501,7 +506,7 @@ class ClaimifyPipeline:
             text_to_process: The input text to process
             
         Returns:
-            A list of extracted claim strings
+            A list of dicts containing 'text' and 'search_keywords'
         """
         if not text_to_process.strip():
             return []
@@ -583,8 +588,13 @@ class ClaimifyPipeline:
             if extracted_claims:
                 all_claims.extend(extracted_claims)
         
-        # Return a de-duplicated list of claims
-        unique_claims = list(dict.fromkeys(all_claims))
+        # Return a de-duplicated list of claims based on text
+        unique_claims = []
+        seen_texts = set()
+        for claim in all_claims:
+            if claim["text"] not in seen_texts:
+                seen_texts.add(claim["text"])
+                unique_claims.append(claim)
         
         if self.logger:
             self.logger.info(f"Pipeline completed: {len(unique_claims)} unique claims extracted")
