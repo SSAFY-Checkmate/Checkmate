@@ -213,7 +213,7 @@ interface CheckmateState {
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
   setAnalysisStatus: (status: AnalysisStatus) => void;
   setErrorMsg: (msg: string | null) => void;
-  
+
   // 신고 액션
   setReportModalOpen: (open: boolean) => void;
   submitReport: (reasonId: string, secondaryReasonId: string) => Promise<void>;
@@ -399,7 +399,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   mapAnalysisResult: (videoId: string, data: any) => {
     const resultObj = data.result || data;
     let mappedVerdict: Verdict = "unknown";
-    
+
     if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
     else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
 
@@ -434,7 +434,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       isWarningVisible: mappedVerdict === "warning",
       warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
       claims: claims,
-      analysisId: (data.analysisId || resultObj.analysisId) ? Number(data.analysisId || resultObj.analysisId) : null,
+      analysisId: data.analysisId || resultObj.analysisId ? Number(data.analysisId || resultObj.analysisId) : null,
     };
 
     if (get().currentVideoId !== videoId) return;
@@ -452,14 +452,34 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
-  /**
-   * 서버에 해당 영상의 분석 이력이 있는지 확인하고 있으면 상태 업데이트
-   */
   checkExistingAnalysis: async (videoId: string) => {
+    const { isLoggedIn, isAuthInitializing, currentVideoId } = get();
+
+    // 인증 초기화 중이면 완료될 때까지 대기 (레이스 컨디션 방지)
+    if (isAuthInitializing) {
+      return;
+    }
+
+    // 로그인 상태가 아닐 때는 분석 내역 확인을 생략하고 대기 상태로 전환
+    if (!isLoggedIn) {
+      if (currentVideoId === videoId) {
+        set({ analysisStatus: "idle" });
+      }
+      return;
+    }
+
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
-      const body = await analysisApi.checkExisting(targetUrl);
+      const response = await analysisApi.checkExisting(targetUrl);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          get().setLoginStatus(false, null);
+        }
+        throw new Error(`API Error: ${response.status}`);
+      }
+      const body = await response.json();
 
       if (body.status === 200 && body.data) {
         const { isAnalyzed, jobId, jobStatus } = body.data;
@@ -477,7 +497,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           }
         }
       }
-      
+
       if (get().currentVideoId === videoId) {
         set({ analysisStatus: "idle" });
       }
@@ -503,7 +523,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       let data: any | null = null;
       while (!controller.signal.aborted) {
         const pollBody = await analysisApi.getJobStatus(jobId, controller.signal);
-        
+
         if (pollBody.status === 401) {
           await initializeAuth();
           if (!get().isLoggedIn) throw new Error("Unauthorized");
@@ -511,11 +531,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         }
 
         if (pollBody.status !== 200 || !pollBody.data) throw new Error(pollBody.message || "분석 상태 조회 실패");
-        
+
         data = pollBody.data;
         if (data.status === "TRANSCRIPT_PROCESSING") set({ analysisStatus: "analyzing_transcript" });
         else if (data.status === "AI_PROCESSING") set({ analysisStatus: "analyzing_claims" });
-        
+
         if (data.status === "COMPLETED" || data.status === "FAILED") break;
         await sleep(pollIntervalMs);
       }
@@ -548,7 +568,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       set({ analysisStatus: "verifying" });
       await sleep(1000);
       get().mapAnalysisResult(videoId, data);
-
     } catch (error) {
       console.error("폴링 중 오류 발생:", error);
       if (get().currentVideoId === videoId) {
@@ -573,13 +592,12 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     try {
       const response = await analysisApi.requestAnalysis(targetUrl);
 
-      if (response.status === 401) {
-        await initializeAuth();
-        if (get().isLoggedIn) return get().startAnalysis();
-        throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      if (!response.ok) {
+        if (response.status === 401) {
+          get().setLoginStatus(false, null);
+        }
+        throw new Error(`API 오류: ${response.status}`);
       }
-
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`);
 
       const responseData = await response.json();
       if (responseData.status !== 202 || !responseData.data?.jobId) {
@@ -588,7 +606,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       const jobId: string = responseData.data.jobId;
       await get().pollAnalysisJob(videoId, jobId);
-
     } catch (error) {
       console.error("분석 시작 중 오류 발생:", error);
       set({ analysisStatus: "error" });
@@ -602,13 +619,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const currentUser = get().user;
 
     try {
-      const body = await communityApi.getReactions(analysisId);
+      const response = await communityApi.getReactions(analysisId);
 
-      if (body.status === 401) {
-        await initializeAuth();
-        if (get().isLoggedIn) return get().fetchReactions(analysisId);
-        return;
+      if (!response.ok) {
+        if (response.status === 401) {
+          get().setLoginStatus(false, null);
+        }
+        throw new Error(`API Error: ${response.status}`);
       }
+      const body = await response.json();
 
       if (body.status === 200 && Array.isArray(body.data)) {
         const reactions = body.data;
@@ -947,7 +966,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       }
       localStorage.removeItem("jwtToken");
     }
-    
+
     set({ isLoggedIn, user });
 
     if (isLoggedIn && get().analysisId) {
@@ -1019,7 +1038,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
  * [하이브리드 자동 로그인 전략 (2-Phase)]
  *
  * 해결 전략:
- *   Phase 1 - 즉시 복원 (0ms): chrome.storage.local에 캐시된 유저 정보가 있으면 
+ *   Phase 1 - 즉시 복원 (0ms): chrome.storage.local에 캐시된 유저 정보가 있으면
  *             isLoggedIn: true로 즉시 설정하여 Flash 현상 제거.
  *   Phase 2 - 백그라운드 검증: 서버에 /auth/me를 요청하여 세션 유효성 확인 및 갱신.
  */
@@ -1049,31 +1068,14 @@ export const initializeAuth = async () => {
       if (result.data && result.data.name) {
         const userId = result.data.id || result.data.userId;
         store.setLoginStatus(true, { id: userId, name: result.data.name });
-        
+
         if (typeof chrome !== "undefined" && chrome.storage) {
           chrome.storage.local.set({ checkmateUser: { id: userId, name: result.data.name } });
         }
         return;
       }
-    } else if (response.status === 401 || response.status === 403) {
-      const reissueResponse = await authApi.reissue();
-
-      if (reissueResponse.ok) {
-        const retryResponse = await authApi.getMe();
-
-        if (retryResponse.ok) {
-          const retryResult = await retryResponse.json();
-          if (retryResult.data && retryResult.data.name) {
-            const userId = retryResult.data.id || retryResult.data.userId;
-            store.setLoginStatus(true, { id: userId, name: retryResult.data.name });
-            if (typeof chrome !== "undefined" && chrome.storage) {
-              chrome.storage.local.set({ checkmateUser: { id: userId, name: retryResult.data.name } });
-            }
-            return;
-          }
-        }
-      }
     }
+    // doFetch가 reissue를 시도했음에도 여기까지 왔다면 로그인이 필요한 상태임
     store.setLoginStatus(false, null);
   } catch (error) {
     console.error("인증 초기화 실패:", error);
@@ -1083,6 +1085,10 @@ export const initializeAuth = async () => {
     }
   } finally {
     useCheckmateStore.setState({ isAuthInitializing: false });
+    // 인증 정보가 복구되었으므로 현재 영상의 분석 내역을 다시 한 번 확인
+    if (useCheckmateStore.getState().currentVideoId) {
+      useCheckmateStore.getState().checkAnalysisStatus();
+    }
   }
 };
 
