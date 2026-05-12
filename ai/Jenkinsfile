@@ -10,6 +10,8 @@ pipeline {
 
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
         LANGCHAIN_API_KEY = credentials('LANGCHAIN_API_KEY')
+        NAVER_CLIENT_ID = credentials('NAVER_CLIENT_ID')
+        NAVER_CLIENT_SECRET = credentials('NAVER_CLIENT_SECRET')
 
         LANGCHAIN_TRACING_V2 = 'true'
         LANGCHAIN_PROJECT = 'a405-ai'
@@ -102,6 +104,8 @@ pipeline {
                         # 3. worker compose에서 사용할 환경변수 export
                         export OPENAI_API_KEY="${OPENAI_API_KEY}"
                         export LANGCHAIN_API_KEY="${LANGCHAIN_API_KEY}"
+                        export NAVER_CLIENT_ID="${NAVER_CLIENT_ID}"
+                        export NAVER_CLIENT_SECRET="${NAVER_CLIENT_SECRET}"
                         export LANGCHAIN_TRACING_V2="${LANGCHAIN_TRACING_V2}"
                         export LANGCHAIN_PROJECT="${LANGCHAIN_PROJECT}"
                         export LANGCHAIN_ENDPOINT="${LANGCHAIN_ENDPOINT}"
@@ -130,6 +134,8 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no ubuntu@${HOST_IP} bash <<EOF
 export OPENAI_API_KEY='${OPENAI_API_KEY}'
 export LANGCHAIN_API_KEY='${LANGCHAIN_API_KEY}'
+export NAVER_CLIENT_ID='${NAVER_CLIENT_ID}'
+export NAVER_CLIENT_SECRET='${NAVER_CLIENT_SECRET}'
 export LANGCHAIN_TRACING_V2='${LANGCHAIN_TRACING_V2}'
 export LANGCHAIN_PROJECT='${LANGCHAIN_PROJECT}'
 export LANGCHAIN_ENDPOINT='${LANGCHAIN_ENDPOINT}'

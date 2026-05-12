@@ -19,6 +19,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -35,10 +40,14 @@ public class CommentService {
         log.info("community.comment_create_request userId={} analysisId={} contentChars={}",
             userId, request.analysisId(), request.content() == null ? 0 : request.content().length());
 
+        AnalysisResult analysisResult = getAnalysisResult(request.analysisId());
+        Comment parentComment = getParentComment(request.parentCommentId(), analysisResult.getId());
+
         Comment comment = commentRepository.save(
                 Comment.builder()
-                        .analysisResult(getAnalysisResult(request.analysisId()))
+                        .analysisResult(analysisResult)
                         .user(getUser(userId))
+                        .parentComment(parentComment)
                         .content(request.content())
                         .build()
         );
@@ -48,7 +57,8 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public CommentResponse getComment(Long commentId) {
-        return CommentResponse.from(getCommentEntity(commentId));
+        Comment comment = getCommentEntity(commentId);
+        return CommentResponse.from(comment, getRepliesByParentId(List.of(comment.getId())).getOrDefault(comment.getId(), List.of()));
     }
 
     @Transactional(readOnly = true)
@@ -58,11 +68,18 @@ public class CommentService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         }
 
-        Page<CommentResponse> commentPage = commentRepository
-                .findAllByAnalysisResultIdOrderByCreatedAtDesc(analysisId, PageRequest.of(page, COMMENT_PAGE_SIZE))
-                .map(CommentResponse::from);
+        Page<Comment> commentPage = commentRepository
+                .findAllByAnalysisResultIdAndParentCommentIsNullOrderByCreatedAtDesc(analysisId, PageRequest.of(page, COMMENT_PAGE_SIZE));
 
-        return CommentPageResponse.from(commentPage);
+        Map<Long, List<CommentResponse>> repliesByParentId = getRepliesByParentId(
+                commentPage.getContent().stream().map(Comment::getId).toList()
+        );
+
+        Page<CommentResponse> responsePage = commentPage.map(comment ->
+                CommentResponse.from(comment, repliesByParentId.getOrDefault(comment.getId(), List.of()))
+        );
+
+        return CommentPageResponse.from(responsePage);
     }
 
     @Transactional
@@ -96,6 +113,31 @@ public class CommentService {
     private User getUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+    }
+
+    private Comment getParentComment(Long parentCommentId, Long analysisId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+
+        Comment parentComment = getCommentEntity(parentCommentId);
+        if (!parentComment.getAnalysisResult().getId().equals(analysisId) || parentComment.getParentComment() != null) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
+
+        return parentComment;
+    }
+
+    private Map<Long, List<CommentResponse>> getRepliesByParentId(List<Long> parentCommentIds) {
+        if (parentCommentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return commentRepository.findAllByParentCommentIdInOrderByCreatedAtAsc(parentCommentIds).stream()
+                .collect(Collectors.groupingBy(
+                        comment -> comment.getParentComment().getId(),
+                        Collectors.mapping(CommentResponse::from, Collectors.toList())
+                ));
     }
 
     private void validateOwner(Long userId, Long ownerId) {

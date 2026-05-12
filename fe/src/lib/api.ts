@@ -100,11 +100,11 @@ export const communityApi = {
   },
 
   /** 댓글 생성 */
-  postComment: async (analysisId: number, content: string) => {
+  postComment: async (analysisId: number, content: string, parentCommentId?: string | number | null) => {
     const res = await doFetch("/community/comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysisId, content }),
+      body: JSON.stringify({ analysisId, parentCommentId: parentCommentId ?? null, content }),
     });
     return res.json();
   },

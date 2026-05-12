@@ -5,7 +5,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    Page<Comment> findAllByAnalysisResultIdOrderByCreatedAtDesc(Long analysisId, Pageable pageable);
+    Page<Comment> findAllByAnalysisResultIdAndParentCommentIsNullOrderByCreatedAtDesc(Long analysisId, Pageable pageable);
+
+    List<Comment> findAllByParentCommentIdInOrderByCreatedAtAsc(List<Long> parentCommentIds);
 }

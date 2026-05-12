@@ -5,8 +5,6 @@ import { motion } from "framer-motion";
 import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
-const BORDER_COLOR = "#475569";
-const SHADOW_COLOR = "#94a3b8";
 
 const STYLES = {
   container: {
@@ -105,6 +103,8 @@ export function CommunityTab() {
   } = useCheckmateStore();
 
   const [newMsg, setNewMsg] = useState("");
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -123,7 +123,7 @@ export function CommunityTab() {
 
   const handleVote = (type: boolean) => {
     if (!isLoggedIn) {
-      alert("판정에 참여하려면 로그인이 필요합니다!");
+      alert("투표에 참여하려면 로그인이 필요합니다.");
       return;
     }
     if (analysisId) {
@@ -135,17 +135,35 @@ export function CommunityTab() {
     if (!newMsg.trim()) return;
 
     if (!isLoggedIn) {
-      alert("제보를 남기려면 로그인이 필요합니다! 상단 요원 아이콘을 눌러 로그인해 주세요.");
+      alert("댓글을 작성하려면 로그인이 필요합니다. 상단 프로필 아이콘을 눌러 로그인해 주세요.");
       return;
     }
 
     if (!analysisId) {
-      alert("분석이 완료된 영상에 대해서만 제보가 가능합니다. 분석 완료 후 다시 시도해 주세요.");
+      alert("분석이 완료된 영상에서만 댓글을 작성할 수 있습니다. 분석 완료 후 다시 시도해 주세요.");
       return;
     }
 
-    addComment(newMsg);
+    addComment(newMsg.trim());
     setNewMsg("");
+  };
+
+  const handleReply = async (parentId: string) => {
+    if (!replyContent.trim()) return;
+
+    if (!isLoggedIn) {
+      alert("댓글을 작성하려면 로그인이 필요합니다. 상단 프로필 아이콘을 눌러 로그인해 주세요.");
+      return;
+    }
+
+    if (!analysisId) {
+      alert("분석이 완료된 영상에서만 댓글을 작성할 수 있습니다. 분석 완료 후 다시 시도해 주세요.");
+      return;
+    }
+
+    await addComment(replyContent.trim(), parentId);
+    setReplyContent("");
+    setReplyingToId(null);
   };
 
   const startEditing = (msg: ChatMessage) => {
@@ -160,8 +178,9 @@ export function CommunityTab() {
 
   const saveEdit = async () => {
     if (!editingId || !editContent.trim()) return;
-    await updateComment(editingId, editContent);
+    await updateComment(editingId, editContent.trim());
     setEditingId(null);
+    setEditContent("");
   };
 
   const handleDelete = (id: string) => {
@@ -175,6 +194,186 @@ export function CommunityTab() {
       setIdToDelete(null);
     }
   };
+
+  const renderComment = (msg: ChatMessage, depth = 0) => (
+    <div key={msg.id} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div
+        style={{
+          ...STYLES.messageCard,
+          marginLeft: depth ? `${depth * 24}px` : undefined,
+          borderLeft: depth ? "3px solid #c7d2fe" : undefined,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: "12px",
+                fontWeight: "900",
+                color: depth ? "#6366f1" : msg.badge === "verifier" ? "#10b981" : "#0ea5e9",
+                backgroundColor: depth ? "#eef2ff" : msg.badge === "verifier" ? "#dcfce7" : "#e0f2fe",
+                padding: "2px 8px",
+                borderRadius: "6px",
+              }}
+            >
+              {depth ? `답글 · ${msg.username}` : msg.username}
+            </span>
+
+            {depth === 0 && (
+              <span
+                onClick={() => {
+                  setReplyingToId(replyingToId === msg.id ? null : msg.id);
+                  setReplyContent("");
+                }}
+                style={{ cursor: "pointer", fontSize: "10px", color: "#6366f1", textDecoration: "underline" }}
+              >
+                답글
+              </span>
+            )}
+          </div>
+
+          {user && String(user.id) === String(msg.userId) && (
+            <div style={{ display: "flex", gap: "8px" }}>
+              <span
+                onClick={() => startEditing(msg)}
+                style={{ cursor: "pointer", fontSize: "10px", color: "#94a3b8", textDecoration: "underline" }}
+              >
+                수정
+              </span>
+              <span
+                onClick={() => handleDelete(msg.id)}
+                style={{ cursor: "pointer", fontSize: "10px", color: "#fca5a5", textDecoration: "underline" }}
+              >
+                삭제
+              </span>
+            </div>
+          )}
+        </div>
+
+        {editingId === msg.id ? (
+          <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+            <input
+              autoFocus
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              style={{
+                flex: 1,
+                fontSize: "13px",
+                fontFamily: PIXEL_FONT,
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "6px",
+                padding: "4px 10px",
+                outline: "none",
+              }}
+            />
+            <div style={{ display: "flex", gap: "4px" }}>
+              <button
+                onClick={saveEdit}
+                style={{
+                  border: "none",
+                  background: "#10b981",
+                  color: "white",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                저장
+              </button>
+              <button
+                onClick={cancelEditing}
+                style={{
+                  border: "none",
+                  background: "#cbd5e1",
+                  color: "white",
+                  borderRadius: "4px",
+                  padding: "2px 8px",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#475569",
+              margin: "4px 0",
+              lineHeight: "1.6",
+              fontWeight: "bold",
+              wordBreak: "break-all",
+            }}
+          >
+            {msg.message}
+          </p>
+        )}
+      </div>
+
+      {depth === 0 && replyingToId === msg.id && (
+        <div
+          style={{
+            marginLeft: "24px",
+            display: "flex",
+            gap: "8px",
+            backgroundColor: "white",
+            padding: "10px 12px",
+            borderRadius: "10px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <input
+            autoFocus
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleReply(msg.id);
+              if (e.key === "Escape") {
+                setReplyingToId(null);
+                setReplyContent("");
+              }
+            }}
+            placeholder="답글을 입력해 주세요.."
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              backgroundColor: "transparent",
+              border: "none",
+              fontSize: "12px",
+              fontFamily: PIXEL_FONT,
+              fontWeight: "bold",
+              outline: "none",
+              color: "#1e293b",
+            }}
+          />
+          <button
+            onClick={() => handleReply(msg.id)}
+            disabled={!replyContent.trim()}
+            style={{
+              backgroundColor: "#6366f1",
+              color: "white",
+              border: "none",
+              padding: "0 12px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              opacity: !replyContent.trim() ? 0.5 : 1,
+              transition: "all 0.2s",
+            }}
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      )}
+
+      {(msg.replies || []).map((reply) => renderComment(reply, depth + 1))}
+    </div>
+  );
 
   return (
     <div style={STYLES.container}>
@@ -203,7 +402,7 @@ export function CommunityTab() {
               letterSpacing: "0.5px",
             }}
           >
-            수사 대상 정보
+            조사 대상 정보
           </div>
           <h2
             style={{
@@ -216,9 +415,9 @@ export function CommunityTab() {
               whiteSpace: "nowrap",
               fontFamily: PIXEL_FONT,
             }}
-            title={videoTitle || "감지 중..."}
+            title={videoTitle || "감지 중.."}
           >
-            {videoTitle || "영상 감지 중..."}
+            {videoTitle || "영상 감지 중.."}
           </h2>
           <div
             style={{
@@ -231,13 +430,12 @@ export function CommunityTab() {
               whiteSpace: "nowrap",
             }}
           >
-            채널: {channelName || "감지 중..."}
+            채널명: {channelName || "감지 중.."}
           </div>
         </div>
       </header>
 
       <div style={STYLES.premiumCard}>
-        {/* 시민 배심원 판정 시스템 (Moved inside card) */}
         <div style={{ borderBottom: "1px dashed #e2e8f0", paddingBottom: "16px" }}>
           <h4 style={{ ...STYLES.headerTitle, marginBottom: "4px" }}>
             <Users size={18} color="#6366f1" />
@@ -248,7 +446,6 @@ export function CommunityTab() {
           </p>
         </div>
 
-        {/* 사용자 투표 섹션 */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
@@ -281,7 +478,7 @@ export function CommunityTab() {
           </div>
 
           <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", fontWeight: "bold" }}>
-            투표 참여자 수: {totalVotes}명
+            투표 참여자 수 {totalVotes}명
           </div>
         </div>
 
@@ -356,110 +553,11 @@ export function CommunityTab() {
                 marginBottom: "8px",
               }}
             >
-              --- 이전 수사 기록 더 보기 ({commentPagination.currentPage + 1}/{commentPagination.totalPages}) ---
+              --- 이전 댓글 기록 더보기 ({commentPagination.currentPage + 1}/{commentPagination.totalPages}) ---
             </button>
           )}
 
-          {(chatMessages || []).map((msg) => (
-            <div key={msg.id} style={STYLES.messageCard}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "900",
-                    color: msg.badge === "verifier" ? "#10b981" : "#0ea5e9",
-                    backgroundColor: msg.badge === "verifier" ? "#dcfce7" : "#e0f2fe",
-                    padding: "2px 8px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  {msg.username}
-                </span>
-
-                {user && String(user.id) === String(msg.userId) && (
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <span
-                      onClick={() => startEditing(msg)}
-                      style={{ cursor: "pointer", fontSize: "10px", color: "#94a3b8", textDecoration: "underline" }}
-                    >
-                      수정
-                    </span>
-                    <span
-                      onClick={() => handleDelete(msg.id)}
-                      style={{ cursor: "pointer", fontSize: "10px", color: "#fca5a5", textDecoration: "underline" }}
-                    >
-                      삭제
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {editingId === msg.id ? (
-                <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                  <input
-                    autoFocus
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    style={{
-                      flex: 1,
-                      fontSize: "13px",
-                      fontFamily: PIXEL_FONT,
-                      backgroundColor: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "6px",
-                      padding: "4px 10px",
-                      outline: "none",
-                    }}
-                  />
-                  <div style={{ display: "flex", gap: "4px" }}>
-                    <button
-                      onClick={saveEdit}
-                      style={{
-                        border: "none",
-                        background: "#10b981",
-                        color: "white",
-                        borderRadius: "4px",
-                        padding: "2px 8px",
-                        fontSize: "11px",
-                        fontWeight: "900",
-                        cursor: "pointer",
-                      }}
-                    >
-                      저장
-                    </button>
-                    <button
-                      onClick={cancelEditing}
-                      style={{
-                        border: "none",
-                        background: "#cbd5e1",
-                        color: "white",
-                        borderRadius: "4px",
-                        padding: "2px 8px",
-                        fontSize: "11px",
-                        fontWeight: "900",
-                        cursor: "pointer",
-                      }}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#475569",
-                    margin: "4px 0",
-                    lineHeight: "1.6",
-                    fontWeight: "bold",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {msg.message}
-                </p>
-              )}
-            </div>
-          ))}
+          {(chatMessages || []).map((msg) => renderComment(msg))}
 
           {(!chatMessages || chatMessages.length === 0) && (
             <div
@@ -478,7 +576,7 @@ export function CommunityTab() {
             >
               <MessageSquare size={32} color="#cbd5e1" strokeWidth={1.5} />
               <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "bold" }}>
-                이 영상에 대한 첫 번째 의견을 남겨주세요
+                이 영상에 대한 첫 번째 의견을 남겨주세요.
               </div>
             </div>
           )}
@@ -500,7 +598,7 @@ export function CommunityTab() {
             value={newMsg}
             onChange={(e) => setNewMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={isLoggedIn ? "의견을 남겨주세요..." : "로그인이 필요합니다"}
+            placeholder={isLoggedIn ? "의견을 남겨주세요.." : "로그인이 필요합니다."}
             style={{
               flex: 1,
               padding: "8px 0",
@@ -542,8 +640,8 @@ export function CommunityTab() {
           setIdToDelete(null);
         }}
         onConfirm={confirmDelete}
-        title="수사 기록 삭제"
-        message="작성하신 수사 제보 기록을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다."
+        title="댓글 삭제"
+        message="작성하신 댓글을 삭제하시겠습니까? 삭제된 댓글은 복구할 수 없습니다."
         confirmText="삭제"
         cancelText="취소"
       />
