@@ -529,10 +529,10 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>수사 신뢰도</div>
+                      <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>영상 신뢰도</div>
                       <div style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>
                         {trustScore}
-                        <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}>%</span>
+                        <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}> %</span>
                       </div>
                     </div>
                   </div>
@@ -672,12 +672,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.15 }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                              <FileText size={14} color={verdictConfig[overallVerdict].color} />
-                              <h3 style={{ fontSize: "13px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
-                                수사관 정밀 판독 결과 (증거 목록)
-                              </h3>
-                            </div>
                             <div
                               style={{
                                 backgroundColor: "white",

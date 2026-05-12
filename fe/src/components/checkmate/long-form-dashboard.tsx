@@ -5,9 +5,8 @@ import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, FileSearch } from "lucide-react";
+import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, FileSearch, LogOut } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
-import { TrustMeter } from "./report-tab";
 
 /**
  * [Checkmate 롱폼 전용 대시보드]
@@ -223,44 +222,42 @@ export function LongFormDashboard() {
       >
         {/* 프리미엄 로그아웃 배지 UI */}
         {user?.name && (
-          <div
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={logoutAuth}
             style={{
               position: "absolute",
-              top: "12px",
-              right: "12px",
+              top: "10px",
+              right: "10px",
               zIndex: 100,
               display: "flex",
               alignItems: "center",
-              gap: "8px",
-              backgroundColor: "rgba(30, 41, 59, 0.7)",
-              backdropFilter: "blur(8px)",
-              padding: "4px 4px 4px 10px",
-              borderRadius: "30px",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              color: "white",
+              justifyContent: "center",
+              backgroundColor: "#ffffff",
+              width: "24px",
+              height: "24px",
+              borderRadius: "50%",
+              border: "1px solid #fecaca",
+              color: "#ef4444",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 2px 4px rgba(239, 68, 68, 0.1)",
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#ffffff";
+              e.currentTarget.style.borderColor = "#ef4444";
+              e.currentTarget.style.backgroundColor = "#ef4444";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "#ef4444";
+              e.currentTarget.style.borderColor = "#fecaca";
+              e.currentTarget.style.backgroundColor = "#ffffff";
+            }}
+            title="로그아웃"
           >
-            <span style={{ fontSize: "11px", fontWeight: "900", letterSpacing: "0.5px" }}>{user.name}</span>
-            <div
-              onClick={logoutAuth}
-              style={{
-                backgroundColor: "#0ea5e9",
-                color: "white",
-                padding: "4px 10px",
-                borderRadius: "20px",
-                fontSize: "10px",
-                fontWeight: "900",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                border: "1px solid rgba(255,255,255,0.2)",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#0284c7")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#0ea5e9")}
-            >
-              LOGOUT
-            </div>
-          </div>
+            <LogOut size={12} strokeWidth={3} />
+          </motion.button>
         )}
 
         <AnimatePresence mode="wait">
@@ -343,7 +340,6 @@ export function LongFormDashboard() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: "16px",
                     paddingBottom: "12px",
                     borderBottom: "1px dashed #e2e8f0",
                   }}

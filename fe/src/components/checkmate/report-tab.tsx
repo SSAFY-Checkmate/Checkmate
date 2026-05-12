@@ -1,6 +1,13 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import { AlertTriangle, CheckCircle, HelpCircle, ExternalLink, FileSearch, ShieldCheck, ClipboardCheck, Fingerprint } from "lucide-react";
-import { COLORS } from "../../lib/constants/styles";
+import {
+  AlertTriangle,
+  CheckCircle,
+  HelpCircle,
+  ExternalLink,
+  FileSearch,
+  ShieldCheck,
+  Fingerprint,
+} from "lucide-react";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 
@@ -76,7 +83,9 @@ export function TrustMeter({ score }: { score: number }) {
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "13px", fontWeight: "900", color: "#64748b", letterSpacing: "0.5px" }}>수사 신뢰지수</span>
+        <span style={{ fontSize: "13px", fontWeight: "900", color: "#64748b", letterSpacing: "0.5px" }}>
+          영상 신뢰지수
+        </span>
         <span
           style={{
             fontSize: "18px",
@@ -89,14 +98,14 @@ export function TrustMeter({ score }: { score: number }) {
       </div>
       <div style={{ display: "flex", gap: "4px", height: "12px" }}>
         {[...Array(bars)].map((_, i) => (
-          <div 
-            key={i} 
-            style={{ 
-              flex: 1, 
-              backgroundColor: getBarColor(i), 
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              backgroundColor: getBarColor(i),
               borderRadius: "2px",
               boxShadow: i < filledBars ? "inset 0 1px 1px rgba(255,255,255,0.4)" : "none",
-            }} 
+            }}
           />
         ))}
       </div>
@@ -112,7 +121,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
       original: claim.text,
       translatedClaim: "",
       verdict: claim.verdict,
-      verdictText: "", 
+      verdictText: "",
       explanation: "",
     };
 
@@ -200,30 +209,36 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
       }}
     >
       {/* Evidence Header with Point Color */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        padding: "14px 20px",
-        backgroundColor: theme.accent,
-        borderBottom: `1.5px solid ${theme.border}22`
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "14px 20px",
+          backgroundColor: theme.accent,
+          borderBottom: `1.5px solid ${theme.border}22`,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ 
-            backgroundColor: theme.border, 
-            color: "white", 
-            width: "28px", 
-            height: "28px", 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "center",
-            fontSize: "12px", 
-            fontWeight: "900", 
-            borderRadius: "8px" 
-          }}>
+          <div
+            style={{
+              backgroundColor: theme.border,
+              color: "white",
+              width: "28px",
+              height: "28px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "12px",
+              fontWeight: "900",
+              borderRadius: "8px",
+            }}
+          >
             {index + 1}
           </div>
-          <span style={{ fontSize: "14px", fontWeight: "900", color: "#1e293b", letterSpacing: "-0.2px" }}>증거물 정밀 판독</span>
+          <span style={{ fontSize: "14px", fontWeight: "900", color: "#1e293b", letterSpacing: "-0.2px" }}>
+            증거물 정밀 판독
+          </span>
         </div>
         <VerdictBadge verdict={parsed.verdict} />
       </div>
@@ -231,34 +246,40 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
       <div style={{ padding: "20px", display: "flex", flexDirection: "column" }}>
         {/* Raw Data Section */}
         <div style={{ marginBottom: "20px" }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "10px", 
-            marginBottom: "10px", 
-            paddingLeft: "4px" 
-          }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "10px",
+              paddingLeft: "4px",
+            }}
+          >
             <FileSearch size={16} color="#475569" />
             <span style={{ fontSize: "14px", fontWeight: "900", color: "#475569", letterSpacing: "0.5px" }}>
               수집된 원본 데이터 (RAW DATA)
             </span>
           </div>
-          <div style={{ 
-            backgroundColor: "#f1f5f9", 
-            padding: "18px 22px", 
-            borderRadius: "12px", 
-            borderLeft: "5px solid #cbd5e1",
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)"
-          }}>
-            <p style={{ 
-              fontSize: "15px", 
-              color: "#334155", 
-              fontWeight: "500", 
-              lineHeight: "1.6", 
-              margin: 0, 
-              fontStyle: "italic",
-              wordBreak: "break-all" 
-            }}>
+          <div
+            style={{
+              backgroundColor: "#f1f5f9",
+              padding: "18px 22px",
+              borderRadius: "12px",
+              borderLeft: "5px solid #cbd5e1",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "15px",
+                color: "#334155",
+                fontWeight: "500",
+                lineHeight: "1.6",
+                margin: 0,
+                fontStyle: "italic",
+                wordBreak: "break-all",
+              }}
+            >
               "{parsed.original}"
             </p>
           </div>
@@ -266,40 +287,54 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
 
         {/* Verdict Section */}
         <div style={{ marginBottom: "24px" }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "10px", 
-            marginBottom: "10px", 
-            paddingLeft: "4px" 
-          }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "10px",
+              paddingLeft: "4px",
+            }}
+          >
             <Fingerprint size={16} color={theme.border} />
             <span style={{ fontSize: "14px", fontWeight: "900", color: "#1e293b", letterSpacing: "0.5px" }}>
               분석관 최종 소견
             </span>
           </div>
-          <div style={{ 
-            backgroundColor: "#f8fafc", 
-            padding: "20px 24px", 
-            borderRadius: "12px", 
-            border: "1.5px solid #f1f5f9",
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)"
-          }}>
-            <p style={{ 
-              fontSize: "15px", 
-              color: "#475569", 
-              margin: 0, 
-              lineHeight: "1.8", 
-              fontWeight: "500", 
-              wordBreak: "keep-all" 
-            }}>
+          <div
+            style={{
+              backgroundColor: "#f8fafc",
+              padding: "20px 24px",
+              borderRadius: "12px",
+              border: "1.5px solid #f1f5f9",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "15px",
+                color: "#475569",
+                margin: 0,
+                lineHeight: "1.8",
+                fontWeight: "500",
+                wordBreak: "keep-all",
+              }}
+            >
               {parsed.explanation}
             </p>
           </div>
         </div>
 
         {/* Sources & Metadata - Bottom Area */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            borderTop: "1px solid #f1f5f9",
+            paddingTop: "16px",
+          }}
+        >
           {claim.sources.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {claim.sources.map((source, idx) => (
@@ -320,7 +355,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
                     textDecoration: "none",
                     fontWeight: "bold",
                     border: "1px solid #e2e8f0",
-                    transition: "all 0.2s"
+                    transition: "all 0.2s",
                   }}
                 >
                   <ExternalLink size={10} /> {source.label}
@@ -339,7 +374,7 @@ interface ReportTabProps {
 }
 
 export function ReportTab({ isCompact = false }: ReportTabProps) {
-  const { trustScore, overallVerdict, summary, claims } = useCheckmateStore();
+  const { trustScore, overallVerdict, claims } = useCheckmateStore();
 
   const verdictConfig = {
     warning: {
@@ -381,39 +416,53 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
     >
       {/* Official Top Summary Card - 롱폼 상세 페이지에서만 노출 */}
       {!isCompact && (
-        <div style={{ 
-          backgroundColor: "white", 
-          borderRadius: "20px",
-          overflow: "hidden",
-          boxShadow: "0 15px 35px -5px rgba(0,0,0,0.05), 0 10px 15px -10px rgba(0,0,0,0.03)",
-          border: "1px solid rgba(255,255,255,0.8)",
-          marginBottom: "8px"
-        }}>
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "20px",
+            overflow: "hidden",
+            boxShadow: "0 15px 35px -5px rgba(0,0,0,0.05), 0 10px 15px -10px rgba(0,0,0,0.03)",
+            border: "1px solid rgba(255,255,255,0.8)",
+            marginBottom: "8px",
+          }}
+        >
           {/* Gradient Header Area */}
-          <div style={{ 
-            background: current.bg, 
-            padding: "30px 24px", 
-            textAlign: "center",
-            color: "white",
-            position: "relative"
-          }}>
-            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", opacity: 0.1 }}>
+          <div
+            style={{
+              background: current.bg,
+              padding: "30px 24px",
+              textAlign: "center",
+              color: "white",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                opacity: 0.1,
+              }}
+            >
               <current.icon size={160} />
             </div>
-            
+
             <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-                <span style={{ 
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", 
-                  backdropFilter: "blur(4px)",
-                  color: "white", 
-                  padding: "5px 14px", 
-                  fontSize: "11px", 
-                  fontWeight: "900", 
-                  borderRadius: "30px",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                  letterSpacing: "1.5px"
-                }}>
+                <span
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    backdropFilter: "blur(4px)",
+                    color: "white",
+                    padding: "5px 14px",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                    borderRadius: "30px",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                    letterSpacing: "1.5px",
+                  }}
+                >
                   CHECKMATE OFFICIAL REPORT
                 </span>
               </div>
@@ -421,10 +470,12 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
               <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.8px" }}>
                 {current.title}
               </h2>
-              <p style={{ fontSize: "12px", opacity: 0.8, fontWeight: "bold" }}>영상 분석 일련번호: CM-{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+              <p style={{ fontSize: "12px", opacity: 0.8, fontWeight: "bold" }}>
+                영상 분석 일련번호: CM-{Math.random().toString(36).substr(2, 9).toUpperCase()}
+              </p>
             </div>
           </div>
-          
+
           {/* White Summary Area (TrustMeter only for Long-form) */}
           <div style={{ padding: "24px" }}>
             <div style={{ display: "flex", justifyContent: "center" }}>
@@ -434,17 +485,24 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
         </div>
       )}
 
-
       {/* Claims Section - 핵심 증거 분석 자료 */}
       <section>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", padding: "0 6px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "20px",
+            padding: "0 6px",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ width: "6px", height: "18px", backgroundColor: "#1e293b", borderRadius: "10px" }} />
             <h4 style={{ fontSize: "17px", fontWeight: "900", color: "#1e293b", margin: 0 }}>정밀 증거 판독 자료</h4>
           </div>
           <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "bold" }}>총 {claims.length}건</span>
         </div>
-        
+
         {claims && claims.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column" }}>
             {claims.map((claim, idx) => (
@@ -459,7 +517,7 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
               border: "2px dashed #cbd5e1",
               borderRadius: "20px",
               textAlign: "center",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.02)"
+              boxShadow: "0 4px 12px rgba(0,0,0,0.02)",
             }}
           >
             <HelpCircle size={48} color="#cbd5e1" style={{ marginBottom: "16px" }} />
@@ -473,7 +531,8 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
       {/* Footer Info */}
       <div style={{ textAlign: "center", padding: "20px 0 40px 0" }}>
         <p style={{ fontSize: "11px", color: "#94a3b8", lineHeight: "1.6", fontWeight: "bold" }}>
-          본 리포트는 Checkmate AI 감정 엔진에 의해 실시간 생성되었으며<br />
+          본 리포트는 Checkmate AI 감정 엔진에 의해 실시간 생성되었으며
+          <br />
           수사 결과에 대한 최종 판단은 시청자의 몫입니다.
         </p>
       </div>
