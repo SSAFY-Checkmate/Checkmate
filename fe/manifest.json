@@ -17,7 +17,11 @@
       "js": ["src/content.ts"]
     }
   ],
-  "permissions": ["storage", "activeTab", "scripting", "identity"],
+  "permissions": ["storage", "activeTab", "scripting", "identity", "cookies"],
+  "host_permissions": [
+    "http://localhost:8080/*",
+    "*://*.youtube.com/*"
+  ],
   "oauth2": {
     "client_id": "713648147785-ak1hd78mgn1vhav8gstchpfnq0mrfedq.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/youtube.force-ssl"]
