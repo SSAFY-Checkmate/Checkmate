@@ -5,8 +5,10 @@ import { useCheckmateStore } from "../lib/store";
  * [분석 모니터링 훅]
  * 분석이 특정 단계에서 너무 오래 머물 경우 타임아웃 에러를 발생시킵니다.
  */
+const ANALYSIS_TIMEOUT_MSG = "수사 시간 초과";
+
 export function useAnalysisMonitor(timeoutMs: number = 180000) {
-  const { analysisStatus, setAnalysisStatus, setErrorMsg } = useCheckmateStore();
+  const { analysisStatus, setAnalysisStatus, setErrorMsg, currentVideoId } = useCheckmateStore();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -15,7 +17,7 @@ export function useAnalysisMonitor(timeoutMs: number = 180000) {
       analysisStatus,
     );
 
-    // 타이머 초기화
+    // 타이머 초기화 (상태 변경 및 영상 전환 시)
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -24,7 +26,7 @@ export function useAnalysisMonitor(timeoutMs: number = 180000) {
       // 새로운 타이머 설정
       timerRef.current = setTimeout(() => {
         console.warn(`[Analysis Timeout] ${analysisStatus} state timed out after ${timeoutMs}ms`);
-        setErrorMsg("수사 시간 초과");
+        setErrorMsg(ANALYSIS_TIMEOUT_MSG);
         setAnalysisStatus("error");
       }, timeoutMs);
     }
@@ -34,7 +36,7 @@ export function useAnalysisMonitor(timeoutMs: number = 180000) {
         clearTimeout(timerRef.current);
       }
     };
-  }, [analysisStatus, timeoutMs, setAnalysisStatus]);
+  }, [analysisStatus, timeoutMs, setAnalysisStatus, setErrorMsg, currentVideoId]);
 
   return { analysisStatus };
 }
