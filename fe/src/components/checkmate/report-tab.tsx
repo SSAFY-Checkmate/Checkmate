@@ -286,7 +286,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
         </div>
 
         {/* Verdict Section */}
-        <div style={{ marginBottom: "24px" }}>
+        <div>
           <div
             style={{
               display: "flex",
@@ -326,7 +326,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
         </div>
 
         {/* Sources & Metadata - Bottom Area */}
-        <div
+        {/* <div
           style={{
             display: "flex",
             flexDirection: "column",
@@ -363,7 +363,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
               ))}
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );

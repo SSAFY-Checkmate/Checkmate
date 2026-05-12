@@ -100,9 +100,31 @@ export function AnalysisDashboard() {
     initializeAuth();
   }, [setLoginStatus]);
 
-  // 영상 변경 시 기존 분석 결과 자동 조회
+  // 영상 변경 및 URL 변경 감지 (롱폼/쇼츠 통합 대응)
   useEffect(() => {
-    if (currentVideoId && analysisStatus === 'idle') {
+    const handleUrlChange = () => {
+      const url = window.location.href;
+      let videoId = "";
+
+      if (url.includes("/shorts/")) {
+        videoId = url.split("/shorts/")[1].split("?")[0];
+      } else if (url.includes("v=")) {
+        videoId = new URLSearchParams(window.location.search).get("v") || "";
+      }
+
+      if (videoId && videoId !== currentVideoId) {
+        useCheckmateStore.getState().setCurrentVideo(videoId);
+      }
+    };
+
+    handleUrlChange();
+    const interval = setInterval(handleUrlChange, 2000);
+    return () => clearInterval(interval);
+  }, [currentVideoId]);
+
+  // 분석 결과 자동 조회
+  useEffect(() => {
+    if (currentVideoId && analysisStatus === "idle") {
       checkAnalysisStatus();
     }
   }, [currentVideoId, analysisStatus, checkAnalysisStatus]);

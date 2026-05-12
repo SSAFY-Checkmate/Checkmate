@@ -89,6 +89,7 @@ const STYLES = {
 
 export function CommunityTab() {
   const {
+    videoTitle,
     channelName,
     communityVotes,
     postReaction,
@@ -202,11 +203,11 @@ export function CommunityTab() {
               letterSpacing: "0.5px",
             }}
           >
-            수사 대상 채널
+            수사 대상 정보
           </div>
           <h2
             style={{
-              fontSize: "20px",
+              fontSize: "18px",
               color: "#1e293b",
               fontWeight: "900",
               margin: 0,
@@ -215,9 +216,23 @@ export function CommunityTab() {
               whiteSpace: "nowrap",
               fontFamily: PIXEL_FONT,
             }}
+            title={videoTitle || "감지 중..."}
           >
-            {channelName || "감지 중..."}
+            {videoTitle || "영상 감지 중..."}
           </h2>
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#64748b",
+              fontWeight: "bold",
+              marginTop: "2px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            채널: {channelName || "감지 중..."}
+          </div>
         </div>
       </header>
 

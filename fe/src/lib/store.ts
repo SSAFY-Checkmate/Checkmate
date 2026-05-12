@@ -337,10 +337,20 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       votesFake: 0,
     }));
 
+    // [개선] 백엔드 응답에서 제목/채널명이 부실할 경우 기존 값 유지 및 DOM 재추출 시도
+    let finalTitle = resultObj.videoTitle || data.videoTitle || get().videoTitle;
+    let finalChannel = resultObj.channelName || data.channelName || get().channelName;
+
+    if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
+      const scraped = scrapeMetadata();
+      if (isUnknown(finalTitle)) finalTitle = scraped.title;
+      if (isUnknown(finalChannel)) finalChannel = scraped.channel;
+    }
+
     const finalState = {
       analysisStatus: "complete" as AnalysisStatus,
-      videoTitle: resultObj.videoTitle || data.videoTitle || get().videoTitle,
-      channelName: resultObj.channelName || data.channelName || get().channelName,
+      videoTitle: finalTitle,
+      channelName: finalChannel,
       overallVerdict: mappedVerdict,
       trustScore: resultObj.confidenceScore || 0,
       summary: resultObj.summary || "",
