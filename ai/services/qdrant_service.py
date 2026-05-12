@@ -7,16 +7,24 @@ logger = logging.getLogger(__name__)
 
 # Collection Names
 COLLECTIONS = [
+    # 라우팅/분류
     "route_descriptions",
+
+    # 도메인별 안정 기준 문서 (기존 유지)
     "food_health_ad_docs",
     "health_medical_docs",
     "policy_regulation_docs",
-    "policy_welfare_docs",
-    "news_event_docs",
     "finance_investment_docs",
-    "product_commerce_docs",
+    "news_event_docs",
+
+    # 출처 신뢰도/웹 검색 기반 추가
+    "web_evidence_cache",
+    "source_reliability_logs",
+
+    # 검증 이력/피드백 추가
     "verified_claims",
-    "community_reports",
+    "claim_patterns",
+    "community_reports"
 ]
 
 class QdrantService:

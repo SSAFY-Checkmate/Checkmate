@@ -4,9 +4,37 @@ from typing import Optional
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import BaseMessage
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
+
+class SafeChatOpenAI(ChatOpenAI):
+    def _clean_messages(self, messages):
+        if hasattr(messages, "to_messages"):
+            messages_list = messages.to_messages()
+        elif isinstance(messages, list):
+            messages_list = messages
+        else:
+            return messages
+
+        for msg in messages_list:
+            if hasattr(msg, "additional_kwargs"):
+                fc = msg.additional_kwargs.get("function_call")
+                if isinstance(fc, dict) and not fc.get("name"):
+                    msg.additional_kwargs.pop("function_call", None)
+                    
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                msg.tool_calls = [tc for tc in msg.tool_calls if tc.get("name") or tc.get("id")]
+        return messages
+
+    def invoke(self, input, config=None, **kwargs):
+        input = self._clean_messages(input)
+        return super().invoke(input, config=config, **kwargs)
+
+    async def ainvoke(self, input, config=None, **kwargs):
+        input = self._clean_messages(input)
+        return await super().ainvoke(input, config=config, **kwargs)
 
 class SQLRetriever:
     def __init__(self):
@@ -22,7 +50,7 @@ class SQLRetriever:
         try:
             self.db = SQLDatabase.from_uri(self.db_uri)
             if self.api_key:
-                self.llm = ChatOpenAI(model=self.model_name, temperature=0.0, api_key=self.api_key)
+                self.llm = SafeChatOpenAI(model=self.model_name, temperature=0.0, api_key=self.api_key)
                 
                 # 에이전트 프롬프트에 테이블 컨텍스트 주입
                 system_prefix = """당신은 한국 식품의약품안전처(식약처)의 건강기능식품 데이터베이스를 검색하는 AI 에이전트입니다.
@@ -44,7 +72,7 @@ class SQLRetriever:
                     llm=self.llm,
                     toolkit=None,  # DB를 직접 넘기면 자동으로 toolkit 구성됨
                     db=self.db,
-                    agent_type="openai-tools",
+                    agent_type="openai-functions",
                     verbose=False,
                     prefix=system_prefix
                 )
