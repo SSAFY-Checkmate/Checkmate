@@ -90,8 +90,8 @@ export function LongFormDashboard() {
 
   const warningConfig = {
     safe: {
-      gradient: "linear-gradient(135deg, #60a5fa, #2563eb)",
-      textColor: "#2563eb",
+      gradient: "linear-gradient(135deg, #4ade80, #16a34a)",
+      textColor: "#16a34a",
       icon: ShieldCheck,
       prefix: "신뢰",
       title: "검증된 신뢰 정보",
