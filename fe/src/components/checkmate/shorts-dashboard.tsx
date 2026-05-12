@@ -371,6 +371,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
     trustScore,
     summary,
     channelName,
+    videoTitle,
     isLoggedIn,
     analysisStatus,
   } = useCheckmateStore();
@@ -441,7 +442,9 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
             >
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Search size={14} color="#64748b" />
-                <span style={{ color: "#475569", fontSize: "12px", fontWeight: "bold" }}>채널명: {channelName}</span>
+                <span style={{ color: "#475569", fontSize: "12px", fontWeight: "bold" }}>
+                  [{channelName}] {videoTitle}
+                </span>
               </div>
               <button
                 onClick={() => setResultModalOpen(false)}
