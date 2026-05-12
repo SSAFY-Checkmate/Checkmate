@@ -20,7 +20,10 @@ class SQLRetriever:
         self.db_uri = f"sqlite:///{db_path}"
         
         try:
-            self.db = SQLDatabase.from_uri(self.db_uri)
+            self.db = SQLDatabase.from_uri(
+                self.db_uri,
+                engine_args={'connect_args': {'check_same_thread': False}}
+            )
             if self.api_key:
                 self.llm = ChatOpenAI(model=self.model_name, temperature=0.0, api_key=self.api_key)
                 
