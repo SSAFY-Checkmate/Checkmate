@@ -129,10 +129,10 @@ export function AnalysisDashboard() {
 
   // 분석 결과 자동 조회
   useEffect(() => {
-    if (currentVideoId && analysisStatus === "idle") {
+    if (currentVideoId && !isAuthInitializing && (analysisStatus === "idle" || analysisStatus === "checking")) {
       checkAnalysisStatus();
     }
-  }, [currentVideoId, analysisStatus, checkAnalysisStatus]);
+  }, [currentVideoId, analysisStatus, isAuthInitializing, checkAnalysisStatus]);
 
   if (typeof window === "undefined") return null;
 
