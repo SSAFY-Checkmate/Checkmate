@@ -45,10 +45,29 @@ class SQLRetriever:
         # DB 경로 설정
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         db_path = os.path.join(base_dir, 'data', 'food_safety.db')
-        self.db_uri = f"sqlite:///{db_path}"
         
+        import sqlite3
+        from sqlalchemy.pool import QueuePool
+        
+        db_path_uri = db_path.replace('\\', '/')
+        
+        def ro_creator():
+            return sqlite3.connect(
+                f"file:{db_path_uri}?mode=ro", 
+                uri=True, 
+                check_same_thread=False
+            )
+            
         try:
-            self.db = SQLDatabase.from_uri(self.db_uri)
+            self.db = SQLDatabase.from_uri(
+                "sqlite://", # dummy URI
+                engine_args={
+                    "creator": ro_creator,
+                    "poolclass": QueuePool,
+                    "pool_size": 10,
+                    "max_overflow": 20
+                }
+            )
             if self.api_key:
                 self.llm = SafeChatOpenAI(model=self.model_name, temperature=0.0, api_key=self.api_key)
                 
