@@ -3,6 +3,22 @@ import { FileText, Users } from "lucide-react";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 
+const TAB_STYLE_BASE = {
+  flex: 1,
+  padding: "12px",
+  fontSize: "15px",
+  fontWeight: "900",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "10px",
+  cursor: "pointer",
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  fontFamily: "'CheckmatePixel', sans-serif",
+  border: "none",
+  borderRadius: "8px",
+} as const;
+
 export function SidePanel() {
   const { activeTab, setActiveTab } = useCheckmateStore();
 
@@ -13,7 +29,7 @@ export function SidePanel() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#f8fafc", // 밝은 테마용 오프 화이트
+        backgroundColor: "#f8fafc",
         fontFamily: "'CheckmatePixel', sans-serif",
       }}
     >
@@ -21,7 +37,7 @@ export function SidePanel() {
       <div
         style={{
           display: "flex",
-          backgroundColor: "#f1f5f9", // 연한 블루 그레이 헤더
+          backgroundColor: "#f1f5f9",
           padding: "10px",
           gap: "10px",
           borderBottom: "1px solid #e2e8f0",
@@ -30,28 +46,16 @@ export function SidePanel() {
       >
         <button
           type="button"
+          aria-pressed={activeTab === "report"}
           onClick={() => setActiveTab("report")}
           style={{
-            flex: 1,
-            padding: "12px",
-            fontSize: "15px",
-            fontWeight: "900",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            cursor: "pointer",
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            fontFamily: "'CheckmatePixel', sans-serif",
+            ...TAB_STYLE_BASE,
             background: activeTab === "report" ? "linear-gradient(135deg, #0ea5e9, #2563eb)" : "transparent",
             color: activeTab === "report" ? "white" : "#64748b",
-            border: "none",
-            borderRadius: "8px",
             boxShadow:
               activeTab === "report"
                 ? "0 4px 12px rgba(14, 165, 233, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
                 : "none",
-            transform: activeTab === "report" ? "translateY(0)" : "none",
           }}
         >
           <FileText
@@ -62,28 +66,16 @@ export function SidePanel() {
         </button>
         <button
           type="button"
+          aria-pressed={activeTab === "community"}
           onClick={() => setActiveTab("community")}
           style={{
-            flex: 1,
-            padding: "12px",
-            fontSize: "15px",
-            fontWeight: "900",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            cursor: "pointer",
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            fontFamily: "'CheckmatePixel', sans-serif",
+            ...TAB_STYLE_BASE,
             background: activeTab === "community" ? "linear-gradient(135deg, #8b5cf6, #6d28d9)" : "transparent",
             color: activeTab === "community" ? "white" : "#64748b",
-            border: "none",
-            borderRadius: "8px",
             boxShadow:
               activeTab === "community"
                 ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
                 : "none",
-            transform: activeTab === "community" ? "translateY(0)" : "none",
           }}
         >
           <Users
