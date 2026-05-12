@@ -20,32 +20,55 @@ class EvidenceRetriever:
             "product_commerce": "product_commerce_docs",
         }
 
-    def _search_web_whitelist(self, claim: str) -> List[Dict[str, Any]]:
+    def _search_web_whitelist(self, claim: str, search_keywords: List[str] = None) -> List[Dict[str, Any]]:
         """DuckDuckGo를 이용해 화이트리스트 도메인 한정 웹 검색을 수행합니다."""
+        import re
         try:
-            from langchain_community.tools import DuckDuckGoSearchRun
-            search = DuckDuckGoSearchRun()
+            from ddgs import DDGS
             
-            # 검색어에 site 연산자를 조합하여 화이트리스트 도메인만 타겟팅
-            query = f"{claim} site:go.kr OR site:yna.co.kr OR site:kbs.co.kr"
+            # 1. 키워드가 있으면 키워드를 사용, 없으면 기존처럼 claim 정제
+            if search_keywords and len(search_keywords) > 0:
+                base_query = " ".join(search_keywords)
+            else:
+                # 특수문자 제거 및 너무 긴 문장은 앞부분 40자로 자르기
+                cleaned_claim = re.sub(r'[\[\]\(\)\'\"]', ' ', claim)
+                if len(cleaned_claim) > 40:
+                    cleaned_claim = cleaned_claim[:40]
+                base_query = cleaned_claim.strip()
+            
+            # 검색어에 site 연산자를 조합하여 화이트리스트 도메인 타겟팅 (확장)
+            # 종합병원, 의료기관, 정부, 주요 언론사, 식약처 포함
+            whitelist = "site:snuh.org OR site:amc.seoul.kr OR site:severance.healthcare OR site:kdca.go.kr OR site:go.kr OR site:yna.co.kr OR site:kbs.co.kr OR site:mfds.go.kr"
+            query = f"{base_query} {whitelist}"
             
             logger.info(f"Running web search with query: {query}")
-            result_text = search.invoke(query)
             
-            if not result_text or "No good DuckDuckGo Search Result was found" in result_text:
+            result_text = ""
+            try:
+                # backend="html" 또는 "lite"로 설정하여 불필요한 위키백과(Instant Answer) 호출을 차단합니다.
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(query, max_results=3, backend="html"))
+                    
+                if results:
+                    snippets = [f"[{r.get('title', '')}] {r.get('body', '')}" for r in results]
+                    result_text = "\n".join(snippets)
+            except Exception as sub_e:
+                logger.warning(f"DDGS direct search failed (ignoring): {sub_e}")
+            
+            if not result_text:
                 return []
                 
             return [{
                 "route": "news_event",
                 "score": 0.7, # 임의의 검색 점수 부여
-                "content": f"[웹 검색 결과] {result_text}",
+                "content": f"[웹 검색 결과]\n{result_text}",
                 "metadata": {"source_type": "web_search", "query": query}
             }]
         except Exception as e:
-            logger.error(f"Web search failed: {e}")
+            logger.error(f"Web search overall failed: {e}")
             return []
 
-    async def retrieve_by_routes(self, claim: str, selected_routes: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
+    async def retrieve_by_routes(self, claim: str, selected_routes: List[str], top_k: int = 5, search_keywords: List[str] = None) -> List[Dict[str, Any]]:
         """
         선택된 라우트들의 컬렉션에서 claim과 관련된 근거(Evidence)를 검색합니다.
         조건부로 SQL Agent를 트리거하여 식약처 DB를 함께 조회합니다.
@@ -99,11 +122,9 @@ class EvidenceRetriever:
         enable_web_search = os.getenv("ENABLE_WEB_SEARCH", "false").lower() == "true"
         
         if enable_web_search:
-            # news_event(최신 뉴스) 라우트이거나, 로컬 Qdrant/SQL에서 검색된 근거가 아예 없을 때 웹 검색 가동
-            if "news_event" in selected_routes or len(all_evidence) == 0:
-                logger.info("Web Search condition met. Triggering DuckDuckGo whitelist search...")
-                web_evidence = await asyncio.to_thread(self._search_web_whitelist, claim)
-                all_evidence.extend(web_evidence)
+            logger.info("Web Search is enabled. Triggering DuckDuckGo whitelist search...")
+            web_evidence = await asyncio.to_thread(self._search_web_whitelist, claim, search_keywords)
+            all_evidence.extend(web_evidence)
                 
         # 4. (선택적) Reranking - 단순히 score 순으로 재정렬
         all_evidence = sorted(all_evidence, key=lambda x: x["score"], reverse=True)

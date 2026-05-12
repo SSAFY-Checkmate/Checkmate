@@ -25,7 +25,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
     selected_routes = routing_result.get("selected_routes", ["general_web_search"])
     
     # 2. Evidence Retrieval (비동기 DB/검색/SQL 작업)
-    evidences = await evidence_retriever.retrieve_by_routes(claim, selected_routes, 3)
+    search_keywords = item.get("search_keywords", [])
+    evidences = await evidence_retriever.retrieve_by_routes(claim, selected_routes, 3, search_keywords)
     
     # 증거를 문자열로 포맷팅
     evidence_text = ""

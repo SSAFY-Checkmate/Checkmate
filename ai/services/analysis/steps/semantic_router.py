@@ -23,7 +23,7 @@ class SemanticRouter:
 
         if len(scores) == 1:
             name, score = scores[0]
-            if score >= 0.60:
+            if score >= 0.45:
                 return [name]
             return ["general_web_search"]
 
@@ -34,18 +34,18 @@ class SemanticRouter:
         if top1_score >= 0.75 and (top1_score - top2_score) >= 0.15:
             return [top1_name]
 
-        # 3. 기본적으로 top-2 선택 (0.60 이상인 경우만)
+        # 3. 기본적으로 top-2 선택 (0.45 이상인 경우만)
         for name, score in scores[:2]:
-            if score >= 0.60:
+            if score >= 0.45:
                 selected.append(name)
 
         # 4. top-3도 충분히 높고 top-2와 차이가 작으면 포함
         if len(scores) >= 3:
             top3_name, top3_score = scores[2]
-            if top3_score >= 0.60 and (top2_score - top3_score) <= 0.08:
+            if top3_score >= 0.45 and (top2_score - top3_score) <= 0.08:
                 selected.append(top3_name)
 
-        # 5. 아무 route도 0.60 이상이 아니면 fallback
+        # 5. 아무 route도 0.45 이상이 아니면 fallback
         if not selected:
             selected = ["general_web_search"]
 
