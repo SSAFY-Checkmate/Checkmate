@@ -397,13 +397,27 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
    * 분석 결과 데이터를 프런트엔드 상태로 매핑
    */
   mapAnalysisResult: (videoId: string, data: any) => {
-    const resultObj = data.result || data;
+    /**
+     * 백엔드 AnalysisJobGetResponse.result 구조 (AI 워커 → Kafka → BE 저장):
+     *   result: { videoId, videoTitle, channelName, trustGrade, confidenceScore, summary, violations }
+     * 또는 레거시: result: { analysis: { trustGrade, ... }, transcript: {...} }
+     * 방어적으로 여러 경로를 순서대로 탐색.
+     */
+
+
+    const rawResult = data.result || data;
+    const resultObj =
+      rawResult?.analysis ?? // 레거시 구조: result.analysis
+      rawResult?.result?.analysis ?? // 중첩된 경우
+      rawResult; // AI 워커 최종 payload 구조: result에 trustGrade 직접
+
     let mappedVerdict: Verdict = "unknown";
 
     if (resultObj.trustGrade === "SAFE" || resultObj.trustGrade === "GOOD") mappedVerdict = "safe";
     else if (resultObj.trustGrade === "WARNING" || resultObj.trustGrade === "DANGER") mappedVerdict = "warning";
 
-    const violations = resultObj.violations || [];
+    // violations: result.analysis.violations 또는 레거시 경로
+    const violations = resultObj.violations || rawResult?.violations || [];
     const claims: Claim[] = violations.map((v: any, idx: number) => ({
       id: `v-${idx}`,
       text: v.violationSentence || "내용 없음",
@@ -414,15 +428,32 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       votesFake: 0,
     }));
 
-    // [개선] 백엔드 응답에서 제목/채널명이 부실할 경우 기존 값 유지 및 DOM 재추출 시도
-    let finalTitle = resultObj.videoTitle || data.videoTitle || get().videoTitle;
-    let finalChannel = resultObj.channelName || data.channelName || get().channelName;
+    // [개선] 제목/채널명: result.analysis.youtubeInfo 또는 다른 경로
+    const youtubeInfo = rawResult?.analysis?.youtubeInfo || rawResult?.youtubeInfo || {};
+    let finalTitle =
+      youtubeInfo.videoTitle ||
+      resultObj.videoTitle ||
+      data.videoTitle ||
+      get().videoTitle;
+    let finalChannel =
+      youtubeInfo.channelName ||
+      resultObj.channelName ||
+      data.channelName ||
+      get().channelName;
 
     if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
       const scraped = scrapeMetadata();
       if (isUnknown(finalTitle)) finalTitle = scraped.title;
       if (isUnknown(finalChannel)) finalChannel = scraped.channel;
     }
+
+    // analysisId는 응답 구조의 여러 경로에서 탐색 (방어적 처리)
+    const rawAnalysisId =
+      data.analysisId ??
+      resultObj.analysisId ??
+      data.result?.analysisId ??
+      null;
+    const resolvedAnalysisId = rawAnalysisId != null ? Number(rawAnalysisId) : null;
 
     const finalState = {
       analysisStatus: "complete" as AnalysisStatus,
@@ -434,7 +465,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       isWarningVisible: mappedVerdict === "warning",
       warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
       claims: claims,
-      analysisId: data.analysisId || resultObj.analysisId ? Number(data.analysisId || resultObj.analysisId) : null,
+      analysisId: resolvedAnalysisId,
     };
 
     if (get().currentVideoId !== videoId) return;
@@ -488,10 +519,52 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           if (jobStatus === "COMPLETED") {
             const resultBody = await analysisApi.getJobStatus(jobId);
             if (resultBody.status === 200 && resultBody.data) {
-              get().mapAnalysisResult(videoId, resultBody.data);
+              const jobData = resultBody.data;
+
+              // result가 비어있거나 trustGrade가 없는 경우 /result fallback
+              const rawRes = jobData.result;
+              const hasTrustGrade =
+                rawRes?.trustGrade ||
+                rawRes?.analysis?.trustGrade;
+
+              if (!hasTrustGrade && jobData.analysisId) {
+                // DB에서 직접 결과 조회 (Kafka 타이밍 문제 우회)
+                console.warn('[Checkmate] result가 비어있음, /result fallback 시도');
+                const reportBody = await analysisApi.getResult(jobId);
+                if (reportBody.status === 200 && reportBody.data?.trustGrade) {
+                  const d = reportBody.data;
+                  // AnalysisReportResponse 구조를 mapAnalysisResult 호환 형태로 변환
+                  const syntheticData = {
+                    result: d,
+                    analysisId: jobData.analysisId,
+                  };
+                  if (get().currentVideoId === videoId) set({ analysisStatus: "verifying" });
+                  await new Promise((r) => setTimeout(r, 800));
+                  get().mapAnalysisResult(videoId, syntheticData);
+                  return;
+                }
+              }
+
+              // 정상 경로
+              if (get().currentVideoId === videoId) {
+                set({ analysisStatus: "verifying" });
+              }
+              await new Promise((r) => setTimeout(r, 800));
+              get().mapAnalysisResult(videoId, jobData);
               return;
             }
-          } else if (jobStatus !== "FAILED") {
+          } else if (jobStatus === "FAILED") {
+            // AI 분석 실패 → "error" 상태로 전환 (분석 실패 UI 표시)
+            console.log('[Checkmate] checkExistingAnalysis: FAILED job detected', jobId);
+            if (get().currentVideoId === videoId) {
+              set({
+                analysisStatus: "error",
+                errorMsg: "AI 분석 중 오류가 발생했습니다. 다시 시도하거나 커뮤니티에서 직접 투표해 보세요.",
+              });
+            }
+            return;
+          } else {
+            // 아직 처리 중 → 폴링 시작
             get().pollAnalysisJob(videoId, jobId);
             return;
           }
@@ -544,29 +617,30 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       if (!data) throw new Error("분석 상태를 받지 못했습니다.");
 
       if (data.status === "FAILED") {
-        const failState = {
-          analysisStatus: "complete" as AnalysisStatus,
-          overallVerdict: "unknown" as Verdict,
-          trustScore: 0,
-          summary: "데이터 분석을 허용하지 않는 영상입니다. 하단의 버튼을 눌러 커뮤니티에서 직접 진위를 투표해 보세요!",
-          isWarningVisible: false,
-          warningCount: 0,
-          claims: [],
-          analysisId: data.analysisId ? Number(data.analysisId) : null,
-        };
-
+        // AI 분석 실패 → "error" 상태로 전환 (분석 실패 UI 표시)
         if (get().currentVideoId === videoId) {
-          set((state) => ({
-            ...failState,
-            analyzedVideos: { ...state.analyzedVideos, [videoId]: failState },
-          }));
-          if (data.analysisId) get().fetchReactions(Number(data.analysisId));
+          set({
+            analysisStatus: "error",
+            errorMsg: "AI 분석 중 오류가 발생했습니다. 다시 시도하거나 커뮤니티에서 직접 투표해 보세요.",
+          });
         }
         return;
       }
 
       set({ analysisStatus: "verifying" });
       await sleep(1000);
+
+      // result가 비어있으면 /result 엔드포인트로 fallback
+      const rawRes = data.result;
+      const hasTrustGrade = rawRes?.trustGrade || rawRes?.analysis?.trustGrade;
+      if (!hasTrustGrade && data.analysisId) {
+        const reportBody = await analysisApi.getResult(jobId);
+        if (reportBody.status === 200 && reportBody.data?.trustGrade) {
+          get().mapAnalysisResult(videoId, { result: reportBody.data, analysisId: data.analysisId });
+          return;
+        }
+      }
+
       get().mapAnalysisResult(videoId, data);
     } catch (error) {
       console.error("폴링 중 오류 발생:", error);
@@ -1085,9 +1159,10 @@ export const initializeAuth = async () => {
     }
   } finally {
     useCheckmateStore.setState({ isAuthInitializing: false });
-    // 인증 정보가 복구되었으므로 현재 영상의 분석 내역을 다시 한 번 확인
-    if (useCheckmateStore.getState().currentVideoId) {
-      useCheckmateStore.getState().checkAnalysisStatus();
+    // [수정] 분석이 이미 완료된 상태라면 불필요한 재조회를 생략 (루프 방지)
+    const finalState = useCheckmateStore.getState();
+    if (finalState.currentVideoId && finalState.analysisStatus !== "complete") {
+      finalState.checkAnalysisStatus();
     }
   }
 };

@@ -37,9 +37,14 @@ export function LongFormDashboard() {
   const barRef = useRef<HTMLDivElement>(null);
   const [barWidth, setBarWidth] = useState(232);
 
-  // 컴포넌트 마운트 및 상태 변경 시 인증 초기화 및 너비 측정
+  // [수정] initializeAuth는 마운트 시 1회만 실행 (analysisStatus 의존 제거 → 무한 루프 방지)
   useEffect(() => {
     initializeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 진행 바 너비는 analysisStatus 변경 시마다 측정
+  useEffect(() => {
     if (barRef.current) {
       setBarWidth(barRef.current.offsetWidth);
     }
