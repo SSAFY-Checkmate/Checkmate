@@ -129,7 +129,7 @@ export function AnalysisDashboard() {
 
   // 분석 결과 자동 조회
   useEffect(() => {
-    if (currentVideoId && !isAuthInitializing && (analysisStatus === "idle" || analysisStatus === "checking")) {
+    if (currentVideoId && !isAuthInitializing && analysisStatus === "idle") {
       checkAnalysisStatus();
     }
   }, [currentVideoId, analysisStatus, isAuthInitializing, checkAnalysisStatus]);
@@ -141,10 +141,11 @@ export function AnalysisDashboard() {
 
   if (!isWatchPage) return null;
 
-  // [쇼츠 정책] 공간 협소 → 로그아웃 상태에서도 버튼은 항상 노출
+  // [쇼츠 정책] 공간 협소 → 로그아웃 상태에서도 버튼은 항상 노출, 스켈레톤 없이 처리
   if (isShorts) {
     return (
       <>
+        {/* [리뷰 반영] ReportModal은 전역 성격이므로 대시보드 안에서 1회 렌더링. */}
         <ReportModal />
         <ShortsDashboard />
       </>

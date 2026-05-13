@@ -61,17 +61,22 @@ export function LongFormDashboard() {
       return;
     }
 
+    if (visualProgress >= target) return;
+
     const interval = setInterval(() => {
       setVisualProgress((prev) => {
-        if (prev < target) return Math.min(prev + 1, target);
-        return prev;
+        if (prev >= target) {
+          clearInterval(interval);
+          return prev;
+        }
+        return Math.min(prev + 1, target);
       });
     }, speed);
 
     return () => clearInterval(interval);
-  }, [analysisStatus]);
+  }, [analysisStatus, visualProgress]);
 
-  // [수정] initializeAuth는 마운트 시 1회만 실행 (analysisStatus 의존 제거 → 무한 루프 방지)
+  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되어야 하므로 의존성 배열을 비워둡니다.
   useEffect(() => {
     initializeAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
