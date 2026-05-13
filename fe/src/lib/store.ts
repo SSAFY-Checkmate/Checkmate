@@ -607,10 +607,37 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         if (pollBody.status !== 200 || !pollBody.data) throw new Error(pollBody.message || "분석 상태 조회 실패");
 
         data = pollBody.data;
-        if (data.status === "TRANSCRIPT_PROCESSING") set({ analysisStatus: "analyzing_transcript" });
-        else if (data.status === "AI_PROCESSING") set({ analysisStatus: "analyzing_claims" });
+        const beStatus = data.status;
+        const currentUI = get().analysisStatus;
 
-        if (data.status === "COMPLETED" || data.status === "FAILED") break;
+        // UI 상태가 건너뛰어지는 것을 방지하기 위한 인위적 순차 딜레이
+        // 1) detecting (25%) 상태 유지
+        if (currentUI === "detecting") {
+          await sleep(2500); 
+          if (beStatus !== "FAILED") {
+            set({ analysisStatus: "analyzing_transcript" });
+          }
+        }
+
+        // 2) analyzing_transcript (50%) 상태 유지
+        if (get().analysisStatus === "analyzing_transcript" && (beStatus === "AI_PROCESSING" || beStatus === "COMPLETED")) {
+          await sleep(4000); 
+          set({ analysisStatus: "analyzing_claims" });
+        }
+
+        // 3) analyzing_claims (75%) 상태 유지 (COMPLETED 시 바로 95%로 넘어가는 것 방지)
+        if (get().analysisStatus === "analyzing_claims" && beStatus === "COMPLETED") {
+          await sleep(3000); 
+        }
+
+        // 혹시라도 건너뛰어진 상태가 있다면 보정
+        if (beStatus === "TRANSCRIPT_PROCESSING" && get().analysisStatus !== "analyzing_transcript") {
+          set({ analysisStatus: "analyzing_transcript" });
+        } else if (beStatus === "AI_PROCESSING" && get().analysisStatus !== "analyzing_claims") {
+          set({ analysisStatus: "analyzing_claims" });
+        }
+
+        if (beStatus === "COMPLETED" || beStatus === "FAILED") break;
         await sleep(pollIntervalMs);
       }
 

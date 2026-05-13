@@ -36,6 +36,40 @@ export function LongFormDashboard() {
   const dashboardRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [barWidth, setBarWidth] = useState(232);
+  const [visualProgress, setVisualProgress] = useState(0);
+
+  // 촘촘한 프로그레스 바 애니메이션 (상태별 점진적 증가)
+  useEffect(() => {
+    let target = 0;
+    let speed = 100;
+
+    switch (analysisStatus) {
+      case "idle": target = 0; break;
+      case "checking": target = 5; speed = 100; break;
+      case "loading": target = 5; speed = 50; break;
+      case "detecting": target = 30; speed = 150; break;
+      case "analyzing_transcript": target = 60; speed = 120; break;
+      case "analyzing_claims": target = 90; speed = 300; break;
+      case "verifying": target = 99; speed = 200; break;
+      case "complete": target = 100; speed = 20; break;
+      case "error": target = visualProgress; break;
+      default: target = 0; break;
+    }
+
+    if (analysisStatus === "idle" || analysisStatus === "error") {
+      if (analysisStatus === "idle") setVisualProgress(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setVisualProgress((prev) => {
+        if (prev < target) return Math.min(prev + 1, target);
+        return prev;
+      });
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [analysisStatus]);
 
   // [수정] initializeAuth는 마운트 시 1회만 실행 (analysisStatus 의존 제거 → 무한 루프 방지)
   useEffect(() => {
@@ -658,16 +692,7 @@ export function LongFormDashboard() {
                         }}
                       >
                         {(() => {
-                          const progress =
-                            analysisStatus === "loading"
-                              ? 5
-                              : analysisStatus === "detecting"
-                                ? 25
-                                : analysisStatus === "analyzing_transcript"
-                                  ? 50
-                                  : analysisStatus === "analyzing_claims"
-                                    ? 75
-                                    : 95;
+                          const progress = visualProgress;
                           const progressText = `${progress}% COMPLETE`;
                           const currentBarWidth = barWidth || 232;
                           return (
@@ -691,7 +716,7 @@ export function LongFormDashboard() {
                               </div>
                               <motion.div
                                 animate={{ width: `${progress}%` }}
-                                transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
+                                transition={{ duration: 0.2, ease: "linear" }}
                                 style={{
                                   height: "100%",
                                   background: "linear-gradient(90deg, #38bdf8, #0ea5e9)",
