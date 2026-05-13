@@ -13,6 +13,7 @@ export type AnalysisStatus =
   | "analyzing_transcript"
   | "analyzing_claims"
   | "verifying"
+  | "restoring"
   | "complete"
   | "error";
 
@@ -538,7 +539,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
                     result: d,
                     analysisId: jobData.analysisId,
                   };
-                  if (get().currentVideoId === videoId) set({ analysisStatus: "verifying" });
+                  if (get().currentVideoId === videoId) set({ analysisStatus: "restoring" });
                   await new Promise((r) => setTimeout(r, 800));
                   get().mapAnalysisResult(videoId, syntheticData);
                   return;
@@ -547,7 +548,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
               // 정상 경로
               if (get().currentVideoId === videoId) {
-                set({ analysisStatus: "verifying" });
+                set({ analysisStatus: "restoring" });
               }
               await new Promise((r) => setTimeout(r, 800));
               get().mapAnalysisResult(videoId, jobData);

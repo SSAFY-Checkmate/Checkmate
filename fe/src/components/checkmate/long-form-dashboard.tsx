@@ -429,6 +429,62 @@ export function LongFormDashboard() {
                 </div>
               </div>
             </motion.div>
+          ) : analysisStatus === "restoring" || analysisStatus === "checking" ? (
+            <motion.div
+              key="restoring-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              transition={{
+                opacity: { repeat: Infinity, duration: 1.5, ease: "easeInOut" },
+              }}
+              style={{ width: "100%", display: "flex", flexDirection: "column" }}
+            >
+              {/* Header Skeleton */}
+              <div
+                style={{
+                  height: "180px",
+                  backgroundColor: "#e2e8f0",
+                  width: "100%",
+                }}
+              />
+              {/* Content Skeleton */}
+              <div
+                style={{
+                  padding: "24px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "24px",
+                  backgroundColor: "white",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px dashed #e2e8f0",
+                    paddingBottom: "12px",
+                  }}
+                >
+                  <div style={{ height: "24px", width: "120px", backgroundColor: "#cbd5e1", borderRadius: "8px" }} />
+                  <div style={{ height: "30px", width: "100px", backgroundColor: "#cbd5e1", borderRadius: "30px" }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
+                  <div style={{ height: "14px", width: "90%", backgroundColor: "#e2e8f0", borderRadius: "4px" }} />
+                  <div style={{ height: "14px", width: "70%", backgroundColor: "#e2e8f0", borderRadius: "4px" }} />
+                </div>
+                <div
+                  style={{
+                    height: "48px",
+                    width: "100%",
+                    backgroundColor: "#e2e8f0",
+                    borderRadius: "12px",
+                    marginTop: "16px",
+                  }}
+                />
+              </div>
+            </motion.div>
           ) : (
             <motion.div
               key="processing-view"
@@ -605,15 +661,13 @@ export function LongFormDashboard() {
                           const progress =
                             analysisStatus === "loading"
                               ? 5
-                              : analysisStatus === "checking"
-                                ? 10
-                                : analysisStatus === "detecting"
-                                  ? 25
-                                  : analysisStatus === "analyzing_transcript"
-                                    ? 50
-                                    : analysisStatus === "analyzing_claims"
-                                      ? 75
-                                      : 95;
+                              : analysisStatus === "detecting"
+                                ? 25
+                                : analysisStatus === "analyzing_transcript"
+                                  ? 50
+                                  : analysisStatus === "analyzing_claims"
+                                    ? 75
+                                    : 95;
                           const progressText = `${progress}% COMPLETE`;
                           const currentBarWidth = barWidth || 232;
                           return (
