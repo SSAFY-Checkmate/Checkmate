@@ -1,13 +1,6 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
-import {
-  AlertTriangle,
-  CheckCircle,
-  HelpCircle,
-  ExternalLink,
-  FileSearch,
-  ShieldCheck,
-  Fingerprint,
-} from "lucide-react";
+import { OneTouchReportButton } from "./one-touch-report-button";
+import { AlertTriangle, CheckCircle, HelpCircle, FileSearch, ShieldCheck, Fingerprint } from "lucide-react";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 
@@ -145,41 +138,6 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
         .substring(verdictIdx + 4, explanationIdx !== -1 ? explanationIdx : cleanText.length)
         .trim();
       parts.verdictText = vText;
-
-      const upperV = vText.toUpperCase();
-      if (
-        upperV.includes("WARNING") ||
-        upperV.includes("DANGER") ||
-        upperV.includes("FALSE") ||
-        upperV.includes("MISINFORMATION") ||
-        upperV.includes("FAKE")
-      ) {
-        parts.verdict = "warning";
-      } else if (
-        upperV.includes("SAFE") ||
-        upperV.includes("GOOD") ||
-        upperV.includes("TRUE") ||
-        upperV.includes("FACT") ||
-        upperV.includes("VALID")
-      ) {
-        parts.verdict = "safe";
-      } else if (upperV.includes("NOT_ENOUGH") || upperV.includes("UNKNOWN") || upperV.includes("PENDING")) {
-        parts.verdict = "unknown";
-      }
-    }
-
-    if (
-      parts.explanation.includes("사실로 확인") ||
-      parts.explanation.includes("사실입니다") ||
-      parts.explanation.includes("신뢰할 수 있")
-    ) {
-      parts.verdict = "safe";
-    } else if (
-      parts.explanation.includes("허위로 확인") ||
-      parts.explanation.includes("거짓입니다") ||
-      parts.explanation.includes("왜곡된")
-    ) {
-      parts.verdict = "warning";
     }
 
     return parts;
@@ -526,10 +484,13 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
             </p>
           </div>
         )}
+
+        {/* 리포트 기반 원터치 신고 버튼 (Siren Bar) */}
+        <OneTouchReportButton />
       </section>
 
       {/* Footer Info */}
-      <div style={{ textAlign: "center", padding: "20px 0 40px 0" }}>
+      <div style={{ textAlign: "center", padding: "10px 0 5px 0" }}>
         <p style={{ fontSize: "11px", color: "#94a3b8", lineHeight: "1.6", fontWeight: "bold" }}>
           본 리포트는 Checkmate AI 감정 엔진에 의해 실시간 생성되었으며
           <br />

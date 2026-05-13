@@ -1,34 +1,40 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PixelButton } from "./pixel-button";
+import { AlertCircle } from "lucide-react";
 
-interface PixelConfirmModalProps {
+interface PixelAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
   title?: string;
   message: string;
-  confirmText?: string;
-  cancelText?: string;
-  type?: "danger" | "warning" | "primary";
+  buttonText?: string;
+  type?: "error" | "warning" | "info";
 }
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace";
 
-export const PixelConfirmModal = ({
+export const PixelAlertModal = ({
   isOpen,
   onClose,
-  onConfirm,
-  title = "확인",
+  title = "알림",
   message,
-  confirmText = "확인",
-  cancelText = "취소",
-  type = "danger",
-}: PixelConfirmModalProps) => {
+  buttonText = "확인",
+  type = "error",
+}: PixelAlertModalProps) => {
+  const getTheme = () => {
+    switch (type) {
+      case "error": return { color: "#ef4444", btnColor: "error" as const };
+      case "warning": return { color: "#f59e0b", btnColor: "neutral" as const };
+      default: return { color: "#3b82f6", btnColor: "primary" as const };
+    }
+  };
+
+  const theme = getTheme();
+
   return (
     <AnimatePresence>
       {isOpen && (
         <div
-          key="pixel-confirm-overlay"
           style={{
             position: "fixed",
             top: 0,
@@ -38,7 +44,7 @@ export const PixelConfirmModal = ({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 10000,
             padding: "20px",
           }}
         >
@@ -54,8 +60,8 @@ export const PixelConfirmModal = ({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: "rgba(15, 23, 42, 0.75)",
-              backdropFilter: "blur(2px)",
+              backgroundColor: "rgba(15, 23, 42, 0.85)",
+              backdropFilter: "blur(4px)",
             }}
           />
 
@@ -75,28 +81,17 @@ export const PixelConfirmModal = ({
               flexDirection: "column",
               gap: "20px",
               fontFamily: PIXEL_FONT,
+              boxShadow: "8px 8px 0 rgba(0,0,0,0.3)",
             }}
           >
             {/* Header */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: "18px",
-                  color: type === "danger" ? "#ef4444" : "#334155",
-                  fontWeight: "bold",
-                }}
-              >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <AlertCircle size={24} color={theme.color} strokeWidth={3} />
+              <h3 style={{ margin: 0, fontSize: "18px", color: "#334155", fontWeight: "bold" }}>
                 {title}
               </h3>
-              <div
-                style={{
-                  height: "2px",
-                  backgroundColor: "#e2e8f0",
-                  width: "100%",
-                }}
-              />
             </div>
+            <div style={{ height: "2px", backgroundColor: "#f1f5f9", width: "100%" }} />
 
             {/* Content */}
             <p
@@ -106,25 +101,21 @@ export const PixelConfirmModal = ({
                 color: "#475569",
                 lineHeight: "1.6",
                 wordBreak: "keep-all",
+                textAlign: "center",
+                padding: "10px 0"
               }}
             >
               {message}
             </p>
 
-            {/* Actions */}
-            <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
-              <div style={{ flex: 1 }}>
-                <PixelButton text={cancelText} colorType="neutral" size="sm" onClick={onClose} />
-              </div>
-              <div style={{ flex: 1 }}>
+            {/* Action */}
+            <div style={{ display: "flex", justifyContent: "center", marginTop: "8px" }}>
+              <div style={{ width: "120px" }}>
                 <PixelButton
-                  text={confirmText}
-                  colorType={type === "danger" ? "error" : "primary"}
+                  text={buttonText}
+                  colorType={theme.btnColor}
                   size="sm"
-                  onClick={() => {
-                    onConfirm();
-                    onClose();
-                  }}
+                  onClick={onClose}
                 />
               </div>
             </div>

@@ -36,10 +36,54 @@ export function LongFormDashboard() {
   const dashboardRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [barWidth, setBarWidth] = useState(232);
+  const [visualProgress, setVisualProgress] = useState(0);
 
-  // 컴포넌트 마운트 및 상태 변경 시 인증 초기화 및 너비 측정
+  // 촘촘한 프로그레스 바 애니메이션 (상태별 점진적 증가)
+  useEffect(() => {
+    let target = 0;
+    let speed = 100;
+
+    switch (analysisStatus) {
+      case "idle": target = 0; break;
+      case "checking": target = 5; speed = 100; break;
+      case "loading": target = 5; speed = 50; break;
+      case "detecting": target = 30; speed = 150; break;
+      case "analyzing_transcript": target = 60; speed = 120; break;
+      case "analyzing_claims": target = 90; speed = 300; break;
+      case "verifying": target = 99; speed = 200; break;
+      case "complete": target = 100; speed = 20; break;
+      case "error": target = visualProgress; break;
+      default: target = 0; break;
+    }
+
+    if (analysisStatus === "idle" || analysisStatus === "error") {
+      if (analysisStatus === "idle") setVisualProgress(0);
+      return;
+    }
+
+    if (visualProgress >= target) return;
+
+    const interval = setInterval(() => {
+      setVisualProgress((prev) => {
+        if (prev >= target) {
+          clearInterval(interval);
+          return prev;
+        }
+        return Math.min(prev + 1, target);
+      });
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [analysisStatus, visualProgress]);
+
+  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되어야 하므로 의존성 배열을 비워둡니다.
   useEffect(() => {
     initializeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 진행 바 너비는 analysisStatus 변경 시마다 측정
+  useEffect(() => {
     if (barRef.current) {
       setBarWidth(barRef.current.offsetWidth);
     }
@@ -90,8 +134,8 @@ export function LongFormDashboard() {
 
   const warningConfig = {
     safe: {
-      gradient: "linear-gradient(135deg, #60a5fa, #2563eb)",
-      textColor: "#2563eb",
+      gradient: "linear-gradient(135deg, #4ade80, #16a34a)",
+      textColor: "#16a34a",
       icon: ShieldCheck,
       prefix: "신뢰",
       title: "검증된 신뢰 정보",
@@ -407,7 +451,7 @@ export function LongFormDashboard() {
                 </p>
 
                 {/* Detail Action Button (moved inside) */}
-                <div style={{ width: "100%", marginTop: "8px" }}>
+                <div style={{ width: "100%", marginTop: "16px" }}>
                   <PixelButton
                     onClick={(e) => togglePanel(e)}
                     colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
@@ -422,6 +466,62 @@ export function LongFormDashboard() {
                     size="md"
                   />
                 </div>
+              </div>
+            </motion.div>
+          ) : analysisStatus === "restoring" || analysisStatus === "checking" ? (
+            <motion.div
+              key="restoring-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              transition={{
+                opacity: { repeat: Infinity, duration: 1.5, ease: "easeInOut" },
+              }}
+              style={{ width: "100%", display: "flex", flexDirection: "column" }}
+            >
+              {/* Header Skeleton */}
+              <div
+                style={{
+                  height: "180px",
+                  backgroundColor: "#e2e8f0",
+                  width: "100%",
+                }}
+              />
+              {/* Content Skeleton */}
+              <div
+                style={{
+                  padding: "24px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "24px",
+                  backgroundColor: "white",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px dashed #e2e8f0",
+                    paddingBottom: "12px",
+                  }}
+                >
+                  <div style={{ height: "24px", width: "120px", backgroundColor: "#cbd5e1", borderRadius: "8px" }} />
+                  <div style={{ height: "30px", width: "100px", backgroundColor: "#cbd5e1", borderRadius: "30px" }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
+                  <div style={{ height: "14px", width: "90%", backgroundColor: "#e2e8f0", borderRadius: "4px" }} />
+                  <div style={{ height: "14px", width: "70%", backgroundColor: "#e2e8f0", borderRadius: "4px" }} />
+                </div>
+                <div
+                  style={{
+                    height: "48px",
+                    width: "100%",
+                    backgroundColor: "#e2e8f0",
+                    borderRadius: "12px",
+                    marginTop: "16px",
+                  }}
+                />
               </div>
             </motion.div>
           ) : (
@@ -597,18 +697,7 @@ export function LongFormDashboard() {
                         }}
                       >
                         {(() => {
-                          const progress =
-                            analysisStatus === "loading"
-                              ? 5
-                              : analysisStatus === "checking"
-                                ? 10
-                                : analysisStatus === "detecting"
-                                  ? 25
-                                  : analysisStatus === "analyzing_transcript"
-                                    ? 50
-                                    : analysisStatus === "analyzing_claims"
-                                      ? 75
-                                      : 95;
+                          const progress = visualProgress;
                           const progressText = `${progress}% COMPLETE`;
                           const currentBarWidth = barWidth || 232;
                           return (
@@ -632,7 +721,7 @@ export function LongFormDashboard() {
                               </div>
                               <motion.div
                                 animate={{ width: `${progress}%` }}
-                                transition={{ duration: 2.5, ease: [0.22, 1, 0.36, 1] }}
+                                transition={{ duration: 0.2, ease: "linear" }}
                                 style={{
                                   height: "100%",
                                   background: "linear-gradient(90deg, #38bdf8, #0ea5e9)",

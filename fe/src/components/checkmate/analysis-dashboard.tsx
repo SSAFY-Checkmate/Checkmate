@@ -1,10 +1,11 @@
-import { useCheckmateStore, initializeAuth } from '../../lib/store';
-import { LongFormDashboard } from './long-form-dashboard';
-import { ShortsDashboard } from './shorts-dashboard';
-import { LoginView } from './login-view';
-import { PIXEL_STYLES } from '../../lib/constants/styles';
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useCheckmateStore, initializeAuth } from "../../lib/store";
+import { LongFormDashboard } from "./long-form-dashboard";
+import { ShortsDashboard } from "./shorts-dashboard";
+import { LoginView } from "./login-view";
+import { ReportModal } from "./report-modal";
+import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { useEffect } from "react";
+import { motion } from "framer-motion";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 
@@ -25,51 +26,51 @@ const AuthLoadingSkeleton = () => (
       style={{
         ...PIXEL_STYLES.border,
         ...PIXEL_STYLES.mainCard,
-        background: '#ffffff',
-        border: '4px solid #0ea5e9',
-        borderRadius: '8px',
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '16px',
+        background: "#ffffff",
+        border: "4px solid #0ea5e9",
+        borderRadius: "8px",
+        padding: "24px 16px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "16px",
       }}
     >
       {/* 스켈레톤 이미지 영역 */}
       <motion.div
         animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
         style={{
-          width: '80px',
-          height: '80px',
-          backgroundColor: '#e0f2fe',
-          border: '2px solid #bae6fd',
-          borderRadius: '4px',
+          width: "80px",
+          height: "80px",
+          backgroundColor: "#e0f2fe",
+          border: "2px solid #bae6fd",
+          borderRadius: "4px",
         }}
       />
       {/* 스켈레톤 텍스트 영역 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", alignItems: "center" }}>
         <motion.div
           animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut', delay: 0.2 }}
-          style={{ width: '60%', height: '20px', backgroundColor: '#e0f2fe', borderRadius: '4px' }}
+          transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+          style={{ width: "60%", height: "20px", backgroundColor: "#e0f2fe", borderRadius: "4px" }}
         />
         <motion.div
           animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut', delay: 0.4 }}
-          style={{ width: '80%', height: '14px', backgroundColor: '#f0f9ff', borderRadius: '4px' }}
+          transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", delay: 0.4 }}
+          style={{ width: "80%", height: "14px", backgroundColor: "#f0f9ff", borderRadius: "4px" }}
         />
       </div>
       {/* 스켈레톤 버튼 */}
       <motion.div
         animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut', delay: 0.6 }}
+        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", delay: 0.6 }}
         style={{
-          width: '100%',
-          height: '44px',
-          backgroundColor: '#e0f2fe',
-          borderRadius: '6px',
-          border: '2px solid #bae6fd',
+          width: "100%",
+          height: "44px",
+          backgroundColor: "#e0f2fe",
+          borderRadius: "6px",
+          border: "2px solid #bae6fd",
         }}
       />
     </motion.div>
@@ -128,24 +129,30 @@ export function AnalysisDashboard() {
 
   // 분석 결과 자동 조회
   useEffect(() => {
-    if (currentVideoId && analysisStatus === "idle") {
+    if (currentVideoId && !isAuthInitializing && analysisStatus === "idle") {
       checkAnalysisStatus();
     }
-  }, [currentVideoId, analysisStatus, checkAnalysisStatus]);
+  }, [currentVideoId, analysisStatus, isAuthInitializing, checkAnalysisStatus]);
 
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
 
-  const isShorts = window.location.pathname.startsWith('/shorts');
-  const isWatchPage = window.location.pathname === '/watch' || isShorts;
+  const isShorts = window.location.pathname.startsWith("/shorts");
+  const isWatchPage = window.location.pathname === "/watch" || isShorts;
 
   if (!isWatchPage) return null;
 
-  // [쇼츠 정책] 공간 협소 → 로그아웃 상태에서도 버튼은 항상 노출
-  if (isShorts) return <ShortsDashboard />;
+  // [쇼츠 정책] 공간 협소 → 로그아웃 상태에서도 버튼은 항상 노출, 스켈레톤 없이 처리
+  if (isShorts) {
+    return (
+      <>
+        {/* [리뷰 반영] ReportModal은 전역 성격이므로 대시보드 안에서 1회 렌더링. */}
+        <ReportModal />
+        <ShortsDashboard />
+      </>
+    );
+  }
 
   // [롱폼 정책 - 로딩] 인증 초기화 완료 전까지 스켈레톤 표시
-  // → 캐시 히트 시: Phase 1에서 즉시 isLoggedIn: true → 사실상 스켈레톤 노출 시간 = 0
-  // → 캐시 미스 시: 서버 응답 대기 동안 자연스러운 로딩 UI
   if (isAuthInitializing) {
     return <AuthLoadingSkeleton />;
   }
@@ -159,5 +166,10 @@ export function AnalysisDashboard() {
     );
   }
 
-  return <LongFormDashboard />;
+  return (
+    <>
+      <ReportModal />
+      <LongFormDashboard />
+    </>
+  );
 }

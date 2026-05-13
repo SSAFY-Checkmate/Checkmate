@@ -7,13 +7,28 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 /**
  * 기본 fetch 래퍼 (인증 헤더 및 공통 처리)
+ * 401 Unauthorized 발생 시 자동으로 토큰 재발급(reissue) 후 재시도합니다.
  */
-async function doFetch(url: string, options: RequestInit = {}) {
+async function doFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
-  const response = await fetch(fullUrl, {
+
+  let response = await fetch(fullUrl, {
     ...options,
     credentials: "include",
   });
+
+  // 401 Unauthorized가 발생하면 세션 만료로 간주하고 토큰 재발급(reissue) 시도
+  if (response.status === 401 && !url.includes("/auth/reissue") && !url.includes("/auth/me")) {
+    const reissueResponse = await authApi.reissue();
+
+    if (reissueResponse.ok) {
+      // 재발급 성공 시 원래 요청을 다시 시도 (쿠키가 갱신된 상태)
+      return fetch(fullUrl, {
+        ...options,
+        credentials: "include",
+      });
+    }
+  }
   return response;
 }
 
@@ -24,7 +39,7 @@ export const analysisApi = {
   /** 해당 영상의 분석 이력 확인 */
   checkExisting: async (youtubeUrl: string) => {
     const res = await doFetch(`/analysis/check?youtubeUrl=${encodeURIComponent(youtubeUrl)}`);
-    return res.json();
+    return res;
   },
 
   /** 분석 요청 (비동기) */
@@ -68,7 +83,7 @@ export const communityApi = {
   /** 반응 목록 조회 */
   getReactions: async (analysisId: number) => {
     const res = await doFetch(`/community/reactions?analysisId=${analysisId}`);
-    return res.json();
+    return res;
   },
 
   /** 반응 단건 조회 */
@@ -158,5 +173,22 @@ export const authApi = {
   logout: async () => {
     const res = await doFetch("/auth/logout", { method: "POST" });
     return res;
+  },
+};
+
+/**
+ * 신고 관련 API
+ */
+export const reportApi = {
+  /** 유튜브 영상 신고 */
+  submitReport: async (videoId: string, reasonId: string, secondaryReasonId: string, googleAccessToken: string) => {
+    const res = await doFetch(`/api/videos/${videoId}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasonId, secondaryReasonId, googleAccessToken }),
+    });
+    
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, message: text };
   },
 };

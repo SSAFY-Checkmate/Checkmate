@@ -24,14 +24,12 @@ export function ShortsDashboard() {
   const {
     analysisStatus,
     startAnalysis,
-    overallVerdict,
     isLoggedIn,
     setResultModalOpen,
     setCurrentVideo,
     checkAnalysisStatus,
     currentVideoId,
     startDemoAnalysis,
-    errorMsg,
     setErrorMsg,
   } = useCheckmateStore();
 
