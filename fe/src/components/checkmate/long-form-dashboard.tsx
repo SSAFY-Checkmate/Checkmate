@@ -57,6 +57,7 @@ export function LongFormDashboard() {
     }
 
     if (analysisStatus === "idle" || analysisStatus === "error") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (analysisStatus === "idle") setVisualProgress(0);
       return;
     }
@@ -76,10 +77,9 @@ export function LongFormDashboard() {
     return () => clearInterval(interval);
   }, [analysisStatus, visualProgress]);
 
-  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되어야 하므로 의존성 배열을 비워둡니다.
+  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되도록 합니다.
   useEffect(() => {
     initializeAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 진행 바 너비는 analysisStatus 변경 시마다 측정
@@ -411,7 +411,8 @@ export function LongFormDashboard() {
                       {warningConfig[overallVerdict].title}
                     </h2>
                     <p style={{ fontSize: "11px", opacity: 0.8, fontWeight: "bold" }}>
-                      영상 분석 일련번호: CM-{Math.random().toString(36).substr(2, 9).toUpperCase()}
+                      {/* [수정] 렌더링 시 무작위 호출(Math.random) 방지 (trustScore 활용 등 고정값 유도) */}
+                      영상 분석 일련번호: CM-{trustScore.toString().padStart(2, "0")}A{summary ? summary.length : 0}X
                     </p>
                   </div>
                 </div>
