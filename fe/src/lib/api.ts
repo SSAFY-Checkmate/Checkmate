@@ -187,6 +187,8 @@ export const reportApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reasonId, secondaryReasonId, googleAccessToken }),
     });
-    return res.json();
+    
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, message: text };
   },
 };
