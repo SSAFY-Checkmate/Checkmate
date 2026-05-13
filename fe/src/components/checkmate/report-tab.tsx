@@ -138,41 +138,6 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
         .substring(verdictIdx + 4, explanationIdx !== -1 ? explanationIdx : cleanText.length)
         .trim();
       parts.verdictText = vText;
-
-      const upperV = vText.toUpperCase();
-      if (
-        upperV.includes("WARNING") ||
-        upperV.includes("DANGER") ||
-        upperV.includes("FALSE") ||
-        upperV.includes("MISINFORMATION") ||
-        upperV.includes("FAKE")
-      ) {
-        parts.verdict = "warning";
-      } else if (
-        upperV.includes("SAFE") ||
-        upperV.includes("GOOD") ||
-        upperV.includes("TRUE") ||
-        upperV.includes("FACT") ||
-        upperV.includes("VALID")
-      ) {
-        parts.verdict = "safe";
-      } else if (upperV.includes("NOT_ENOUGH") || upperV.includes("UNKNOWN") || upperV.includes("PENDING")) {
-        parts.verdict = "unknown";
-      }
-    }
-
-    if (
-      parts.explanation.includes("사실로 확인") ||
-      parts.explanation.includes("사실입니다") ||
-      parts.explanation.includes("신뢰할 수 있")
-    ) {
-      parts.verdict = "safe";
-    } else if (
-      parts.explanation.includes("허위로 확인") ||
-      parts.explanation.includes("거짓입니다") ||
-      parts.explanation.includes("왜곡된")
-    ) {
-      parts.verdict = "warning";
     }
 
     return parts;
