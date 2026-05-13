@@ -1059,45 +1059,49 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
   submitReport: async (reasonId: string, secondaryReasonId: string) => {
     const videoId = get().currentVideoId;
-    if (!videoId) return;
+    const analysisId = get().analysisId;
+    if (!videoId) {
+      console.error('[Report] videoId가 없습니다!');
+      return;
+    }
 
     set({ reportingStatus: "loading" });
 
     try {
-      // 1. 구글 액세스 토큰 획득 (실제 익스텐션 환경)
+      /**
+       * YouTube reportAbuse API는 사용자의 Google OAuth 액세스 토큰이 필수입니다.
+       * chrome.identity.getAuthToken으로 토큰을 획득하여 백엔드에 전달합니다.
+       */
       const token: string = await new Promise((resolve, reject) => {
-        if (typeof chrome === "undefined" || !chrome.identity) {
-          reject(new Error("크롬 익스텐션 환경이 아닙니다. 실제 브라우저에 로드 후 테스트해 주세요."));
+        if (typeof chrome === "undefined" || !chrome.runtime) {
+          reject(new Error("Google 로그인이 필요합니다. 크롬 익스텐션 환경에서 실행해 주세요."));
           return;
         }
-        chrome.identity.getAuthToken({ interactive: true }, (result) => {
-          if (chrome.runtime.lastError || !result) {
-            reject(new Error(chrome.runtime.lastError?.message || "Google 인증에 실패했습니다."));
+        
+        chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error("익스텐션 내부 통신 에러: " + chrome.runtime.lastError.message));
+          } else if (!response) {
+            reject(new Error("인증 서버로부터 응답이 없습니다."));
+          } else if (response.error) {
+            reject(new Error("Google 인증 실패: " + response.error));
+          } else if (!response.token) {
+            reject(new Error("인증 토큰을 가져오지 못했습니다."));
           } else {
-            const tokenStr = typeof result === "string" ? result : (result as any).token;
-            if (!tokenStr) {
-              reject(new Error("유효한 토큰을 획득하지 못했습니다."));
-            } else {
-              resolve(tokenStr);
-            }
+            resolve(response.token);
           }
         });
       });
-
-      // 2. 백엔드 전송
-      console.log(`[Report] Submitting Data:`, { videoId, reasonId, secondaryReasonId });
       const res = await reportApi.submitReport(videoId, reasonId, secondaryReasonId, token);
-
       if (res.status === 200 || res.status === 201 || res.ok) {
         set({ reportingStatus: "success" });
-        // 성공 시 2초 후 모달 닫기
         setTimeout(() => set({ reportingStatus: "idle", isReportModalOpen: false }), 2000);
       } else {
         throw new Error(res.message || "신고 처리에 실패했습니다.");
       }
     } catch (err: any) {
       console.error("[Report] Failed", err);
-      set({ reportingStatus: "error" });
+      set({ reportingStatus: "error", errorMsg: err.message || "신고 중 오류가 발생했습니다." });
     }
   },
 

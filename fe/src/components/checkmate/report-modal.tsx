@@ -42,6 +42,7 @@ export function ReportModal() {
     <AnimatePresence>
       {isReportModalOpen && (
         <div
+          key="report-modal-overlay"
           style={{
             position: "fixed",
             top: 0,

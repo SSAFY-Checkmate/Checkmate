@@ -28,6 +28,7 @@ export const PixelConfirmModal = ({
     <AnimatePresence>
       {isOpen && (
         <div
+          key="pixel-confirm-overlay"
           style={{
             position: "fixed",
             top: 0,
