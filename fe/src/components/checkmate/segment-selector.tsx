@@ -2,6 +2,7 @@ import React, { useState, useImperativeHandle, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpCircle, Clock, AlertTriangle } from "lucide-react";
 import { PixelTooltip } from "../common/pixel-tooltip";
+import { formatTime, formatTimeInput, normalizeTime, parseTime } from "../../lib/utils/time";
 
 type SegmentSelectorProps = {
   pixelFont: string;
@@ -27,27 +28,6 @@ export const SegmentSelector = forwardRef<SegmentSelectorRef, SegmentSelectorPro
     const [endInput, setEndInput] = useState("");
     const [inputError, setInputError] = useState<string | null>(null);
 
-    // 시간 포맷팅 (초 -> MM:SS)
-    const formatTime = (seconds: number) => {
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.floor(seconds % 60);
-      if (h > 0)
-        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-      return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-    };
-
-    // 시간 파싱 (MM:SS -> 초)
-    const parseTime = (timeStr: string) => {
-      if (!timeStr) return null;
-      const parts = timeStr.split(":");
-      if (parts.length === 2) return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-      if (parts.length === 3)
-        return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
-      const num = parseInt(timeStr, 10);
-      return isNaN(num) ? null : num;
-    };
-
     // 현재 영상 시간 가져오기 로직
     const handleGetCurrentTime = (type: "start" | "end") => {
       const video = document.querySelector("video");
@@ -69,6 +49,16 @@ export const SegmentSelector = forwardRef<SegmentSelectorRef, SegmentSelectorPro
 
         const parsedStart = parseTime(startInput) || 0;
         const parsedEnd = parseTime(endInput) || 0;
+
+        // 실제 영상 길이 확인
+        const video = document.querySelector("video");
+        const duration = video ? Math.floor(video.duration) : Infinity;
+
+        if (parsedStart > duration || parsedEnd > duration) {
+          const error = `입력한 시간이 영상 길이(${formatTime(duration)})를 초과합니다.`;
+          setInputError(error);
+          return { useSegment: true, start: parsedStart, end: parsedEnd, error };
+        }
 
         if (parsedStart > parsedEnd && parsedEnd !== 0) {
           const error = "시작 시간이 종료 시간보다 늦을 수 없습니다.";
@@ -178,22 +168,27 @@ export const SegmentSelector = forwardRef<SegmentSelectorRef, SegmentSelectorPro
                       type="text"
                       value={startInput}
                       onChange={(e) => {
-                        setStartInput(e.target.value);
+                        const formatted = formatTimeInput(e.target.value);
+                        setStartInput(formatted);
                         if (inputError) setInputError(null);
                       }}
+                      onBlur={(e) => {
+                        const normalized = normalizeTime(e.target.value);
+                        setStartInput(normalized);
+                      }}
                       placeholder="시작(00:00:00)"
-                        style={{
-                          width: "100%",
-                          height: "32px",
-                          padding: "0 6px",
-                          borderRadius: "6px",
-                          border: "2px solid #cbd5e1",
-                          textAlign: "center",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                          fontFamily: pixelFont,
-                          boxSizing: "border-box",
-                        }}
+                      style={{
+                        width: "100%",
+                        height: "32px",
+                        padding: "0 6px",
+                        borderRadius: "6px",
+                        border: "2px solid #cbd5e1",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        fontFamily: pixelFont,
+                        boxSizing: "border-box",
+                      }}
                     />
                     <button
                       onClick={() => handleGetCurrentTime("start")}
@@ -234,22 +229,27 @@ export const SegmentSelector = forwardRef<SegmentSelectorRef, SegmentSelectorPro
                       type="text"
                       value={endInput}
                       onChange={(e) => {
-                        setEndInput(e.target.value);
+                        const formatted = formatTimeInput(e.target.value);
+                        setEndInput(formatted);
                         if (inputError) setInputError(null);
                       }}
+                      onBlur={(e) => {
+                        const normalized = normalizeTime(e.target.value);
+                        setEndInput(normalized);
+                      }}
                       placeholder="종료(00:00:00)"
-                        style={{
-                          width: "100%",
-                          height: "32px",
-                          padding: "0 6px",
-                          borderRadius: "6px",
-                          border: "2px solid #cbd5e1",
-                          textAlign: "center",
-                          fontSize: "12px",
-                          fontWeight: "bold",
-                          fontFamily: pixelFont,
-                          boxSizing: "border-box",
-                        }}
+                      style={{
+                        width: "100%",
+                        height: "32px",
+                        padding: "0 6px",
+                        borderRadius: "6px",
+                        border: "2px solid #cbd5e1",
+                        textAlign: "center",
+                        fontSize: "12px",
+                        fontWeight: "bold",
+                        fontFamily: pixelFont,
+                        boxSizing: "border-box",
+                      }}
                     />
                     <button
                       onClick={() => handleGetCurrentTime("end")}
