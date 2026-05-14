@@ -77,6 +77,12 @@ export const renderDashboard = (container: HTMLElement) => {
   reactWrapper.className = "checkmate-injected-wrapper";
   shadow.appendChild(reactWrapper);
 
+  // [중요] 키보드 이벤트가 유튜브로 전파되는 것을 차단 (단축키 충돌 방지)
+  const stopPropagation = (e: KeyboardEvent) => e.stopPropagation();
+  reactWrapper.addEventListener("keydown", stopPropagation, true);
+  reactWrapper.addEventListener("keyup", stopPropagation, true);
+  reactWrapper.addEventListener("keypress", stopPropagation, true);
+
   container.appendChild(rootContainer);
 
   try {
@@ -122,6 +128,13 @@ export const renderGlobalModal = () => {
   shadow.appendChild(styleElement);
   
   const reactWrapper = document.createElement("div");
+  
+  // [중요] 글로벌 모달 영역에서도 키보드 이벤트 차단
+  const stopPropagation = (e: KeyboardEvent) => e.stopPropagation();
+  reactWrapper.addEventListener("keydown", stopPropagation, true);
+  reactWrapper.addEventListener("keyup", stopPropagation, true);
+  reactWrapper.addEventListener("keypress", stopPropagation, true);
+
   shadow.appendChild(reactWrapper);
   document.body.appendChild(rootContainer);
 
