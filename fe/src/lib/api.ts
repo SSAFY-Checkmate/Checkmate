@@ -43,11 +43,15 @@ export const analysisApi = {
   },
 
   /** 분석 요청 (비동기) */
-  requestAnalysis: async (youtubeUrl: string) => {
+  requestAnalysis: async (youtubeUrl: string, startTime?: number, endTime?: number) => {
+    const payload: Record<string, string | number> = { youtubeUrl };
+    if (startTime !== undefined) payload.startTime = startTime;
+    if (endTime !== undefined) payload.endTime = endTime;
+
     const res = await doFetch("/analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ youtubeUrl }),
+      body: JSON.stringify(payload),
     });
     return res;
   },
@@ -65,11 +69,15 @@ export const analysisApi = {
   },
 
   /** 분석 요청 (동기 - Legacy) */
-  requestAnalysisSync: async (youtubeUrl: string, signal?: AbortSignal) => {
+  requestAnalysisSync: async (youtubeUrl: string, signal?: AbortSignal, startTime?: number, endTime?: number) => {
+    const payload: Record<string, string | number> = { youtubeUrl };
+    if (startTime !== undefined) payload.startTime = startTime;
+    if (endTime !== undefined) payload.endTime = endTime;
+
     const res = await doFetch("/analysis/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ youtubeUrl }),
+      body: JSON.stringify(payload),
       signal,
     });
     return res;

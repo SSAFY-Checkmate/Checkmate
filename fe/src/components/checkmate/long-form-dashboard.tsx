@@ -7,6 +7,8 @@ import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, FileSearch, LogOut } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { SegmentSelector } from "./segment-selector";
+import type { SegmentSelectorRef } from "./segment-selector";
 
 /**
  * [Checkmate 롱폼 전용 대시보드]
@@ -28,6 +30,7 @@ export function LongFormDashboard() {
     startDemoAnalysis,
     errorMsg,
     setErrorMsg,
+    setSegmentTime,
   } = useCheckmateStore();
 
   // 분석 모니터링 훅 (90초 타임아웃)
@@ -35,6 +38,7 @@ export function LongFormDashboard() {
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const segmentSelectorRef = useRef<SegmentSelectorRef>(null);
   const [barWidth, setBarWidth] = useState(232);
   const [visualProgress, setVisualProgress] = useState(0);
 
@@ -44,16 +48,43 @@ export function LongFormDashboard() {
     let speed = 100;
 
     switch (analysisStatus) {
-      case "idle": target = 0; break;
-      case "checking": target = 5; speed = 100; break;
-      case "loading": target = 5; speed = 50; break;
-      case "detecting": target = 30; speed = 150; break;
-      case "analyzing_transcript": target = 60; speed = 120; break;
-      case "analyzing_claims": target = 90; speed = 300; break;
-      case "verifying": target = 99; speed = 200; break;
-      case "complete": target = 100; speed = 20; break;
-      case "error": target = visualProgress; break;
-      default: target = 0; break;
+      case "idle":
+        target = 0;
+        break;
+      case "checking":
+        target = 5;
+        speed = 100;
+        break;
+      case "loading":
+        target = 5;
+        speed = 50;
+        break;
+      case "detecting":
+        target = 30;
+        speed = 150;
+        break;
+      case "analyzing_transcript":
+        target = 60;
+        speed = 120;
+        break;
+      case "analyzing_claims":
+        target = 90;
+        speed = 300;
+        break;
+      case "verifying":
+        target = 99;
+        speed = 200;
+        break;
+      case "complete":
+        target = 100;
+        speed = 20;
+        break;
+      case "error":
+        target = visualProgress;
+        break;
+      default:
+        target = 0;
+        break;
     }
 
     if (analysisStatus === "idle" || analysisStatus === "error") {
@@ -226,9 +257,30 @@ export function LongFormDashboard() {
     }
   };
 
-  const handleStartAnalysis = () => {
+  // [수정] 수사 시작 버튼 클릭 핸들러
+  const handleStartAnalysis = (isDemo: boolean = false) => {
     setErrorMsg(null);
-    startAnalysis();
+
+    // SegmentSelector 컴포넌트에서 데이터 가져오기
+    const segmentData = segmentSelectorRef.current?.getSegmentData();
+
+    if (segmentData?.useSegment) {
+      if (segmentData.error) {
+        // 에러가 있으면 중단 (에러 메시지는 컴포넌트 내부에서 표시됨)
+        return;
+      }
+      setSegmentTime("start", segmentData.start);
+      setSegmentTime("end", segmentData.end);
+    } else {
+      setSegmentTime("start", null);
+      setSegmentTime("end", null);
+    }
+
+    if (isDemo) {
+      startDemoAnalysis();
+    } else {
+      startAnalysis();
+    }
   };
 
   return (
@@ -313,7 +365,13 @@ export function LongFormDashboard() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                style={{ width: "100%", display: "flex", flexDirection: "column", height: "550px", backgroundColor: "white" }}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "550px",
+                  backgroundColor: "white",
+                }}
               >
                 {/* 상단 뒤로가기(요약 보기) 헤더 */}
                 <div
@@ -704,6 +762,10 @@ export function LongFormDashboard() {
                         </div>
                       </motion.div>
                     )}
+
+                    {/* [추가] 특정 구간 분석 설정 컴포넌트 */}
+                    <SegmentSelector ref={segmentSelectorRef} pixelFont={pixelFont} analysisStatus={analysisStatus} />
+
                     <PixelButton
                       onClick={() => handleStartAnalysis()}
                       colorType={analysisStatus === "error" ? "error" : "primary"}
@@ -711,7 +773,7 @@ export function LongFormDashboard() {
                     />
                     {analysisStatus === "idle" && (
                       <PixelButton
-                        onClick={() => startDemoAnalysis()}
+                        onClick={() => handleStartAnalysis(true)}
                         colorType="neutral"
                         text="데모 수사 시작 (토큰X)"
                       />

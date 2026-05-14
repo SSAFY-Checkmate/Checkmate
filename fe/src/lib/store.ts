@@ -151,6 +151,10 @@ interface CheckmateState {
   channelName: string;
   currentVideoId: string | null;
 
+  // 분석 구간 시간 (초 단위)
+  segmentStartTime: number | null;
+  segmentEndTime: number | null;
+
   // 분석 결과 데이터
   trustScore: number;
   overallVerdict: Verdict;
@@ -198,6 +202,7 @@ interface CheckmateState {
   pollAnalysisJob: (videoId: string, jobId: string) => Promise<void>;
   mapAnalysisResult: (videoId: string, data: any) => void;
   setCurrentVideo: (id: string, title?: string, channel?: string) => void;
+  setSegmentTime: (type: "start" | "end", time: number | null) => void;
   fetchReactions: (analysisId: number) => Promise<void>;
   postReaction: (analysisId: number, reactionType: boolean) => Promise<void>;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
@@ -234,6 +239,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   videoTitle: "",
   channelName: "",
   currentVideoId: null,
+  segmentStartTime: null,
+  segmentEndTime: null,
   trustScore: 0,
   overallVerdict: "unknown",
   summary: "",
@@ -281,6 +288,12 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   ],
 
   // 액션 구현
+  setSegmentTime: (type, time) =>
+    set(() => {
+      if (type === "start") return { segmentStartTime: time };
+      return { segmentEndTime: time };
+    }),
+
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -684,7 +697,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
    * 영상 분석 요청
    */
   startAnalysis: async () => {
-    const videoId = get().currentVideoId;
+    const { currentVideoId: videoId, segmentStartTime, segmentEndTime } = get();
     if (!videoId) return;
 
     set({ analysisStatus: "detecting", isWarningVisible: false });
@@ -692,7 +705,11 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
-      const response = await analysisApi.requestAnalysis(targetUrl);
+      const response = await analysisApi.requestAnalysis(
+        targetUrl,
+        segmentStartTime !== null ? segmentStartTime : undefined,
+        segmentEndTime !== null ? segmentEndTime : undefined
+      );
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -957,7 +974,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   },
 
   startAnalysisSync: async () => {
-    const videoId = get().currentVideoId;
+    const { currentVideoId: videoId, segmentStartTime, segmentEndTime } = get();
     if (!videoId) return;
 
     set({ analysisStatus: "detecting", isWarningVisible: false });
@@ -967,7 +984,12 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const response = await analysisApi.requestAnalysisSync(targetUrl, controller.signal);
+      const response = await analysisApi.requestAnalysisSync(
+        targetUrl,
+        controller.signal,
+        segmentStartTime !== null ? segmentStartTime : undefined,
+        segmentEndTime !== null ? segmentEndTime : undefined
+      );
 
       if (response.status === 401) {
         await initializeAuth();
