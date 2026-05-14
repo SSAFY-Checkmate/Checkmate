@@ -16,4 +16,3 @@ langchain-community
 langsmith
 pandas
 requests
-sqlalchemy
