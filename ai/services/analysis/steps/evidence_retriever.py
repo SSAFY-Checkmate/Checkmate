@@ -70,7 +70,7 @@ class EvidenceRetriever:
         }
         params = {
             "query": query,
-            "display": 3
+            "display": 50
         }
         
         try:
@@ -90,6 +90,13 @@ class EvidenceRetriever:
                 title = re.sub(r'<[^>]+>', '', title)
                 snippet = re.sub(r'<[^>]+>', '', snippet)
                 
+                grade_info = get_domain_authority(link)
+                grade = grade_info["grade"]
+                
+                # 엄격한 화이트리스트 필터링: VERY_HIGH나 HIGH 등급이 아니면 버림
+                if grade not in ["VERY_HIGH", "HIGH"]:
+                    continue
+
                 content = f"[{title}] {snippet}"
                 score = self._calculate_evidence_score(claim, content, url=link, source_type="web_search")
                 
@@ -198,7 +205,9 @@ class EvidenceRetriever:
                 FOOD_OFFICIAL_DOMAINS = [
                     "mfds.go.kr",
                     "foodsafetykorea.go.kr",
-                    "law.go.kr"
+                    "law.go.kr",
+                    "kdca.go.kr",
+                    "nih.go.kr"
                 ]
                 official_queries = []
                 for q in optimized_queries[:2]:
