@@ -1,6 +1,7 @@
 import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { OneTouchReportButton } from "./one-touch-report-button";
 import { AlertTriangle, CheckCircle, HelpCircle, FileSearch, ShieldCheck, Fingerprint } from "lucide-react";
+import { formatTime } from "../../lib/utils/time";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 
@@ -332,7 +333,7 @@ interface ReportTabProps {
 }
 
 export function ReportTab({ isCompact = false }: ReportTabProps) {
-  const { trustScore, overallVerdict, claims } = useCheckmateStore();
+  const { trustScore, overallVerdict, claims, analysisScope } = useCheckmateStore();
 
   const verdictConfig = {
     warning: {
@@ -372,6 +373,44 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
         fontFamily: pixelFont,
       }}
     >
+      {/* [신규] 상세 패널(isCompact)용 수사 범위 표시 영역 */}
+      {isCompact && analysisScope && (
+        <div
+          style={{
+            padding: "8px 12px",
+            backgroundColor: "white",
+            borderRadius: "12px",
+            border: "1.5px solid #e2e8f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <FileSearch size={14} color="#64748b" />
+            <span style={{ fontSize: "12px", fontWeight: "900", color: "#64748b" }}>수사 범위</span>
+          </div>
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: "900",
+              color: "#0ea5e9",
+              backgroundColor: "#f0f9ff",
+              padding: "2px 8px",
+              borderRadius: "20px",
+              border: "1px solid #bae6fd",
+            }}
+          >
+            {analysisScope.type === "full"
+              ? "전체 영상"
+              : analysisScope.type === "at"
+                ? `${formatTime(analysisScope.at || 0)} 지점`
+                : `${formatTime(analysisScope.start || 0)} ~ ${formatTime(analysisScope.end || 0)}`}
+          </span>
+        </div>
+      )}
+
       {/* Official Top Summary Card - 롱폼 상세 페이지에서만 노출 */}
       {!isCompact && (
         <div
@@ -423,6 +462,33 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
                 >
                   CHECKMATE OFFICIAL REPORT
                 </span>
+
+                {analysisScope && (
+                  <span
+                    style={{
+                      backgroundColor: "rgba(0, 0, 0, 0.2)",
+                      backdropFilter: "blur(4px)",
+                      color: "white",
+                      padding: "5px 14px",
+                      fontSize: "11px",
+                      fontWeight: "900",
+                      borderRadius: "30px",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      letterSpacing: "1px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <FileSearch size={12} />
+                    범위:{" "}
+                    {analysisScope.type === "full"
+                      ? "전체 영상"
+                      : analysisScope.type === "at"
+                        ? `${formatTime(analysisScope.at || 0)} 지점`
+                        : `${formatTime(analysisScope.start || 0)} ~ ${formatTime(analysisScope.end || 0)}`}
+                  </span>
+                )}
               </div>
 
               <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.8px" }}>

@@ -30,7 +30,7 @@ export function LongFormDashboard() {
     startDemoAnalysis,
     errorMsg,
     setErrorMsg,
-    setSegmentTime,
+    setAnalysisRange,
   } = useCheckmateStore();
 
   // 분석 모니터링 훅 (90초 타임아웃)
@@ -269,17 +269,20 @@ export function LongFormDashboard() {
         // 에러가 있으면 중단 (에러 메시지는 컴포넌트 내부에서 표시됨)
         return;
       }
-      setSegmentTime("start", segmentData.start);
-      setSegmentTime("end", segmentData.end);
+      setAnalysisRange("start", segmentData.startSeconds);
+      setAnalysisRange("end", segmentData.endSeconds);
     } else {
-      setSegmentTime("start", null);
-      setSegmentTime("end", null);
+      setAnalysisRange("start", null);
+      setAnalysisRange("end", null);
     }
 
     if (isDemo) {
       startDemoAnalysis();
     } else {
-      startAnalysis();
+      const range = segmentData?.useSegment
+        ? { startSeconds: segmentData.startSeconds, endSeconds: segmentData.endSeconds }
+        : undefined;
+      startAnalysis(range);
     }
   };
 
@@ -465,11 +468,10 @@ export function LongFormDashboard() {
                       </span>
                     </div>
 
-                    <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.5px" }}>
+                    <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 12px 0", letterSpacing: "-0.5px" }}>
                       {warningConfig[overallVerdict].title}
                     </h2>
                     <p style={{ fontSize: "11px", opacity: 0.8, fontWeight: "bold" }}>
-                      {/* [수정] 렌더링 시 무작위 호출(Math.random) 방지 (trustScore 활용 등 고정값 유도) */}
                       영상 분석 일련번호: CM-{trustScore.toString().padStart(2, "0")}A{summary ? summary.length : 0}X
                     </p>
                   </div>
