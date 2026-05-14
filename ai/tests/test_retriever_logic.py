@@ -47,14 +47,6 @@ class TestEvidenceRetrieverAndRouter(unittest.TestCase):
             url="https://blog.naver.com/test"
         )
         self.assertLess(score2, 60)
-        
-        # 3. SQL DB 자체 결과 (최고점 부여)
-        score3 = evidence_retriever._calculate_evidence_score(
-            claim, 
-            "인정", 
-            source_type="sql_database"
-        )
-        self.assertGreaterEqual(score3, 80)
 
     def test_domain_strategy_router(self):
         """3. Router Strategy Test"""

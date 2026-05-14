@@ -18,11 +18,21 @@ AUTHORITY_SOURCES = {
     "snuh.org": {"name": "서울대학교병원", "grade": "VERY_HIGH"},
     "amc.seoul.kr": {"name": "서울아산병원", "grade": "VERY_HIGH"},
     "severance.healthcare": {"name": "세브란스병원", "grade": "VERY_HIGH"},
+    "nih.go.kr": {"name": "국립보건연구원", "grade": "VERY_HIGH"},
+    "hira.or.kr": {"name": "건강보험심사평가원", "grade": "VERY_HIGH"},
+    "nhis.or.kr": {"name": "국민건강보험공단", "grade": "VERY_HIGH"},
+    "kams.or.kr": {"name": "대한의학회", "grade": "VERY_HIGH"},
+    "nmc.or.kr": {"name": "국립중앙의료원", "grade": "VERY_HIGH"},
     
-    # 일반 정부기관/주요 언론사 (HIGH)
+    # 일반 정부기관/주요 언론사/협회 (HIGH)
     "go.kr": {"name": "대한민국 정부", "grade": "HIGH"},
     "yna.co.kr": {"name": "연합뉴스", "grade": "HIGH"},
     "kbs.co.kr": {"name": "KBS", "grade": "HIGH"},
+    "kca.go.kr": {"name": "한국소비자원", "grade": "HIGH"},
+    "kma.org": {"name": "대한의사협회", "grade": "HIGH"},
+    "sbs.co.kr": {"name": "SBS", "grade": "HIGH"},
+    "mbc.co.kr": {"name": "MBC", "grade": "HIGH"},
+    "ytn.co.kr": {"name": "YTN", "grade": "HIGH"},
     
     # 포털 뉴스 등 (MEDIUM)
     "news.naver.com": {"name": "네이버 뉴스", "grade": "MEDIUM"},

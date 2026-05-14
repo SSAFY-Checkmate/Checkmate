@@ -5,8 +5,8 @@ from services.claimify.llm_client import LLMClient
 from services.analysis.schemas import AnalyzeRequest, AnalyzeResponse, AnalyzeData, Violation
 from services.analysis.steps.preprocessing import preprocess_sentences_step
 from services.analysis.steps.summary import generate_summary_step
-from services.analysis.steps.cleansing import text_cleansing_step
-from services.analysis.steps.claim_extraction import extract_claims_step
+from services.analysis.steps.user_interest_extraction import user_interest_extraction_step
+from services.analysis.steps.rag_query_preparation import rag_query_preparation_step
 from services.analysis.steps.rag_fact_check import rag_fact_check_step
 from services.analysis.steps.violation_summary import summarize_violation_step
 from services.analysis.steps.grading import grading_step
@@ -16,9 +16,6 @@ class AnalysisPipelineService:
     def __init__(self):
         self.llm_client = LLMClient()
         
-        async def extract_claims_wrapper(state):
-            return await extract_claims_step(state, self.llm_client)
-
         async def rag_fact_check_wrapper(state):
             return await rag_fact_check_step(state, self.llm_client)
 
@@ -40,10 +37,10 @@ class AnalysisPipelineService:
             | RunnableLambda(preprocess_sentences_step)
             | RunnableLambda(lambda s: log_step(s, "2단계: 전체 요약 생성 (Summary)"))
             | RunnableLambda(generate_summary_step)
-            | RunnableLambda(lambda s: log_step(s, "3단계: 객관적 문장 필터링 (Cleansing)"))
-            | RunnableLambda(text_cleansing_step)
-            | RunnableLambda(lambda s: log_step(s, "4단계: 세부 주장 분리 (Claim Extraction)"))
-            | RunnableLambda(extract_claims_wrapper)
+            | RunnableLambda(lambda s: log_step(s, "3단계: 시청자 관점 의심 문장 추출 (User Interest)"))
+            | RunnableLambda(user_interest_extraction_step)
+            | RunnableLambda(lambda s: log_step(s, "4단계: RAG 쿼리 최적화 (Query Prep)"))
+            | RunnableLambda(rag_query_preparation_step)
             | RunnableLambda(lambda s: log_step(s, "5단계: RAG 팩트체크 (Fact-check)"))
             | RunnableLambda(rag_fact_check_wrapper)
             | RunnableLambda(lambda s: log_step(s, "6단계: 자막별 결과 요약 (Violation Summary)"))

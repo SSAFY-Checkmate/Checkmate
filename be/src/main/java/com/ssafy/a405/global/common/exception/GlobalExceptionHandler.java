@@ -49,4 +49,11 @@ public class GlobalExceptionHandler {
                 .status(ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus())
                 .body(ApiResponseBody.onFailure(ErrorCode.INTERNAL_SERVER_ERROR));
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponseBody<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+        return ResponseEntity
+                .status(ErrorCode.BAD_REQUEST.getHttpStatus())
+                .body(ApiResponseBody.onFailure(ErrorCode.BAD_REQUEST, e.getMessage()));
+    }
 }

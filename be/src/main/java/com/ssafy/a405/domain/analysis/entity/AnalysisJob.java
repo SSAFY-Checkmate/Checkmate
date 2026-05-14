@@ -1,6 +1,7 @@
 package com.ssafy.a405.domain.analysis.entity;
 
 import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
+import com.ssafy.a405.domain.analysis.enums.AnalysisRequestMode;
 import com.ssafy.a405.global.common.base.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,6 +31,22 @@ public class AnalysisJob extends BaseTimeEntity {
 	private String youtubeUrl;
 
 	@Enumerated(EnumType.STRING)
+	@Column(name = "request_mode", nullable = false, length = 20)
+	private AnalysisRequestMode requestMode;
+
+	@Column(name = "range_start_seconds")
+	private Double rangeStartSeconds;
+
+	@Column(name = "range_end_seconds")
+	private Double rangeEndSeconds;
+
+	@Column(name = "at_seconds")
+	private Double atSeconds;
+
+	@Column(name = "window_seconds")
+	private Double windowSeconds;
+
+	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false, length = 20)
 	private AnalysisJobStatus status;
 
@@ -55,10 +72,34 @@ public class AnalysisJob extends BaseTimeEntity {
 	@Column(name = "completed_at")
 	private LocalDateTime completedAt;
 
-	public static AnalysisJob requested(String youtubeUrl) {
+	public static AnalysisJob requestedFull(String youtubeUrl) {
+		return requested(youtubeUrl, AnalysisRequestMode.FULL, null, null, null, null);
+	}
+
+	public static AnalysisJob requestedRange(String youtubeUrl, Double startSeconds, Double endSeconds) {
+		return requested(youtubeUrl, AnalysisRequestMode.RANGE, startSeconds, endSeconds, null, null);
+	}
+
+	public static AnalysisJob requestedAt(String youtubeUrl, Double atSeconds, Double windowSeconds) {
+		return requested(youtubeUrl, AnalysisRequestMode.AT, null, null, atSeconds, windowSeconds);
+	}
+
+	private static AnalysisJob requested(
+		String youtubeUrl,
+		AnalysisRequestMode mode,
+		Double rangeStartSeconds,
+		Double rangeEndSeconds,
+		Double atSeconds,
+		Double windowSeconds
+	) {
 		AnalysisJob job = new AnalysisJob();
 		job.jobId = UUID.randomUUID().toString();
 		job.youtubeUrl = youtubeUrl;
+		job.requestMode = mode == null ? AnalysisRequestMode.FULL : mode;
+		job.rangeStartSeconds = rangeStartSeconds;
+		job.rangeEndSeconds = rangeEndSeconds;
+		job.atSeconds = atSeconds;
+		job.windowSeconds = windowSeconds;
 		job.status = AnalysisJobStatus.REQUESTED;
 		return job;
 	}

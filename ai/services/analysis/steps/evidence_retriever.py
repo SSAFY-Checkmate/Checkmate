@@ -5,7 +5,6 @@ import urllib.parse
 from typing import List, Dict, Any
 from core.authority_config import get_domain_authority
 from services.qdrant_service import qdrant_service
-from services.analysis.steps.sql_retriever import sql_retriever
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ class EvidenceRetriever:
         """
         # 1. Source Authority (Max 35)
         auth_info = get_domain_authority(url) if url else {"score": 50, "grade": "UNKNOWN"}
-        if source_type == "sql_database" or source_type == "verified_claims":
+        if source_type == "verified_claims":
             auth_score = 35 # DB 및 검증완료 데이터는 최고점
         else:
             auth_score = (auth_info["score"] / 100.0) * 35
@@ -32,7 +31,7 @@ class EvidenceRetriever:
         freshness_score = 10
         
         # 4. Original Source (Max 10)
-        if source_type in ["sql_database", "verified_claims"] or auth_info["grade"] in ["VERY_HIGH", "HIGH"]:
+        if source_type == "verified_claims" or auth_info["grade"] in ["VERY_HIGH", "HIGH"]:
             original_score = 10
         else:
             original_score = 5
@@ -70,7 +69,7 @@ class EvidenceRetriever:
         }
         params = {
             "query": query,
-            "display": 3
+            "display": 50
         }
         
         try:
@@ -90,6 +89,13 @@ class EvidenceRetriever:
                 title = re.sub(r'<[^>]+>', '', title)
                 snippet = re.sub(r'<[^>]+>', '', snippet)
                 
+                grade_info = get_domain_authority(link)
+                grade = grade_info["grade"]
+                
+                # 엄격한 화이트리스트 필터링: VERY_HIGH나 HIGH 등급이 아니면 버림
+                if grade not in ["VERY_HIGH", "HIGH"]:
+                    continue
+
                 content = f"[{title}] {snippet}"
                 score = self._calculate_evidence_score(claim, content, url=link, source_type="web_search")
                 
@@ -161,17 +167,6 @@ class EvidenceRetriever:
                 collection_name = f"{domain}_docs"
                 domain_evs = await self._search_qdrant_collection(collection_name, claim, top_k=2)
                 all_evidence.extend(domain_evs)
-                
-            if "food_health_ad" in strategy.get("selected_domains", []) or "health_medical" in strategy.get("selected_domains", []):
-                sql_result = await sql_retriever.search_sql_db(claim)
-                if sql_result:
-                    score = self._calculate_evidence_score(claim, sql_result, source_type="sql_database")
-                    all_evidence.append({
-                        "route": "sql_db",
-                        "score": score,
-                        "content": f"[식약처 DB 조회 결과]\n{sql_result}",
-                        "metadata": {"source_type": "sql_database", "grade": "VERY_HIGH"}
-                    })
 
         # Priority 3: web_evidence_cache
         web_cache_evidences = await self._search_qdrant_collection("web_evidence_cache", claim, top_k=2)
@@ -198,7 +193,9 @@ class EvidenceRetriever:
                 FOOD_OFFICIAL_DOMAINS = [
                     "mfds.go.kr",
                     "foodsafetykorea.go.kr",
-                    "law.go.kr"
+                    "law.go.kr",
+                    "kdca.go.kr",
+                    "nih.go.kr"
                 ]
                 official_queries = []
                 for q in optimized_queries[:2]:

@@ -1,12 +1,23 @@
 from typing import Optional, List
+
 from pydantic import BaseModel
 
+
 class TranscriptRequest(BaseModel):
-    url: str  # 유튜브 링크 또는 직접 영상 ID를 입력해도 됩니다
+    url: str  # YouTube link or direct video id
+
+    # Optional time slicing controls (seconds).
+    # When omitted, parser returns the full transcript.
+    start_seconds: Optional[float] = None
+    end_seconds: Optional[float] = None
+    at_seconds: Optional[float] = None
+    window_seconds: Optional[float] = None
+
 
 class FrameRequest(BaseModel):
     url: str
-    timestamp: str  # "90"(초 단위) 또는 "01:30"(분:초 단위) 모두 입력 가능
+    timestamp: str  # "90"(seconds) or "01:30"(mm:ss)
+
 
 class FrameResponse(BaseModel):
     video_id: str
@@ -16,9 +27,11 @@ class FrameResponse(BaseModel):
     status: str
     processing_time: Optional[float] = None
 
+
 class SegmentSchema(BaseModel):
     start_time: float
     text: str
+
 
 class TranscriptResponse(BaseModel):
     video_id: str
@@ -32,6 +45,7 @@ class TranscriptResponse(BaseModel):
     is_whisper: bool
     processing_time: Optional[float] = None
 
+
 class AnalysisRequest(BaseModel):
     video_id: str
     title: Optional[str] = None
@@ -40,11 +54,13 @@ class AnalysisRequest(BaseModel):
     language: Optional[str] = None
     content: str
 
+
 class YouTubeInfoSchema(BaseModel):
     channelId: Optional[str] = None
     channelName: Optional[str] = None
     videoId: Optional[str] = None
     videoTitle: Optional[str] = None
+
 
 class AnalysisResultSchema(BaseModel):
     trustGrade: str
@@ -52,22 +68,27 @@ class AnalysisResultSchema(BaseModel):
     summary: str
     modelVersion: str
 
+
 class ViolationSchema(BaseModel):
     startTime: Optional[int] = None
     violationSentence: str
     reason: str
+
 
 class AnalysisResponse(BaseModel):
     youtubeInfo: YouTubeInfoSchema
     analysisResult: AnalysisResultSchema
     violations: List[ViolationSchema]
 
+
 class VisualAnalysisRequest(BaseModel):
     url: str
+
 
 class VisualSegmentSchema(BaseModel):
     start_time: float
     text: List[str]
+
 
 class VisualAnalysisResponse(BaseModel):
     video_id: str
