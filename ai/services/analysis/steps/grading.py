@@ -12,6 +12,12 @@ def grading_step(state: dict) -> dict:
             has_refuted = True
             score_sum += 0
             valid_claims += 1
+        elif status == "MISLEADING":
+            score_sum += 20  # 오해의 소지가 있는 경우 낮은 점수 부여
+            valid_claims += 1
+        elif status == "UNSUPPORTED":
+            score_sum += 0   # 근거가 없는 경우 0점 처리
+            valid_claims += 1
         elif status == "PARTIALLY_SUPPORTED":
             score_sum += 50
             valid_claims += 1
