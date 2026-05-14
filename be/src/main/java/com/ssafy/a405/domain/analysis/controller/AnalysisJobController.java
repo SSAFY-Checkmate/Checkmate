@@ -1,7 +1,9 @@
 package com.ssafy.a405.domain.analysis.controller;
 
 import com.ssafy.a405.domain.analysis.dto.AnalysisCheckResponse;
+import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateAtRequest;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRequest;
+import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateRangeRequest;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobCreateResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisJobGetResponse;
 import com.ssafy.a405.domain.analysis.dto.AnalysisReportResponse;
@@ -48,6 +50,52 @@ public class AnalysisJobController {
 		@Valid @RequestBody AnalysisJobCreateRequest request
 	) {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobOrchestrator.requestAnalysisSync(request.youtubeUrl())));
+	}
+
+	@PostMapping("/range")
+	public ResponseEntity<ApiResponseBody<AnalysisJobCreateResponse>> requestAnalysisRange(
+		@Valid @RequestBody AnalysisJobCreateRangeRequest request
+	) {
+		AnalysisJob job = analysisJobOrchestrator.requestAnalysisRangeAsync(
+			request.youtubeUrl(),
+			request.startSeconds(),
+			request.endSeconds()
+		);
+		AnalysisJobCreateResponse response = new AnalysisJobCreateResponse(job.getJobId(), job.getStatus());
+		return ResponseEntity
+			.status(SuccessCode.ACCEPTED.getHttpStatus())
+			.body(ApiResponseBody.onSuccess(SuccessCode.ACCEPTED, response));
+	}
+
+	@PostMapping("/range/sync")
+	public ResponseEntity<ApiResponseBody<AnalysisJobGetResponse>> requestAnalysisRangeSync(
+		@Valid @RequestBody AnalysisJobCreateRangeRequest request
+	) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(
+			SuccessCode.OK,
+			analysisJobOrchestrator.requestAnalysisRangeSync(request.youtubeUrl(), request.startSeconds(), request.endSeconds())
+		));
+	}
+
+	@PostMapping("/at")
+	public ResponseEntity<ApiResponseBody<AnalysisJobCreateResponse>> requestAnalysisAt(
+		@Valid @RequestBody AnalysisJobCreateAtRequest request
+	) {
+		AnalysisJob job = analysisJobOrchestrator.requestAnalysisAtAsync(request.youtubeUrl(), request.atSeconds());
+		AnalysisJobCreateResponse response = new AnalysisJobCreateResponse(job.getJobId(), job.getStatus());
+		return ResponseEntity
+			.status(SuccessCode.ACCEPTED.getHttpStatus())
+			.body(ApiResponseBody.onSuccess(SuccessCode.ACCEPTED, response));
+	}
+
+	@PostMapping("/at/sync")
+	public ResponseEntity<ApiResponseBody<AnalysisJobGetResponse>> requestAnalysisAtSync(
+		@Valid @RequestBody AnalysisJobCreateAtRequest request
+	) {
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(
+			SuccessCode.OK,
+			analysisJobOrchestrator.requestAnalysisAtSync(request.youtubeUrl(), request.atSeconds())
+		));
 	}
 
 	@GetMapping("/{jobId}")

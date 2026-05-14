@@ -38,7 +38,25 @@ public class ParserClient {
 	}
 
 	public TranscriptResponse extractTranscript(String youtubeUrl) {
-		TranscriptRequest body = new TranscriptRequest(youtubeUrl);
+		return extractTranscript(youtubeUrl, null, null, null, null);
+	}
+
+	public TranscriptResponse extractTranscriptRange(String youtubeUrl, double startSeconds, double endSeconds) {
+		return extractTranscript(youtubeUrl, startSeconds, endSeconds, null, null);
+	}
+
+	public TranscriptResponse extractTranscriptAt(String youtubeUrl, double atSeconds, double windowSeconds) {
+		return extractTranscript(youtubeUrl, null, null, atSeconds, windowSeconds);
+	}
+
+	private TranscriptResponse extractTranscript(
+		String youtubeUrl,
+		Double startSeconds,
+		Double endSeconds,
+		Double atSeconds,
+		Double windowSeconds
+	) {
+		TranscriptRequest body = new TranscriptRequest(youtubeUrl, startSeconds, endSeconds, atSeconds, windowSeconds);
 		String json;
 		try {
 			json = objectMapper.writeValueAsString(body);
@@ -106,7 +124,11 @@ public class ParserClient {
 	}
 
 	public record TranscriptRequest(
-		@JsonProperty("url") String url
+		@JsonProperty("url") String url,
+		@JsonProperty("start_seconds") Double startSeconds,
+		@JsonProperty("end_seconds") Double endSeconds,
+		@JsonProperty("at_seconds") Double atSeconds,
+		@JsonProperty("window_seconds") Double windowSeconds
 	) {
 	}
 
