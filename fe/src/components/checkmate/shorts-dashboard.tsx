@@ -3,8 +3,8 @@ import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShieldCheck, AlertTriangle, HelpCircle, Check, FileText, Search } from "lucide-react";
-import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { X, ShieldCheck, AlertTriangle, Check, FileText, Search, AlertOctagon } from "lucide-react";
+import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 import { LoginView } from "./login-view";
@@ -12,9 +12,9 @@ import { useAnalysisMonitor } from "../../hooks/use-analysis-monitor";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 const verdictConfig = {
-  safe: { icon: ShieldCheck, color: "#10b981", title: "검증 완료", theme: "#10b981" },
-  warning: { icon: AlertTriangle, color: "#f59e0b", title: "주의 필요", theme: "#f59e0b" },
-  unknown: { icon: HelpCircle, color: "#8b5cf6", title: "판단 보류", theme: "#8b5cf6" },
+  safe: { icon: ShieldCheck, color: COLORS.success, title: "검증 완료", theme: COLORS.success },
+  warning: { icon: AlertTriangle, color: COLORS.warning, title: "주의 필요", theme: COLORS.warning },
+  unknown: { icon: AlertOctagon, color: COLORS.destructive, title: "의심 발생", theme: COLORS.destructive },
 };
 
 /**
@@ -416,7 +416,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
               height: "85vh",
               maxWidth: "520px",
               ...PIXEL_STYLES.border,
-              backgroundColor: "#f8fafc", // 밝은 배경
+              backgroundColor: "#ffffff", // 전체 배경 화이트
               borderWidth: "6px",
               borderColor: "#e2e8f0", // 밝은 테두리
               padding: "0px",
@@ -430,23 +430,34 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
           >
             <div
               style={{
-                backgroundColor: "#f1f5f9",
-                padding: "10px 16px",
+                background: "#1e293b", // 진한 회색 헤더
+                padding: "12px 16px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                borderBottom: "2px solid #e2e8f0",
+                borderBottom: "1px solid #0f172a",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Search size={14} color="#64748b" />
-                <span style={{ color: "#475569", fontSize: "12px", fontWeight: "bold" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Search size={14} color="white" style={{ opacity: 0.8 }} />
+                <span style={{ color: "white", fontSize: "12px", fontWeight: "900", letterSpacing: "-0.2px" }}>
                   [{channelName}] {videoTitle}
                 </span>
               </div>
               <button
                 onClick={() => setResultModalOpen(false)}
-                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex" }}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "none",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
               >
                 <X size={18} />
               </button>
@@ -460,6 +471,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                 display: "flex",
                 flexDirection: "column",
                 gap: "12px",
+                backgroundColor: "#ffffff", // 전체 배경 화이트 유지
               }}
             >
               {analysisStatus === "error" ? (
@@ -491,49 +503,48 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                 <>
                   <div
                     style={{
-                      backgroundColor: "white",
-                      border: `2px solid ${verdictConfig[overallVerdict].color}`,
-                      padding: "12px 16px",
+                      backgroundColor: verdictConfig[overallVerdict].color, // 결과 메인 컬러 적용
+                      padding: "16px 20px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      borderRadius: "6px",
-                      boxShadow: `0 4px 15px ${verdictConfig[overallVerdict].color}11`,
+                      borderRadius: "8px",
+                      boxShadow: `0 4px 12px ${verdictConfig[overallVerdict].color}44`,
+                      border: "1px solid rgba(0,0,0,0.1)",
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <div
                         style={{
-                          width: "36px",
-                          height: "36px",
-                          backgroundColor: verdictConfig[overallVerdict].color,
+                          width: "40px",
+                          height: "40px",
+                          backgroundColor: "rgba(255, 255, 255, 0.2)",
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          borderRadius: "4px",
-                          border: "2px solid #0f172a",
+                          borderRadius: "6px",
                           flexShrink: 0,
                         }}
                       >
                         {(() => {
                           const Icon = verdictConfig[overallVerdict].icon;
-                          return <Icon size={20} color="#fff" />;
+                          return <Icon size={24} color="#fff" />;
                         })()}
                       </div>
                       <div>
-                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>최종 수사 결과</div>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "bold" }}>최종 수사 결과</div>
                         <div
-                          style={{ fontSize: "18px", fontWeight: "900", color: verdictConfig[overallVerdict].color }}
+                          style={{ fontSize: "20px", fontWeight: "900", color: "#fff" }}
                         >
                           {verdictConfig[overallVerdict].title}
                         </div>
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>영상 신뢰도</div>
-                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "bold" }}>영상 신뢰도</div>
+                      <div style={{ fontSize: "28px", fontWeight: "900", color: "#fff" }}>
                         {trustScore}
-                        <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}> %</span>
+                        <span style={{ fontSize: "16px", opacity: 0.8 }}> %</span>
                       </div>
                     </div>
                   </div>
@@ -551,7 +562,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                         </div>
                         <div
                           style={{
-                            backgroundColor: "white",
+                            backgroundColor: "#f8fafc", // 요약 카드 회색 포인트
                             padding: "20px",
                             fontSize: "14px",
                             lineHeight: "1.7",
@@ -559,7 +570,6 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
                             border: "1px solid #e2e8f0",
                             borderRadius: "8px",
                             position: "relative",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                           }}
                         >
                           <div
@@ -714,11 +724,11 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
             <div
               style={{
                 padding: "16px 24px",
-                backgroundColor: "#f1f5f9",
-                borderTop: "1px solid #e2e8f0",
+                backgroundColor: "#ffffff", // 푸터 배경 화이트로 통일
+                borderTop: "1px solid #f1f5f9", // 경계선만 살짝 표시
               }}
             >
-              <PixelButton text="보고서 닫기" size="md" colorType="primary" onClick={() => setResultModalOpen(false)} />
+              <PixelButton text="보고서 닫기" size="md" colorType="neutral" onClick={() => setResultModalOpen(false)} />
             </div>
           </motion.div>
         </div>
