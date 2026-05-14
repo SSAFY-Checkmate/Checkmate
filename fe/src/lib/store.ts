@@ -520,7 +520,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Session might be expired (401)");
         }
         throw new Error(`API Error: ${response.status}`);
       }
@@ -713,7 +713,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Request Analysis failed (401)");
         }
         throw new Error(`API 오류: ${response.status}`);
       }
@@ -742,7 +742,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Fetch Reactions failed (401)");
         }
         throw new Error(`API Error: ${response.status}`);
       }
@@ -1203,8 +1203,13 @@ export const initializeAuth = async () => {
         return;
       }
     }
-    // doFetch가 reissue를 시도했음에도 여기까지 왔다면 로그인이 필요한 상태임
-    store.setLoginStatus(false, null);
+    
+    // [개선] Phase 2 실패 시에도 Phase 1에서 복원된 정보가 있다면 강제 로그아웃하지 않음
+    // 실제 API 호출 시의 doFetch reissue 로직에 맡김으로써 잦은 튕김 현상 방지
+    const currentState = useCheckmateStore.getState();
+    if (!currentState.isLoggedIn) {
+      store.setLoginStatus(false, null);
+    }
   } catch (error) {
     console.error("인증 초기화 실패:", error);
     const currentState = useCheckmateStore.getState();
