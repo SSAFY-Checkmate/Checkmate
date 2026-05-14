@@ -59,6 +59,11 @@ public class AnalysisService {
                 .confidenceScore(result.getConfidenceScore())
                 .summary(result.getSummary())
                 .violations(violationDtos)
+                .requestMode(job.getRequestMode())
+                .rangeStartSeconds(job.getRangeStartSeconds())
+                .rangeEndSeconds(job.getRangeEndSeconds())
+                .atSeconds(job.getAtSeconds())
+                .windowSeconds(job.getWindowSeconds())
                 .build();
     }
 

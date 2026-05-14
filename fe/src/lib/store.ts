@@ -459,6 +459,23 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const rawAnalysisId = data.analysisId ?? resultObj.analysisId ?? data.result?.analysisId ?? null;
     const resolvedAnalysisId = rawAnalysisId != null ? Number(rawAnalysisId) : null;
 
+    // [보완] 서버에서 내려준 수사 모드 정보가 있다면 이를 우선 활용 (snake_case 대응 포함)
+    let resolvedScope = get().analysisScope;
+    const requestMode = data.requestMode || data.request_mode;
+    
+    if (requestMode) {
+      if (requestMode === 'RANGE') {
+        const start = data.rangeStartSeconds ?? data.range_start_seconds;
+        const end = data.rangeEndSeconds ?? data.range_end_seconds;
+        resolvedScope = { type: 'range', start: start, end: end };
+      } else if (requestMode === 'AT') {
+        const at = data.atSeconds ?? data.at_seconds;
+        resolvedScope = { type: 'at', at: at };
+      } else {
+        resolvedScope = { type: 'full' };
+      }
+    }
+
     const finalState = {
       analysisStatus: "complete" as AnalysisStatus,
       videoTitle: finalTitle,
@@ -470,6 +487,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
       claims: claims,
       analysisId: resolvedAnalysisId,
+      analysisScope: resolvedScope, // 수사 범위 복구
     };
 
     if (get().currentVideoId !== videoId) return;
@@ -537,8 +555,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
                   const d = reportBody.data;
                   // AnalysisReportResponse 구조를 mapAnalysisResult 호환 형태로 변환
                   const syntheticData = {
+                    ...jobData,
                     result: d,
-                    analysisId: jobData.analysisId,
                   };
                   if (get().currentVideoId === videoId) set({ analysisStatus: "restoring" });
                   await new Promise((r) => setTimeout(r, 800));

@@ -70,20 +70,17 @@ public class AnalysisJobService {
 		}
 
 		String normalized = YoutubeUrlNormalizer.normalize(raw);
-
-		// IMPORTANT: default endpoints (/analysis, /analysis/sync, /analysis/latest, /analysis/check)
-		// are "full video" semantics. Do not let RANGE/AT jobs shadow FULL jobs.
-		Optional<AnalysisJob> latest = analysisJobRepository.findFirstByYoutubeUrlAndRequestModeOrderByCreatedAtDesc(
-			normalized,
-			AnalysisRequestMode.FULL
-		);
+		
+		// [수정] 모든 모드(FULL, RANGE, AT)를 통틀어 가장 최신 수사 기록을 반환합니다.
+		// 사용자가 어떤 모드로 수사했든, 새로고침 시 해당 영상의 가장 최신 결과가 노출되어야 합니다.
+		Optional<AnalysisJob> latest = analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(normalized);
 		if (latest.isPresent()) {
 			return latest;
 		}
 
 		// Backward compatibility: previously stored rows may have un-normalized URLs.
 		if (!normalized.equals(raw)) {
-			return analysisJobRepository.findFirstByYoutubeUrlAndRequestModeOrderByCreatedAtDesc(raw, AnalysisRequestMode.FULL);
+			return analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(raw);
 		}
 
 		return Optional.empty();
@@ -172,6 +169,11 @@ public class AnalysisJobService {
 			job.getYoutubeUrl(),
 			resultNode,
 			null,
+			job.getRequestMode(),
+			job.getRangeStartSeconds(),
+			job.getRangeEndSeconds(),
+			job.getAtSeconds(),
+			job.getWindowSeconds(),
 			error
 		);
 	}
