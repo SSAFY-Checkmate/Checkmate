@@ -88,6 +88,7 @@ export const renderDashboard = (container: HTMLElement) => {
 };
 
 import { GlobalResultModal } from "./shorts-dashboard";
+import { ReportModal } from "./report-modal";
 
 /**
  * [Checkmate 글로벌 결과 모달 렌더러]
@@ -126,7 +127,12 @@ export const renderGlobalModal = () => {
 
   try {
     const root = createRoot(reactWrapper);
-    root.render(<GlobalResultModal shadowHost={rootContainer} />);
+    root.render(
+      <>
+        <GlobalResultModal shadowHost={rootContainer} />
+        <ReportModal />
+      </>
+    );
   } catch (err) {
     console.error("[Checkmate] 글로벌 모달 렌더링 에러:", err);
   }

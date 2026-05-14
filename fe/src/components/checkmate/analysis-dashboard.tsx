@@ -2,7 +2,6 @@ import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { LongFormDashboard } from "./long-form-dashboard";
 import { ShortsDashboard } from "./shorts-dashboard";
 import { LoginView } from "./login-view";
-import { ReportModal } from "./report-modal";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
@@ -94,7 +93,7 @@ export function AnalysisDashboard() {
     setCurrentVideo,
   } = useCheckmateStore();
 
-  // 앱 시작 시 2-Phase 하이브리드 인증 복원
+  // 앱 시작 시 2-Phase 하이브리드 인증 복원 (Phase 1: Local Cache, Phase 2: Server Verification)
   useEffect(() => {
     initializeAuth();
   }, [setLoginStatus]);
@@ -127,7 +126,7 @@ export function AnalysisDashboard() {
     return () => clearInterval(interval);
   }, [currentVideoId, setCurrentVideo]);
 
-  // 분석 결과 자동 조회
+  // 분석 결과 자동 조회 (URL 변경 시 또는 마운트 시)
   useEffect(() => {
     if (currentVideoId && !isAuthInitializing && analysisStatus === "idle") {
       checkAnalysisStatus();
@@ -139,17 +138,12 @@ export function AnalysisDashboard() {
   const isShorts = window.location.pathname.startsWith("/shorts");
   const isWatchPage = window.location.pathname === "/watch" || isShorts;
 
+  // 유튜브 시청 페이지(/watch) 또는 쇼츠 페이지(/shorts)가 아니면 렌더링하지 않음
   if (!isWatchPage) return null;
 
   // [쇼츠 정책] 공간 협소 → 로그아웃 상태에서도 버튼은 항상 노출, 스켈레톤 없이 처리
   if (isShorts) {
-    return (
-      <>
-        {/* [리뷰 반영] ReportModal은 전역 성격이므로 대시보드 안에서 1회 렌더링. */}
-        <ReportModal />
-        <ShortsDashboard />
-      </>
-    );
+    return <ShortsDashboard />;
   }
 
   // [롱폼 정책 - 로딩] 인증 초기화 완료 전까지 스켈레톤 표시
@@ -160,16 +154,12 @@ export function AnalysisDashboard() {
   // [롱폼 정책 - 미로그인] 인증 확인 완료 후 미로그인 확정 시 LoginView 표시
   if (!isLoggedIn) {
     return (
-      <div style={PIXEL_STYLES.dashboardContainer}>
+      <div style={{ ...PIXEL_STYLES.dashboardContainer }}>
         <LoginView />
       </div>
     );
   }
 
-  return (
-    <>
-      <ReportModal />
-      <LongFormDashboard />
-    </>
-  );
+  // [롱폼 정책 - 로그인] 모든 조건 만족 시 롱폼 대시보드 렌더링 (ReportModal은 injector에서 전역으로 관리됨)
+  return <LongFormDashboard />;
 }
