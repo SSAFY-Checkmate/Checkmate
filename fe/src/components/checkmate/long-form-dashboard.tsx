@@ -807,13 +807,13 @@ export function LongFormDashboard() {
                       colorType={analysisStatus === "error" ? "error" : "primary"}
                       text={analysisStatus === "error" ? "수사 재개하기" : "팩트체크 수사 시작"}
                     />
-                    {analysisStatus === "idle" && (
+                    {/* {analysisStatus === "idle" && (
                       <PixelButton
                         onClick={() => handleStartAnalysis(true)}
                         colorType="neutral"
                         text="데모 수사 시작 (토큰X)"
                       />
-                    )}
+                    )} */}
                   </div>
                 ) : (
                   <div

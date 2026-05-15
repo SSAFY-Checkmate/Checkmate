@@ -476,7 +476,8 @@ export function CommunityTab() {
                 height: "100%", 
                 backgroundColor: "#10b981", 
                 borderRight: truePercent > 0 && truePercent < 100 ? "2px solid white" : "none",
-                borderRadius: "inherit",
+                // 왼쪽 끝만 둥글게, 오른쪽(중앙)은 직선
+                borderRadius: "10px 0 0 10px",
               }}
             />
             <motion.div
@@ -485,8 +486,9 @@ export function CommunityTab() {
               style={{ 
                 height: "100%", 
                 backgroundColor: "#ef4444",
-                borderRadius: "inherit",
-                marginLeft: truePercent === 0 ? 0 : "-2px", // 구분선 겹침 방지
+                // 오른쪽 끝만 둥글게, 왼쪽(중앙)은 직선
+                borderRadius: truePercent === 0 ? "10px" : "0 10px 10px 0",
+                marginLeft: truePercent === 0 ? 0 : "-2px",
               }}
             />
           </div>

@@ -337,7 +337,7 @@ export function ShortsDashboard() {
       </motion.div>
 
       {/* 데모 버튼 추가 (idle 상태거나 error 상태일 때만 노출) */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {(analysisStatus === "idle" || analysisStatus === "error") && isLoggedIn && (
           <motion.div
             initial={{ scale: 0, opacity: 0, y: -10 }}
@@ -372,7 +372,7 @@ export function ShortsDashboard() {
             <span style={{ fontSize: "9px", fontWeight: "900", color: "#64748b" }}>데모</span>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
     </div>
   );
 }
