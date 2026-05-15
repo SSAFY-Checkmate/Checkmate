@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
+const MAIN_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
 const STYLES = {
   container: {
@@ -14,7 +15,7 @@ const STYLES = {
     gap: "24px",
     backgroundColor: "#f8fafc",
     minHeight: "100%",
-    fontFamily: PIXEL_FONT,
+    fontFamily: MAIN_FONT,
   },
   headerTitle: {
     fontSize: "15px",
@@ -259,7 +260,7 @@ export function CommunityTab() {
               style={{
                 flex: 1,
                 fontSize: "13px",
-                fontFamily: PIXEL_FONT,
+                fontFamily: MAIN_FONT,
                 backgroundColor: "#f8fafc",
                 border: "1px solid #e2e8f0",
                 borderRadius: "6px",
@@ -307,8 +308,9 @@ export function CommunityTab() {
               color: "#475569",
               margin: "4px 0",
               lineHeight: "1.6",
-              fontWeight: "bold",
+              fontWeight: "600", // Pretendard 600
               wordBreak: "break-all",
+              fontFamily: MAIN_FONT,
             }}
           >
             {msg.message}
@@ -346,8 +348,8 @@ export function CommunityTab() {
               backgroundColor: "transparent",
               border: "none",
               fontSize: "12px",
-              fontFamily: PIXEL_FONT,
-              fontWeight: "bold",
+              fontFamily: MAIN_FONT,
+              fontWeight: "600",
               outline: "none",
               color: "#1e293b",
             }}
@@ -428,6 +430,7 @@ export function CommunityTab() {
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              fontFamily: MAIN_FONT,
             }}
           >
             채널명: {channelName || "감지 중.."}
@@ -441,7 +444,7 @@ export function CommunityTab() {
             <Users size={18} color="#6366f1" />
             사용자 실시간 찬반 투표
           </h4>
-          <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 0 28px", fontWeight: "bold" }}>
+          <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 0 28px", fontWeight: "600", fontFamily: MAIN_FONT }}>
             이 영상, 정말 사실일까요? 의견을 투표해 주세요.
           </p>
         </div>
@@ -477,7 +480,7 @@ export function CommunityTab() {
             />
           </div>
 
-          <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", fontWeight: "bold" }}>
+          <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", fontWeight: "600", fontFamily: MAIN_FONT }}>
             투표 참여자 수 {totalVotes}명
           </div>
         </div>
@@ -575,7 +578,7 @@ export function CommunityTab() {
               }}
             >
               <MessageSquare size={32} color="#cbd5e1" strokeWidth={1.5} />
-              <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "bold" }}>
+              <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "600", fontFamily: MAIN_FONT }}>
                 이 영상에 대한 첫 번째 의견을 남겨주세요.
               </div>
             </div>
@@ -605,8 +608,8 @@ export function CommunityTab() {
               backgroundColor: "transparent",
               border: "none",
               fontSize: "13px",
-              fontFamily: PIXEL_FONT,
-              fontWeight: "bold",
+              fontFamily: MAIN_FONT,
+              fontWeight: "600",
               outline: "none",
               color: "#1e293b",
             }}

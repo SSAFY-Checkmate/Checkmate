@@ -2,8 +2,10 @@ import { useCheckmateStore, type Verdict, type Claim } from "../../lib/store";
 import { OneTouchReportButton } from "./one-touch-report-button";
 import { AlertTriangle, CheckCircle, HelpCircle, FileSearch, ShieldCheck, Fingerprint } from "lucide-react";
 import { formatTime } from "../../lib/utils/time";
+import { FormattedExplanation } from "./formatted-explanation";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
+const mainFont = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const config = {
@@ -231,8 +233,8 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
             <p
               style={{
                 fontSize: "15px",
-                color: "#334155",
-                fontWeight: "500",
+                color: "#1e293b", // 더 짙은 색상
+                fontWeight: "600", // Semi-bold
                 lineHeight: "1.6",
                 margin: 0,
                 fontStyle: "italic",
@@ -269,18 +271,19 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
               boxShadow: "inset 0 1px 3px rgba(0,0,0,0.02)",
             }}
           >
-            <p
+            <div
               style={{
                 fontSize: "15px",
-                color: "#475569",
+                color: "#1e293b",
                 margin: 0,
                 lineHeight: "1.8",
-                fontWeight: "500",
+                fontWeight: "600",
                 wordBreak: "keep-all",
+                fontFamily: mainFont,
               }}
             >
-              {parsed.explanation}
-            </p>
+              <FormattedExplanation text={parsed.explanation} mainFont={mainFont} />
+            </div>
           </div>
         </div>
 
@@ -370,7 +373,7 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
         padding: isCompact ? "12px" : "24px",
         backgroundColor: "#f1f5f9", // 전체 배경에 슬레이트 톤을 주어 카드들을 띄움
         minHeight: "100%",
-        fontFamily: pixelFont,
+        fontFamily: mainFont,
       }}
     >
       {/* [신규] 상세 패널(isCompact)용 수사 범위 표시 영역 */}
@@ -400,6 +403,7 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
               padding: "2px 8px",
               borderRadius: "20px",
               border: "1px solid #bae6fd",
+              fontFamily: pixelFont,
             }}
           >
             {analysisScope.type === "full"
@@ -458,6 +462,7 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
                     borderRadius: "30px",
                     border: "1px solid rgba(255, 255, 255, 0.3)",
                     letterSpacing: "1.5px",
+                    fontFamily: pixelFont,
                   }}
                 >
                   CHECKMATE OFFICIAL REPORT
@@ -491,10 +496,10 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
                 )}
               </div>
 
-              <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.8px" }}>
+              <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.8px", fontFamily: pixelFont }}>
                 {current.title}
               </h2>
-              <p style={{ fontSize: "12px", opacity: 0.8, fontWeight: "bold" }}>
+              <p style={{ fontSize: "12px", opacity: 0.8, fontWeight: "bold", fontFamily: pixelFont }}>
                 영상 분석 일련번호: CM-{Math.random().toString(36).substr(2, 9).toUpperCase()}
               </p>
             </div>

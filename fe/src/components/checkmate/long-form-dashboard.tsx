@@ -249,6 +249,7 @@ export function LongFormDashboard() {
 
   const theme = getTheme();
   const pixelFont = "'CheckmatePixel', sans-serif";
+  const mainFont = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
   const togglePanel = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -549,13 +550,14 @@ export function LongFormDashboard() {
 
                   <p
                     style={{
-                      fontSize: "14px",
-                      color: "#475569",
-                      fontWeight: "bold",
-                      lineHeight: "1.8",
+                      fontSize: "15px", // 약간 키움
+                      color: "#1e293b", // 더 짙은 색상
+                      fontWeight: "600", // 굵게
+                      lineHeight: "1.7",
                       margin: 0,
                       textAlign: "center",
                       wordBreak: "keep-all",
+                      fontFamily: mainFont,
                     }}
                   >
                     {summary || warningConfig[overallVerdict].desc}

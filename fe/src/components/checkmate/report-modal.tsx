@@ -33,6 +33,7 @@ export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
   }, [isReportModalOpen, shadowHost]);
 
   const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace";
+  const MAIN_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
   const handleClose = () => {
     if (reportingStatus === "loading") return;
@@ -104,7 +105,7 @@ export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
               display: "flex",
               flexDirection: "column",
               gap: "20px",
-              fontFamily: PIXEL_FONT,
+              fontFamily: MAIN_FONT, // 기본 본문 폰트 변경
               boxShadow: "8px 8px 0 rgba(0,0,0,0.2)",
             }}
           >
@@ -112,10 +113,10 @@ export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <AlertCircle size={20} color="#ef4444" strokeWidth={3} />
-                <h3 style={{ margin: 0, fontSize: "18px", color: "#334155", fontWeight: "bold" }}>수사 요청 (신고)</h3>
+                <h3 style={{ margin: 0, fontSize: "18px", color: "#334155", fontWeight: "900", fontFamily: PIXEL_FONT }}>수사 요청 (신고)</h3>
               </div>
               <div style={{ height: "2px", backgroundColor: "#e2e8f0", width: "100%" }} />
-              <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>
+              <p style={{ margin: 0, fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
                 유튜브 커뮤니티 가이드 위반 사항을 신고합니다.
               </p>
             </div>
@@ -141,10 +142,10 @@ export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
                     }}
                   >
                     <div>
-                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "bold", color: "#334155" }}>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1e293b" }}>
                         {reason.label}
                       </p>
-                      <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#64748b" }}>{reason.description}</p>
+                      <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#475569", fontWeight: "600" }}>{reason.description}</p>
                     </div>
                     <ChevronRight size={16} color={selectedId === reason.id ? "#ef4444" : "#94a3b8"} />
                   </motion.div>
