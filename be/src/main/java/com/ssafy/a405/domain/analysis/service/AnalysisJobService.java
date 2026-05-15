@@ -8,8 +8,10 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisRequestedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptFailedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.enums.AnalysisRequestMode;
 import com.ssafy.a405.domain.analysis.repository.AnalysisJobRepository;
+import com.ssafy.a405.domain.analysis.repository.AnalysisResultRepository;
 import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
@@ -31,6 +33,7 @@ import java.util.Optional;
 public class AnalysisJobService {
 
 	private final AnalysisJobRepository analysisJobRepository;
+	private final AnalysisResultRepository analysisResultRepository;
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
 	private final AnalysisDataMappingService analysisDataMappingService;
@@ -163,12 +166,22 @@ public class AnalysisJobService {
 			error = new AnalysisJobGetResponse.ErrorInfo(job.getErrorCode(), job.getErrorMessage());
 		}
 
+		Long analysisId = null;
+		if (job.getStatus() == AnalysisJobStatus.COMPLETED) {
+			String videoId = com.ssafy.a405.global.util.YoutubeUrlNormalizer.extractVideoId(job.getYoutubeUrl());
+			if (videoId != null) {
+				analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(videoId)
+					.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
+					.orElse(null);
+			}
+		}
+
 		return new AnalysisJobGetResponse(
 			job.getJobId(),
 			job.getStatus(),
 			job.getYoutubeUrl(),
 			resultNode,
-			null,
+			analysisId,
 			job.getRequestMode(),
 			job.getRangeStartSeconds(),
 			job.getRangeEndSeconds(),
