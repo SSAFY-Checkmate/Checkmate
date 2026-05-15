@@ -47,6 +47,7 @@ const STYLES = {
     overflow: "hidden",
     boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
     border: "1px solid #e2e8f0",
+    isolation: "isolate" as const, // 자식 요소들이 부모의 borderRadius 영역을 넘지 못하도록 격리
   },
   sectionTitle: {
     fontSize: "14px",
@@ -471,12 +472,22 @@ export function CommunityTab() {
             <motion.div
               initial={{ width: "50%" }}
               animate={{ width: `${truePercent}%` }}
-              style={{ height: "100%", backgroundColor: "#10b981", borderRight: "2px solid white" }}
+              style={{ 
+                height: "100%", 
+                backgroundColor: "#10b981", 
+                borderRight: truePercent > 0 && truePercent < 100 ? "2px solid white" : "none",
+                borderRadius: "inherit",
+              }}
             />
             <motion.div
               initial={{ width: "50%" }}
               animate={{ width: `${fakePercent}%` }}
-              style={{ height: "100%", backgroundColor: "#ef4444" }}
+              style={{ 
+                height: "100%", 
+                backgroundColor: "#ef4444",
+                borderRadius: "inherit",
+                marginLeft: truePercent === 0 ? 0 : "-2px", // 구분선 겹침 방지
+              }}
             />
           </div>
 
