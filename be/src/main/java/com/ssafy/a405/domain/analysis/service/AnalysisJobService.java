@@ -268,5 +268,10 @@ public class AnalysisJobService {
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.fail(LocalDateTime.now(), payload.errorCode(), payload.message());
 	}
+
+	@Transactional
+	public void resetAnalysisHistory(String youtubeUrl) {
+		analysisJobRepository.deleteAllByYoutubeUrl(youtubeUrl);
+	}
 }
 

@@ -5,10 +5,11 @@ import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, FileSearch, LogOut } from "lucide-react";
+import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, FileSearch, LogOut, RotateCcw } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
 import { SegmentSelector } from "./segment-selector";
 import type { SegmentSelectorRef } from "./segment-selector";
+import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 /**
  * [Checkmate 롱폼 전용 대시보드]
@@ -31,6 +32,7 @@ export function LongFormDashboard() {
     errorMsg,
     setErrorMsg,
     setAnalysisRange,
+    reAnalyze,
   } = useCheckmateStore();
 
   // 분석 모니터링 훅 (90초 타임아웃)
@@ -41,6 +43,7 @@ export function LongFormDashboard() {
   const segmentSelectorRef = useRef<SegmentSelectorRef>(null);
   const [barWidth, setBarWidth] = useState(232);
   const [visualProgress, setVisualProgress] = useState(0);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // 촘촘한 프로그레스 바 애니메이션 (상태별 점진적 증가)
   useEffect(() => {
@@ -558,13 +561,42 @@ export function LongFormDashboard() {
                     {summary || warningConfig[overallVerdict].desc}
                   </p>
 
-                  <div style={{ width: "100%", marginTop: "16px" }}>
-                    <PixelButton
-                      onClick={(e) => togglePanel(e)}
-                      colorType="neutral"
-                      text={warningConfig[overallVerdict].btnText}
-                      size="md"
-                    />
+                  <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                    <div style={{ flex: 1 }}>
+                      <PixelButton
+                        onClick={(e) => togglePanel(e)}
+                        colorType="neutral"
+                        text={warningConfig[overallVerdict].btnText}
+                        size="md"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setIsResetModalOpen(true)}
+                      title="수사 초기화"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "48px",
+                        height: "48px",
+                        backgroundColor: "#fff1f2", // 삭제/초기화 느낌을 주기 위해 아주 연한 레드 톤 사용
+                        border: "2px solid #fecaca",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        color: "#ef4444",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fee2e2";
+                        e.currentTarget.style.transform = "rotate(-20deg)"; // 초기화 느낌의 마이크로 애니메이션
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fff1f2";
+                        e.currentTarget.style.transform = "rotate(0deg)";
+                      }}
+                    >
+                      <RotateCcw size={20} />
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -914,6 +946,18 @@ export function LongFormDashboard() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* 수사 초기화 확인 모달 */}
+      <PixelConfirmModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirm={() => reAnalyze()}
+        title="수사 초기화"
+        message="현재 수사 결과가 모두 삭제되고 초기 설정 화면으로 돌아갑니다. 정말 초기화하시겠습니까?"
+        confirmText="초기화"
+        cancelText="취소"
+        type="danger"
+      />
     </motion.div>
   );
 }

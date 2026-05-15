@@ -91,6 +91,12 @@ export const analysisApi = {
     return res.json();
   },
 
+  /** 분석 이력 삭제 */
+  deleteHistory: async (youtubeUrl: string) => {
+    const res = await doFetch(`/analysis?youtubeUrl=${encodeURIComponent(youtubeUrl)}`, { method: "DELETE" });
+    return res;
+  },
+
   /** 분석 요청 (동기 - 전체) */
   requestAnalysisSync: async (youtubeUrl: string, signal?: AbortSignal) => {
     const res = await doFetch("/analysis/sync", {

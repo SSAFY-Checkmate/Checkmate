@@ -191,6 +191,9 @@ interface CheckmateState {
     totalElements: number;
   };
 
+  // [수정] 사용자가 명시적으로 초기화했는지 여부 (자동 복구 방지)
+  isUserReset: boolean;
+
   // 액션 (상태 변경 함수들)
   openPanel: () => void;
   closePanel: () => void;
@@ -216,6 +219,7 @@ interface CheckmateState {
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
   setResultModalOpen: (open: boolean) => void;
   checkAnalysisStatus: () => Promise<void>;
+  reAnalyze: () => Promise<void>;
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
@@ -266,6 +270,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   isLoggedIn: false,
   user: null,
   isAuthInitializing: true,
+  isUserReset: false,
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
@@ -375,6 +380,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false,
         isResultModalOpen: false,
         errorMsg: null, // 캐시된 영상으로 돌아올 때도 에러 메시지 초기화
+        isUserReset: false, // 다른 영상으로 이동 시 리셋
         ...cachedData,
       });
 
@@ -403,6 +409,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
         reactionSummary: { proCount: 0, conCount: 0 },
         myReaction: null,
+        isUserReset: false, // 새로운 영상 진입 시 리셋
       });
 
       // 서버에서 기존 분석 이력이 있는지 확인
@@ -515,6 +522,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
     // 로그인 상태가 아닐 때는 분석 내역 확인을 생략하고 대기 상태로 전환
     if (!isLoggedIn) {
+      if (currentVideoId === videoId) {
+        set({ analysisStatus: "idle" });
+      }
+      return;
+    }
+
+    // [추가] 사용자가 명시적으로 초기화한 경우 자동 복구를 건너뜀
+    if (get().isUserReset) {
       if (currentVideoId === videoId) {
         set({ analysisStatus: "idle" });
       }
@@ -722,6 +737,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       overallVerdict: "unknown",
       analysisId: null,
       analysisScope: null,
+      isUserReset: false, // 수사 시작 시 플래그 리셋
     });
 
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -1218,6 +1234,39 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const videoId = get().currentVideoId;
     if (!videoId) return;
     await get().checkExistingAnalysis(videoId);
+  },
+
+  reAnalyze: async () => {
+    const { currentVideoId } = get();
+    if (!currentVideoId) return;
+
+    const targetUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
+
+    // 캐시에서 삭제하여 영구적으로 초기화
+    set((state) => {
+      const newAnalyzed = { ...state.analyzedVideos };
+      delete newAnalyzed[currentVideoId];
+      return { 
+        analyzedVideos: newAnalyzed,
+        analysisStatus: "idle",
+        overallVerdict: "unknown",
+        trustScore: 0,
+        summary: "",
+        analysisId: null,
+        claims: [],
+        warningCount: 0,
+        isWarningVisible: false,
+        errorMsg: null,
+        isUserReset: true, // 초기화 플래그 설정
+      };
+    });
+
+    // 백엔드 기록 삭제 시도 (비동기)
+    try {
+      await analysisApi.deleteHistory(targetUrl);
+    } catch (err) {
+      console.error("[Checkmate] Failed to delete analysis history on backend", err);
+    }
   },
 }));
 

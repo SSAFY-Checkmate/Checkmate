@@ -4,13 +4,20 @@ import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
 import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.enums.AnalysisRequestMode;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 public interface AnalysisJobRepository extends JpaRepository<AnalysisJob, String> {
 	Optional<AnalysisJob> findFirstByYoutubeUrlOrderByCreatedAtDesc(String youtubeUrl);
+
+	@Transactional
+	@Modifying
+	@Query("delete from AnalysisJob j where j.youtubeUrl = :youtubeUrl")
+	void deleteAllByYoutubeUrl(@Param("youtubeUrl") String youtubeUrl);
 
 	Optional<AnalysisJob> findFirstByYoutubeUrlAndRequestModeOrderByCreatedAtDesc(String youtubeUrl, AnalysisRequestMode requestMode);
 
