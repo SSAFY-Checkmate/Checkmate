@@ -143,7 +143,7 @@ export const renderGlobalModal = () => {
     root.render(
       <>
         <GlobalResultModal shadowHost={rootContainer} />
-        <ReportModal />
+        <ReportModal shadowHost={rootContainer} />
       </>
     );
   } catch (err) {

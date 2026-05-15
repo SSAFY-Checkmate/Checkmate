@@ -402,8 +402,11 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
       shadowHost.style.display = "block";
       shadowHost.classList.add("modal-open");
     } else {
-      shadowHost.style.display = "none";
-      shadowHost.classList.remove("modal-open");
+      // ReportModal도 닫혀있을 때만 실제로 숨김 처리
+      if (!useCheckmateStore.getState().isReportModalOpen) {
+        shadowHost.style.display = "none";
+        shadowHost.classList.remove("modal-open");
+      }
     }
   }, [isResultModalOpen, shadowHost]);
 

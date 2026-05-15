@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useCheckmateStore, REPORT_REASONS } from "../../lib/store";
@@ -11,10 +11,26 @@ import { PixelAlertModal } from "../common/pixel-alert-modal";
  * 사용자가 리포트를 검토한 후 최종적으로 신고 사유를 선택하는 창입니다.
  * store.ts의 REPORT_REASONS 상수를 기반으로 동작합니다.
  */
-export function ReportModal() {
+export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
   const { isReportModalOpen, setReportModalOpen, submitReport, reportingStatus } = useCheckmateStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false); // 최종 확인 모달 상태
+
+  useEffect(() => {
+    if (!shadowHost) return;
+    if (isReportModalOpen) {
+      shadowHost.style.display = "block";
+      shadowHost.classList.add("modal-open");
+    } else {
+      // GlobalResultModal과 상태를 공유하므로, 둘 다 닫혀있을 때만 숨김 처리
+      // 하지만 여기서는 간단히 처리하고 GlobalResultModal과 합쳐서 관리하는 것이 더 정확할 수 있음.
+      // 일단 개별적으로도 동작하도록 작성.
+      if (!useCheckmateStore.getState().isResultModalOpen) {
+        shadowHost.style.display = "none";
+        shadowHost.classList.remove("modal-open");
+      }
+    }
+  }, [isReportModalOpen, shadowHost]);
 
   const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace";
 
