@@ -1,5 +1,6 @@
 package com.ssafy.a405.domain.report.entity;
 
+import com.ssafy.a405.domain.video.entity.Video;
 import com.ssafy.a405.domain.user.entity.User;
 import com.ssafy.a405.global.common.base.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -22,8 +23,9 @@ public class ReportHistory extends BaseTimeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "video_id", nullable = false, length = 255)
-    private String videoId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "video_id", nullable = false)
+    private Video video;
 
     @Column(name = "reason_id", nullable = false, length = 50)
     private String reasonId;
@@ -33,9 +35,9 @@ public class ReportHistory extends BaseTimeEntity {
     private ReportStatus status;
 
     @Builder
-    public ReportHistory(User user, String videoId, String reasonId, ReportStatus status) {
+    public ReportHistory(User user, Video video, String reasonId, ReportStatus status) {
         this.user = user;
-        this.videoId = videoId;
+        this.video = video;
         this.reasonId = reasonId;
         this.status = status;
     }
