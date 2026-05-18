@@ -30,7 +30,6 @@ export function ShortsDashboard() {
     setCurrentVideo,
     checkAnalysisStatus,
     currentVideoId,
-    startDemoAnalysis,
     setErrorMsg,
   } = useCheckmateStore();
 
@@ -45,10 +44,6 @@ export function ShortsDashboard() {
     startAnalysis();
   };
 
-  const handleStartDemo = () => {
-    setErrorMsg(null);
-    startDemoAnalysis();
-  };
 
   // 쇼츠 분석 진행률(%) 계산
   const getProgressPercent = () => {
