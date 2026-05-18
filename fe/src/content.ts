@@ -4,6 +4,7 @@
 
 import { useCheckmateStore } from "./lib/store";
 import { scrapeMetadata } from "./lib/youtube-utils";
+import { renderDashboard, renderGlobalModal } from "./components/checkmate/injector";
 
 if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   console.warn("[Checkmate] 이미 콘텐츠 스크립트가 실행 중입니다.");
@@ -11,8 +12,6 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
   (window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__ = true;
 
   const runCheckmate = async () => {
-    const { renderDashboard, renderGlobalModal } = await import("./components/checkmate/injector");
-
     let isEnabled = false;
 
 
@@ -49,7 +48,7 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
         (window as any).__CHECKMATE_INTERVAL__ = setInterval(() => {
           const isShortsPage = window.location.pathname.startsWith("/shorts");
           const isWatchPage = window.location.pathname === "/watch";
-          const shortsCard = document.getElementById("checkmate-shorts-card-v3.0");
+          const shortsCard = document.getElementById("checkmate-shorts-card-v3");
           const watchCard = document.getElementById("checkmate-watch-card-v3.0");
 
           // 일반 영상 페이지 반응형 레이아웃 처리
@@ -188,37 +187,44 @@ if ((window as any).__CHECKMATE_CONTENT_SCRIPT_LOADED__) {
     };
 
     const injectToShortsPage = () => {
-      // 활성화된 쇼츠의 오버레이 렌더러 탐색
-      const activeOverlay = Array.from(document.querySelectorAll("ytd-reel-player-overlay-renderer"))
-        .find(el => (el as HTMLElement).getBoundingClientRect().width > 0);
-      
-      if (!activeOverlay) return;
+      // 1. 뷰포트 기준, 화면에 실제로 표출되고 있는 활성 쇼츠 액션바 최외각 컨테이너 탐색
+      const allActionContainers = Array.from(document.querySelectorAll(".ytReelPlayerOverlayViewModelActionsContainer"));
+      const activeOuter = allActionContainers.find((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.top < window.innerHeight;
+      }) || allActionContainers[0]; // fallback으로 첫 번째 컨테이너 매칭
 
-      // 사용자님이 알려주신 #button-bar 또는 #actions를 타겟팅
-      const targetContainer = activeOverlay.querySelector("#button-bar") 
-                           || activeOverlay.querySelector("#actions")
-                           || findElementInShadows("#button-bar", activeOverlay)
-                           || findElementInShadows("#actions", activeOverlay);
+      if (!activeOuter) return;
 
-      if (!targetContainer) return;
+      // 2. 실제 버튼들이 플렉스로 차곡차곡 쌓여있는 직속 뷰모델 영역 정밀 타겟팅
+      const activeContainer = activeOuter.querySelector("reel-action-bar-view-model") || activeOuter;
 
-      // 이미 주입되어 있으면 무시
-      if (targetContainer.querySelector(".checkmate-shorts-button-v3")) return;
+      // 3. 이미 주입되어 있으면 무시
+      if (activeContainer.querySelector("#checkmate-shorts-card-v3") || document.getElementById("checkmate-shorts-card-v3")) {
+        return;
+      }
 
-      // 기존 잔재 청소
+      // 4. 기존 잔재 청소
       document.querySelectorAll(".checkmate-shorts-button-v3").forEach(el => el.remove());
 
+      // 5. 컨테이너 생성 및 정렬 (직속 플렉스 자식이므로 auto 높이와 100% 너비로 순정 정렬 상속)
       const container = document.createElement("div");
-      container.id = "checkmate-shorts-card-v3.0";
+      container.id = "checkmate-shorts-card-v3";
       container.className = "checkmate-shorts-button-v3 checkmate-root-container";
-      container.style.width = "100%";
-      container.style.display = "flex";
-      container.style.justifyContent = "center";
-      container.style.marginBottom = "12px"; // 순정 버튼 사이 간격과 유사하게 조정
-      container.style.zIndex = "10";
+      container.style.cssText = `
+        width: 100% !important;
+        height: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-bottom: 8px !important;
+        z-index: 10 !important;
+        position: relative !important;
+      `;
 
-      // 타겟 컨테이너의 맨 위에 삽입 (좋아요 버튼 위쪽)
-      targetContainer.prepend(container);
+      // 6. 타겟 컨테이너의 맨 위에 삽입 (좋아요 버튼 바로 윗자리)
+      activeContainer.prepend(container);
       renderDashboard(container);
     };
 
