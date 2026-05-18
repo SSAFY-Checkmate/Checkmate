@@ -283,7 +283,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
                 "status": result.status,
                 "confidence": result.confidence,
                 "explanation": result.explanation,
-                "routes": routing_result.get("strategy", {}).get("selected_domains", [])
+                "routes": routing_result.get("strategy", {}).get("selected_domains", []),
+                "contexts": [ev["content"] for ev in filtered_evidences[:3]]
             }
         else:
             return {
@@ -293,7 +294,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
                 "status": "NOT_ENOUGH_INFO",
                 "confidence": 0.0,
                 "explanation": "LLM 응답 생성 실패",
-                "routes": routing_result.get("strategy", {}).get("selected_domains", [])
+                "routes": routing_result.get("strategy", {}).get("selected_domains", []),
+                "contexts": [ev["content"] for ev in filtered_evidences[:3]]
             }
             
     except Exception as e:
@@ -305,7 +307,8 @@ async def process_single_claim(item: dict, llm_client) -> Optional[dict]:
             "status": "ERROR",
             "confidence": 0.0,
             "explanation": str(e),
-            "routes": routing_result.get("strategy", {}).get("selected_domains", [])
+            "routes": routing_result.get("strategy", {}).get("selected_domains", []),
+            "contexts": []
         }
 
 async def rag_fact_check_step(state: dict, llm_client) -> dict:

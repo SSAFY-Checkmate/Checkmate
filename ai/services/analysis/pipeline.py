@@ -1,3 +1,4 @@
+import os
 import asyncio
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 
@@ -16,8 +17,12 @@ class AnalysisPipelineService:
     def __init__(self):
         self.llm_client = LLMClient()
         
+        # RAG 전용 LLM 클라이언트 설정 (환경변수 RAG_LLM_MODEL이 없으면 기본 모델 사용)
+        rag_model_name = os.getenv("RAG_LLM_MODEL")
+        self.rag_llm_client = LLMClient(model=rag_model_name)
+        
         async def rag_fact_check_wrapper(state):
-            return await rag_fact_check_step(state, self.llm_client)
+            return await rag_fact_check_step(state, self.rag_llm_client)
 
         async def summarize_violation_wrapper(state):
             return await summarize_violation_step(state, self.llm_client)
