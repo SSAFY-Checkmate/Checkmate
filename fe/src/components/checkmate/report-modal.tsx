@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronRight, CheckCircle2, Loader2 } from "lucide-react";
 import { useCheckmateStore, REPORT_REASONS } from "../../lib/store";
 import { PixelButton } from "../common/pixel-button";
 import { PixelConfirmModal } from "../common/pixel-confirm-modal";
