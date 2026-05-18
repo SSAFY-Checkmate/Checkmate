@@ -26,7 +26,7 @@ class LLMClient:
     Supports structured outputs with Pydantic models through JSON parsing and validation.
     """
     
-    def __init__(self, session: Optional['ServerSession'] = None):
+    def __init__(self, session: Optional['ServerSession'] = None, model: Optional[str] = None):
         load_dotenv()
         self.provider = "openai"
         def parse_env_str(var_name, default_val):
@@ -40,7 +40,7 @@ class LLMClient:
             except ValueError:
                 return default_val
 
-        self.model = parse_env_str("LLM_MODEL", "gpt-4o-2024-08-06")
+        self.model = model or parse_env_str("LLM_MODEL", "gpt-4o-2024-08-06")
         self.call_count = 0
         self.session = session
         
@@ -437,17 +437,13 @@ class LLMClient:
         Returns:
             Parsed response as the specified Pydantic model, or None on failure
         """
-        if not self.supports_structured_outputs():
-            raise ValueError(
-                f"Model {self.model} does not support structured outputs. "
-                f"Please use a compatible model like gpt-4o-2024-08-06, gpt-4o-mini, or gpt-4o."
-            )
+        use_structured = self.supports_structured_outputs()
         
         if self.logger:
             self.logger.info(f"Using OpenAI API fallback for {stage} stage")
         
         # Always log to stderr for visibility
-        print(f"[{stage}] ✓ Using OpenAI API (model: {self.model})", file=sys.stderr)
+        print(f"[{stage}] ✓ Using OpenAI API (model: {self.model}, structured: {use_structured})", file=sys.stderr)
         
         self.call_count += 1
         start_time = datetime.now()
@@ -466,14 +462,33 @@ class LLMClient:
             self.logger.info(f"User Prompt ({len(user_prompt)} chars): {user_prompt}")
         
         try:
-            messages = [
-                ("system", system_prompt),
-                ("user", user_prompt),
-            ]
-
-            # Use LangChain's structured outputs
-            structured_llm = self.client.with_structured_output(response_model)
-            parsed_response = structured_llm.invoke(messages)
+            if not use_structured:
+                schema_json = response_model.model_json_schema()
+                fallback_system_prompt = system_prompt + f"\n\nIMPORTANT: You must respond ONLY with a valid JSON object that matches the following JSON schema:\n{json.dumps(schema_json)}\nDo not include any other text, markdown formatting, or explanations."
+                messages = [
+                    ("system", fallback_system_prompt),
+                    ("user", user_prompt),
+                ]
+                response = self.client.invoke(messages)
+                
+                raw_content = response.content
+                if isinstance(raw_content, list):
+                    text_content = "".join([b.get("text", "") if isinstance(b, dict) else str(b) for b in raw_content])
+                else:
+                    text_content = str(raw_content)
+                
+                json_data = self._extract_json_from_text(text_content)
+                if not json_data:
+                    raise ValueError(f"No valid JSON found in response: {text_content[:200]}")
+                parsed_response = response_model.model_validate(json_data)
+            else:
+                messages = [
+                    ("system", system_prompt),
+                    ("user", user_prompt),
+                ]
+                # Use LangChain's structured outputs
+                structured_llm = self.client.with_structured_output(response_model)
+                parsed_response = structured_llm.invoke(messages)
             
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
@@ -510,17 +525,13 @@ class LLMClient:
         Async version - Makes a request to OpenAI API with structured outputs.
         Uses ainvoke to prevent blocking the asyncio event loop.
         """
-        if not self.supports_structured_outputs():
-            raise ValueError(
-                f"Model {self.model} does not support structured outputs. "
-                f"Please use a compatible model like gpt-4o-2024-08-06, gpt-4o-mini, or gpt-4o."
-            )
+        use_structured = self.supports_structured_outputs()
         
         if self.logger:
             self.logger.info(f"Using OpenAI API fallback for {stage} stage (async)")
         
         # Always log to stderr for visibility
-        print(f"[{stage}] ✓ Using OpenAI API (model: {self.model}) (async)", file=sys.stderr)
+        print(f"[{stage}] ✓ Using OpenAI API (model: {self.model}, structured: {use_structured}) (async)", file=sys.stderr)
         
         self.call_count += 1
         start_time = datetime.now()
@@ -535,13 +546,32 @@ class LLMClient:
             self.logger.info(f"User Prompt ({len(user_prompt)} chars): {user_prompt}")
         
         try:
-            messages = [
-                ("system", system_prompt),
-                ("user", user_prompt),
-            ]
-
-            structured_llm = self.client.with_structured_output(response_model)
-            parsed_response = await structured_llm.ainvoke(messages)
+            if not use_structured:
+                schema_json = response_model.model_json_schema()
+                fallback_system_prompt = system_prompt + f"\n\nIMPORTANT: You must respond ONLY with a valid JSON object that matches the following JSON schema:\n{json.dumps(schema_json)}\nDo not include any other text, markdown formatting, or explanations."
+                messages = [
+                    ("system", fallback_system_prompt),
+                    ("user", user_prompt),
+                ]
+                response = await self.client.ainvoke(messages)
+                
+                raw_content = response.content
+                if isinstance(raw_content, list):
+                    text_content = "".join([b.get("text", "") if isinstance(b, dict) else str(b) for b in raw_content])
+                else:
+                    text_content = str(raw_content)
+                
+                json_data = self._extract_json_from_text(text_content)
+                if not json_data:
+                    raise ValueError(f"No valid JSON found in response: {text_content[:200]}")
+                parsed_response = response_model.model_validate(json_data)
+            else:
+                messages = [
+                    ("system", system_prompt),
+                    ("user", user_prompt),
+                ]
+                structured_llm = self.client.with_structured_output(response_model)
+                parsed_response = await structured_llm.ainvoke(messages)
             
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
