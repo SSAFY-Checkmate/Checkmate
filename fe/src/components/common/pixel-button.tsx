@@ -41,7 +41,7 @@ const THEME_MAP: Record<ColorType, { bg: string; color: string; shadow: string; 
   error: { bg: "#fca5a5", color: "#fef2f2", shadow: "#ef4444", textShadow: "#7f1d1d" },
   warning: { bg: "#fde047", color: "#fef08a", shadow: "#ca8a04", textShadow: "#713f12" },
   success: { bg: "#86efac", color: "#f0fdf4", shadow: "#22c55e", textShadow: "#14532d" },
-  neutral: { bg: "#e4e4e7", color: "#f4f4f5", shadow: "#a1a1aa", textShadow: "#3f3f46" },
+  neutral: { bg: "#cbd5e1", color: "#f8fafc", shadow: "#94a3b8", textShadow: "#475569" },
 };
 
 const SIZE_MAP: Record<SizeType, { height: string; fontSize: string; padding: string }> = {

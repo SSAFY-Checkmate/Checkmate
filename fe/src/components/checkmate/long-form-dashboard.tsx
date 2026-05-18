@@ -5,8 +5,11 @@ import { PixelOfficer, PixelCharacter } from "./pixel-character";
 import { SidePanel } from "./side-panel";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, FileSearch, LogOut } from "lucide-react";
+import { ShieldCheck, AlertTriangle, HelpCircle, ChevronDown, FileSearch, LogOut, RotateCcw } from "lucide-react";
 import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { SegmentSelector } from "./segment-selector";
+import type { SegmentSelectorRef } from "./segment-selector";
+import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 /**
  * [Checkmate 롱폼 전용 대시보드]
@@ -28,6 +31,8 @@ export function LongFormDashboard() {
     startDemoAnalysis,
     errorMsg,
     setErrorMsg,
+    setAnalysisRange,
+    reAnalyze,
   } = useCheckmateStore();
 
   // 분석 모니터링 훅 (90초 타임아웃)
@@ -35,8 +40,10 @@ export function LongFormDashboard() {
 
   const dashboardRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const segmentSelectorRef = useRef<SegmentSelectorRef>(null);
   const [barWidth, setBarWidth] = useState(232);
   const [visualProgress, setVisualProgress] = useState(0);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // 촘촘한 프로그레스 바 애니메이션 (상태별 점진적 증가)
   useEffect(() => {
@@ -44,19 +51,47 @@ export function LongFormDashboard() {
     let speed = 100;
 
     switch (analysisStatus) {
-      case "idle": target = 0; break;
-      case "checking": target = 5; speed = 100; break;
-      case "loading": target = 5; speed = 50; break;
-      case "detecting": target = 30; speed = 150; break;
-      case "analyzing_transcript": target = 60; speed = 120; break;
-      case "analyzing_claims": target = 90; speed = 300; break;
-      case "verifying": target = 99; speed = 200; break;
-      case "complete": target = 100; speed = 20; break;
-      case "error": target = visualProgress; break;
-      default: target = 0; break;
+      case "idle":
+        target = 0;
+        break;
+      case "checking":
+        target = 5;
+        speed = 100;
+        break;
+      case "loading":
+        target = 5;
+        speed = 50;
+        break;
+      case "detecting":
+        target = 30;
+        speed = 150;
+        break;
+      case "analyzing_transcript":
+        target = 60;
+        speed = 120;
+        break;
+      case "analyzing_claims":
+        target = 90;
+        speed = 300;
+        break;
+      case "verifying":
+        target = 99;
+        speed = 200;
+        break;
+      case "complete":
+        target = 100;
+        speed = 20;
+        break;
+      case "error":
+        target = visualProgress;
+        break;
+      default:
+        target = 0;
+        break;
     }
 
     if (analysisStatus === "idle" || analysisStatus === "error") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (analysisStatus === "idle") setVisualProgress(0);
       return;
     }
@@ -76,10 +111,9 @@ export function LongFormDashboard() {
     return () => clearInterval(interval);
   }, [analysisStatus, visualProgress]);
 
-  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되어야 하므로 의존성 배열을 비워둡니다.
+  // [리뷰 반영] initializeAuth는 마운트 시 1회만 호출되도록 합니다.
   useEffect(() => {
     initializeAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 진행 바 너비는 analysisStatus 변경 시마다 측정
@@ -215,6 +249,7 @@ export function LongFormDashboard() {
 
   const theme = getTheme();
   const pixelFont = "'CheckmatePixel', sans-serif";
+  const mainFont = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
   const togglePanel = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -226,9 +261,33 @@ export function LongFormDashboard() {
     }
   };
 
-  const handleStartAnalysis = () => {
+  // [수정] 수사 시작 버튼 클릭 핸들러
+  const handleStartAnalysis = (isDemo: boolean = false) => {
     setErrorMsg(null);
-    startAnalysis();
+
+    // SegmentSelector 컴포넌트에서 데이터 가져오기
+    const segmentData = segmentSelectorRef.current?.getSegmentData();
+
+    if (segmentData?.useSegment) {
+      if (segmentData.error) {
+        // 에러가 있으면 중단 (에러 메시지는 컴포넌트 내부에서 표시됨)
+        return;
+      }
+      setAnalysisRange("start", segmentData.startSeconds);
+      setAnalysisRange("end", segmentData.endSeconds);
+    } else {
+      setAnalysisRange("start", null);
+      setAnalysisRange("end", null);
+    }
+
+    if (isDemo) {
+      startDemoAnalysis();
+    } else {
+      const range = segmentData?.useSegment
+        ? { startSeconds: segmentData.startSeconds, endSeconds: segmentData.endSeconds }
+        : undefined;
+      startAnalysis(range);
+    }
   };
 
   return (
@@ -306,168 +365,244 @@ export function LongFormDashboard() {
 
         <AnimatePresence mode="wait">
           {analysisStatus === "complete" ? (
-            <motion.div
-              key="result-view"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-              style={{ width: "100%", display: "flex", flexDirection: "column" }}
-            >
-              {/* Gradient Header Area (merged with card top) */}
-              <div
+            isPanelOpen ? (
+              <motion.div
+                key="detail-view"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
                 style={{
-                  background: warningConfig[overallVerdict].gradient,
-                  padding: "32px 20px",
-                  textAlign: "center",
-                  color: "white",
-                  position: "relative",
                   width: "100%",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    opacity: 0.15,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {(() => {
-                    const Icon = warningConfig[overallVerdict].icon;
-                    return <Icon size={140} />;
-                  })()}
-                </div>
-
-                <div style={{ position: "relative", zIndex: 1, marginTop: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
-                    <span
-                      style={{
-                        backgroundColor: "rgba(255, 255, 255, 0.2)",
-                        backdropFilter: "blur(4px)",
-                        color: "white",
-                        padding: "4px 12px",
-                        fontSize: "10px",
-                        fontWeight: "900",
-                        borderRadius: "30px",
-                        border: "1px solid rgba(255, 255, 255, 0.3)",
-                        letterSpacing: "1.5px",
-                      }}
-                    >
-                      CHECKMATE OFFICIAL REPORT
-                    </span>
-                  </div>
-
-                  <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.5px" }}>
-                    {warningConfig[overallVerdict].title}
-                  </h2>
-                  <p style={{ fontSize: "11px", opacity: 0.8, fontWeight: "bold" }}>
-                    영상 분석 일련번호: CM-{Math.random().toString(36).substr(2, 9).toUpperCase()}
-                  </p>
-                </div>
-              </div>
-
-              {/* White Content Area */}
-              <div
-                style={{
-                  padding: "24px 20px",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "24px",
+                  height: "550px",
                   backgroundColor: "white",
                 }}
               >
+                {/* 상단 뒤로가기(요약 보기) 헤더 */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingBottom: "12px",
-                    borderBottom: "1px dashed #e2e8f0",
+                    padding: "12px 16px",
+                    backgroundColor: "white",
+                    borderBottom: "1px solid #e2e8f0",
+                    cursor: "pointer",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                    zIndex: 10,
                   }}
+                  onClick={() => closePanel()}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ backgroundColor: theme.bgLight, padding: "6px", borderRadius: "8px" }}>
-                      <FileSearch size={16} color={theme.border} />
-                    </div>
-                    <h4 style={{ fontSize: "15px", fontWeight: "900", color: "#1e293b", margin: 0 }}>
-                      수사 개요 및 총평
-                    </h4>
-                  </div>
-
-                  {/* 영상 신뢰지수 배지 */}
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "10px",
-                      backgroundColor: "white",
-                      padding: "4px 10px",
-                      borderRadius: "30px",
-                      border: `1.5px solid ${theme.border}33`,
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                      justifyContent: "center",
+                      backgroundColor: "#f1f5f9",
+                      borderRadius: "50%",
+                      width: "28px",
+                      height: "28px",
+                      marginRight: "10px",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "900",
-                        color: "#64748b",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      영상 신뢰지수
-                    </span>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "1px" }}>
-                      <span style={{ fontSize: "18px", fontWeight: "900", color: theme.border }}>{trustScore}</span>
+                    <ChevronDown size={18} color="#475569" style={{ transform: "rotate(90deg)" }} strokeWidth={3} />
+                  </div>
+                  <span style={{ fontWeight: "900", color: "#1e293b", fontSize: "15px", fontFamily: pixelFont }}>
+                    요약 리포트로 돌아가기
+                  </span>
+                </div>
+                {/* 상세 내역 (SidePanel) */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <SidePanel />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="result-view"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                style={{ width: "100%", display: "flex", flexDirection: "column" }}
+              >
+                {/* Gradient Header Area */}
+                <div
+                  style={{
+                    background: warningConfig[overallVerdict].gradient,
+                    padding: "32px 20px",
+                    textAlign: "center",
+                    color: "white",
+                    position: "relative",
+                    width: "100%",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      opacity: 0.15,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {(() => {
+                      const Icon = warningConfig[overallVerdict].icon;
+                      return <Icon size={140} />;
+                    })()}
+                  </div>
+
+                  <div style={{ position: "relative", zIndex: 1, marginTop: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
                       <span
                         style={{
-                          fontSize: "18px",
-                          fontWeight: "500",
-                          color: theme.border,
-                          marginLeft: "2px",
+                          backgroundColor: "rgba(255, 255, 255, 0.2)",
+                          backdropFilter: "blur(4px)",
+                          color: "white",
+                          padding: "4px 12px",
+                          fontSize: "10px",
+                          fontWeight: "900",
+                          borderRadius: "30px",
+                          border: "1px solid rgba(255, 255, 255, 0.3)",
+                          letterSpacing: "1.5px",
                         }}
                       >
-                        %
+                        CHECKMATE OFFICIAL REPORT
                       </span>
                     </div>
+
+                    <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 12px 0", letterSpacing: "-0.5px" }}>
+                      {warningConfig[overallVerdict].title}
+                    </h2>
+                    <p style={{ fontSize: "11px", opacity: 0.8, fontWeight: "bold" }}>
+                      영상 분석 일련번호: CM-{trustScore.toString().padStart(2, "0")}A{summary ? summary.length : 0}X
+                    </p>
                   </div>
                 </div>
 
-                <p
+                {/* White Content Area */}
+                <div
                   style={{
-                    fontSize: "14px",
-                    color: "#475569",
-                    fontWeight: "bold",
-                    lineHeight: "1.8",
-                    margin: 0,
-                    textAlign: "center",
-                    wordBreak: "keep-all",
+                    padding: "24px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "24px",
+                    backgroundColor: "white",
                   }}
                 >
-                  {summary || warningConfig[overallVerdict].desc}
-                </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingBottom: "12px",
+                      borderBottom: "1px dashed #e2e8f0",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{ backgroundColor: theme.bgLight, padding: "6px", borderRadius: "8px" }}>
+                        <FileSearch size={16} color={theme.border} />
+                      </div>
+                      <h4 style={{ fontSize: "15px", fontWeight: "900", color: "#1e293b", margin: 0 }}>
+                        수사 개요 및 총평
+                      </h4>
+                    </div>
 
-                {/* Detail Action Button (moved inside) */}
-                <div style={{ width: "100%", marginTop: "16px" }}>
-                  <PixelButton
-                    onClick={(e) => togglePanel(e)}
-                    colorType={isPanelOpen ? "neutral" : overallVerdict === "warning" ? "error" : "primary"}
-                    text={isPanelOpen ? "상세 정보 닫기" : warningConfig[overallVerdict].btnText}
-                    icon={
-                      isPanelOpen ? (
-                        <ChevronUp size={20} color="#1e293b" strokeWidth={3} />
-                      ) : (
-                        <ChevronDown size={20} color="#ffffff" strokeWidth={3} />
-                      )
-                    }
-                    size="md"
-                  />
+                    {/* 영상 신뢰지수 배지 */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        backgroundColor: "white",
+                        padding: "4px 10px",
+                        borderRadius: "30px",
+                        border: `1.5px solid ${theme.border}33`,
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "900",
+                          color: "#64748b",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        영상 신뢰지수
+                      </span>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "1px" }}>
+                        <span style={{ fontSize: "18px", fontWeight: "900", color: theme.border }}>{trustScore}</span>
+                        <span
+                          style={{
+                            fontSize: "18px",
+                            fontWeight: "500",
+                            color: theme.border,
+                            marginLeft: "2px",
+                          }}
+                        >
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p
+                    style={{
+                      fontSize: "15px", // 약간 키움
+                      color: "#1e293b", // 더 짙은 색상
+                      fontWeight: "600", // 굵게
+                      lineHeight: "1.7",
+                      margin: 0,
+                      textAlign: "center",
+                      wordBreak: "keep-all",
+                      fontFamily: mainFont,
+                    }}
+                  >
+                    {summary || warningConfig[overallVerdict].desc}
+                  </p>
+
+                  <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                    <div style={{ flex: 1 }}>
+                      <PixelButton
+                        onClick={(e) => togglePanel(e)}
+                        colorType="neutral"
+                        text={warningConfig[overallVerdict].btnText}
+                        size="md"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setIsResetModalOpen(true)}
+                      title="수사 초기화"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "48px",
+                        height: "48px",
+                        backgroundColor: "#fff1f2", // 삭제/초기화 느낌을 주기 위해 아주 연한 레드 톤 사용
+                        border: "2px solid #fecaca",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        color: "#ef4444",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fee2e2";
+                        e.currentTarget.style.transform = "rotate(-20deg)"; // 초기화 느낌의 마이크로 애니메이션
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fff1f2";
+                        e.currentTarget.style.transform = "rotate(0deg)";
+                      }}
+                    >
+                      <RotateCcw size={20} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            )
           ) : analysisStatus === "restoring" || analysisStatus === "checking" ? (
             <motion.div
               key="restoring-view"
@@ -567,7 +702,7 @@ export function LongFormDashboard() {
                         zIndex: 10,
                       }}
                     >
-                      {/* 말풍선 꼬리 (우측 정렬에 맞춰 위치 조정) */}
+                      {/* 말풍선 꼬리 */}
                       <div
                         style={{
                           position: "absolute",
@@ -663,18 +798,22 @@ export function LongFormDashboard() {
                         </div>
                       </motion.div>
                     )}
+
+                    {/* [추가] 특정 구간 분석 설정 컴포넌트 */}
+                    <SegmentSelector ref={segmentSelectorRef} pixelFont={pixelFont} analysisStatus={analysisStatus} />
+
                     <PixelButton
                       onClick={() => handleStartAnalysis()}
                       colorType={analysisStatus === "error" ? "error" : "primary"}
                       text={analysisStatus === "error" ? "수사 재개하기" : "팩트체크 수사 시작"}
                     />
-                    {analysisStatus === "idle" && (
+                    {/* {analysisStatus === "idle" && (
                       <PixelButton
-                        onClick={() => startDemoAnalysis()}
+                        onClick={() => handleStartAnalysis(true)}
                         colorType="neutral"
                         text="데모 수사 시작 (토큰X)"
                       />
-                    )}
+                    )} */}
                   </div>
                 ) : (
                   <div
@@ -810,28 +949,17 @@ export function LongFormDashboard() {
         </AnimatePresence>
       </motion.div>
 
-      <AnimatePresence>
-        {isPanelOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeInOut" }}
-            style={{
-              width: "100%",
-              overflow: "hidden",
-              ...PIXEL_STYLES.border,
-              borderTop: "none",
-              backgroundColor: "white",
-              zIndex: 10,
-            }}
-          >
-            <div style={{ height: "500px", display: "flex", flexDirection: "column" }}>
-              <SidePanel />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 수사 초기화 확인 모달 */}
+      <PixelConfirmModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirm={() => reAnalyze()}
+        title="수사 초기화"
+        message="현재 수사 결과가 모두 삭제되고 초기 설정 화면으로 돌아갑니다. 정말 초기화하시겠습니까?"
+        confirmText="초기화"
+        cancelText="취소"
+        type="danger"
+      />
     </motion.div>
   );
 }

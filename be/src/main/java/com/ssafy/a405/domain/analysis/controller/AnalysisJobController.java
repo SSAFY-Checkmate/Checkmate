@@ -17,6 +17,7 @@ import com.ssafy.a405.global.common.dto.ApiResponseBody;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -144,10 +145,18 @@ public class AnalysisJobController {
 	) {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisJobService.checkAnalysisStatus(youtubeUrl)));
 	}
+
 	@GetMapping("/{jobId}/result")
 	public ResponseEntity<ApiResponseBody<AnalysisReportResponse>> getAnalysisResult(@PathVariable String jobId) {
 		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, analysisService.getAnalysisResult(jobId)));
 	}
 
-}
+	@DeleteMapping
+	public ResponseEntity<ApiResponseBody<Void>> deleteAnalysisHistory(
+		@RequestParam String youtubeUrl
+	) {
+		analysisJobService.resetAnalysisHistory(youtubeUrl);
+		return ResponseEntity.ok(ApiResponseBody.onSuccess(SuccessCode.OK, null));
+	}
 
+}

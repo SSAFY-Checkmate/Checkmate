@@ -42,12 +42,39 @@ export const analysisApi = {
     return res;
   },
 
-  /** 분석 요청 (비동기) */
+  /** 분석 요청 (비동기 - 전체) */
   requestAnalysis: async (youtubeUrl: string) => {
     const res = await doFetch("/analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ youtubeUrl }),
+    });
+    return res;
+  },
+
+  /** 구간 분석 요청 (비동기) */
+  requestRangeAnalysis: async (youtubeUrl: string, startSeconds: number, endSeconds: number) => {
+    const res = await doFetch("/analysis/range", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        youtubeUrl, 
+        startSeconds: Number(startSeconds), 
+        endSeconds: Number(endSeconds) 
+      }),
+    });
+    return res;
+  },
+
+  /** 특정 시점 분석 요청 (비동기) */
+  requestAtAnalysis: async (youtubeUrl: string, atSeconds: number) => {
+    const res = await doFetch("/analysis/at", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        youtubeUrl, 
+        atSeconds: Number(atSeconds) 
+      }),
     });
     return res;
   },
@@ -64,13 +91,46 @@ export const analysisApi = {
     return res.json();
   },
 
-  /** 분석 요청 (동기 - Legacy) */
+  /** 분석 이력 삭제 */
+  deleteHistory: async (youtubeUrl: string) => {
+    const res = await doFetch(`/analysis?youtubeUrl=${encodeURIComponent(youtubeUrl)}`, { method: "DELETE" });
+    return res;
+  },
+
+  /** 분석 요청 (동기 - 전체) */
   requestAnalysisSync: async (youtubeUrl: string, signal?: AbortSignal) => {
     const res = await doFetch("/analysis/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ youtubeUrl }),
       signal,
+    });
+    return res;
+  },
+
+  /** 구간 분석 요청 (동기) */
+  requestRangeAnalysisSync: async (youtubeUrl: string, startSeconds: number, endSeconds: number) => {
+    const res = await doFetch("/analysis/range/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        youtubeUrl, 
+        startSeconds: Number(startSeconds), 
+        endSeconds: Number(endSeconds) 
+      }),
+    });
+    return res;
+  },
+
+  /** 특정 시점 분석 요청 (동기) */
+  requestAtAnalysisSync: async (youtubeUrl: string, atSeconds: number) => {
+    const res = await doFetch("/analysis/at/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        youtubeUrl, 
+        atSeconds: Number(atSeconds) 
+      }),
     });
     return res;
   },

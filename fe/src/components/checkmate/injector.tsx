@@ -77,6 +77,12 @@ export const renderDashboard = (container: HTMLElement) => {
   reactWrapper.className = "checkmate-injected-wrapper";
   shadow.appendChild(reactWrapper);
 
+  // [중요] 키보드 이벤트가 유튜브로 전파되는 것을 차단 (단축키 충돌 방지)
+  const stopPropagation = (e: KeyboardEvent) => e.stopPropagation();
+  reactWrapper.addEventListener("keydown", stopPropagation, true);
+  reactWrapper.addEventListener("keyup", stopPropagation, true);
+  reactWrapper.addEventListener("keypress", stopPropagation, true);
+
   container.appendChild(rootContainer);
 
   try {
@@ -88,6 +94,7 @@ export const renderDashboard = (container: HTMLElement) => {
 };
 
 import { GlobalResultModal } from "./shorts-dashboard";
+import { ReportModal } from "./report-modal";
 
 /**
  * [Checkmate 글로벌 결과 모달 렌더러]
@@ -121,12 +128,24 @@ export const renderGlobalModal = () => {
   shadow.appendChild(styleElement);
   
   const reactWrapper = document.createElement("div");
+  
+  // [중요] 글로벌 모달 영역에서도 키보드 이벤트 차단
+  const stopPropagation = (e: KeyboardEvent) => e.stopPropagation();
+  reactWrapper.addEventListener("keydown", stopPropagation, true);
+  reactWrapper.addEventListener("keyup", stopPropagation, true);
+  reactWrapper.addEventListener("keypress", stopPropagation, true);
+
   shadow.appendChild(reactWrapper);
   document.body.appendChild(rootContainer);
 
   try {
     const root = createRoot(reactWrapper);
-    root.render(<GlobalResultModal shadowHost={rootContainer} />);
+    root.render(
+      <>
+        <GlobalResultModal shadowHost={rootContainer} />
+        <ReportModal shadowHost={rootContainer} />
+      </>
+    );
   } catch (err) {
     console.error("[Checkmate] 글로벌 모달 렌더링 에러:", err);
   }

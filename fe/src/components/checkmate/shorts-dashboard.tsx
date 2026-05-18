@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCheckmateStore, initializeAuth } from "../../lib/store";
 import { PixelOfficer } from "./pixel-character";
 import { PixelButton } from "../common/pixel-button";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShieldCheck, AlertTriangle, HelpCircle, Check, FileText, Search } from "lucide-react";
-import { PIXEL_STYLES } from "../../lib/constants/styles";
+import { X, ShieldCheck, AlertTriangle, Check, FileText, Search, AlertOctagon } from "lucide-react";
+import { COLORS, PIXEL_STYLES } from "../../lib/constants/styles";
 import { ReportTab } from "./report-tab";
 import { CommunityTab } from "./community-tab";
 import { LoginView } from "./login-view";
 import { useAnalysisMonitor } from "../../hooks/use-analysis-monitor";
+import { PixelAlertModal } from "../common/pixel-alert-modal";
 
 const pixelFont = "'CheckmatePixel', sans-serif";
 const verdictConfig = {
-  safe: { icon: ShieldCheck, color: "#10b981", title: "검증 완료", theme: "#10b981" },
-  warning: { icon: AlertTriangle, color: "#f59e0b", title: "주의 필요", theme: "#f59e0b" },
-  unknown: { icon: HelpCircle, color: "#8b5cf6", title: "판단 보류", theme: "#8b5cf6" },
+  safe: { icon: ShieldCheck, color: COLORS.success, title: "검증 완료", theme: COLORS.success },
+  warning: { icon: AlertTriangle, color: COLORS.warning, title: "주의 필요", theme: COLORS.warning },
+  unknown: { icon: AlertOctagon, color: COLORS.destructive, title: "의심 발생", theme: COLORS.destructive },
 };
 
 /**
@@ -37,6 +38,7 @@ export function ShortsDashboard() {
   useAnalysisMonitor(180000);
 
   const [showCheckAnim, setShowCheckAnim] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   const handleStartAnalysis = () => {
     setErrorMsg(null);
@@ -104,6 +106,12 @@ export function ShortsDashboard() {
     <div
       style={{ fontFamily: pixelFont, display: "flex", flexDirection: "column", alignItems: "center", width: "48px" }}
     >
+      <PixelAlertModal
+        isOpen={isAlertOpen}
+        onClose={() => setIsAlertOpen(false)}
+        title="수사 진행 중"
+        message="현재 AI가 영상을 열심히 수사하고 있습니다! 잠시만 기다려 주시면 결과 리포트를 확인하실 수 있습니다."
+      />
       <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -114,10 +122,21 @@ export function ShortsDashboard() {
             return;
           }
 
-          if (analysisStatus !== "idle" && analysisStatus !== "complete" && analysisStatus !== "error") return;
+          if (
+            analysisStatus !== "idle" &&
+            analysisStatus !== "complete" &&
+            analysisStatus !== "error" &&
+            analysisStatus !== "checking"
+          ) {
+            setIsAlertOpen(true);
+            return;
+          }
 
-          if (analysisStatus === "complete" || analysisStatus === "error") setResultModalOpen(true);
-          else handleStartAnalysis();
+          if (analysisStatus === "complete" || analysisStatus === "error") {
+            setResultModalOpen(true);
+          } else if (analysisStatus === "idle") {
+            handleStartAnalysis();
+          }
         }}
         style={{
           width: "48px",
@@ -318,7 +337,7 @@ export function ShortsDashboard() {
       </motion.div>
 
       {/* 데모 버튼 추가 (idle 상태거나 error 상태일 때만 노출) */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {(analysisStatus === "idle" || analysisStatus === "error") && isLoggedIn && (
           <motion.div
             initial={{ scale: 0, opacity: 0, y: -10 }}
@@ -353,7 +372,7 @@ export function ShortsDashboard() {
             <span style={{ fontSize: "9px", fontWeight: "900", color: "#64748b" }}>데모</span>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
     </div>
   );
 }
@@ -375,6 +394,7 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
   } = useCheckmateStore();
 
   const [activeModalTab, setActiveModalTab] = useState<"report" | "community">("report");
+  const prevIsLoggedIn = useRef(isLoggedIn);
 
   useEffect(() => {
     if (!shadowHost) return;
@@ -382,10 +402,22 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
       shadowHost.style.display = "block";
       shadowHost.classList.add("modal-open");
     } else {
-      shadowHost.style.display = "none";
-      shadowHost.classList.remove("modal-open");
+      // ReportModal도 닫혀있을 때만 실제로 숨김 처리
+      if (!useCheckmateStore.getState().isReportModalOpen) {
+        shadowHost.style.display = "none";
+        shadowHost.classList.remove("modal-open");
+      }
     }
   }, [isResultModalOpen, shadowHost]);
+
+  // 로그인 성공 시(상태 변화 시) 자동으로 모달 닫기
+  useEffect(() => {
+    // 로그인이 안 되어 있다가(false) 성공한(true) 경우에만 닫기
+    if (!prevIsLoggedIn.current && isLoggedIn && isResultModalOpen) {
+      setResultModalOpen(false);
+    }
+    prevIsLoggedIn.current = isLoggedIn;
+  }, [isLoggedIn, isResultModalOpen, setResultModalOpen]);
 
   return (
     <AnimatePresence>
@@ -406,321 +438,331 @@ export function GlobalResultModal({ shadowHost }: { shadowHost?: HTMLElement }) 
           }}
           onClick={() => setResultModalOpen(false)}
         >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 30 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 30 }}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "95vw",
-              height: "85vh",
-              maxWidth: "520px",
-              ...PIXEL_STYLES.border,
-              backgroundColor: "#f8fafc", // 밝은 배경
-              borderWidth: "6px",
-              borderColor: "#e2e8f0", // 밝은 테두리
-              padding: "0px",
-              position: "relative",
-              fontFamily: pixelFont,
-              boxShadow: "0 25px 60px rgba(15, 23, 42, 0.15)",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: "#f1f5f9",
-                padding: "10px 16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                borderBottom: "2px solid #e2e8f0",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <Search size={14} color="#64748b" />
-                <span style={{ color: "#475569", fontSize: "12px", fontWeight: "bold" }}>
-                  [{channelName}] {videoTitle}
-                </span>
-              </div>
-              <button
-                onClick={() => setResultModalOpen(false)}
-                style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex" }}
-              >
-                <X size={18} />
-              </button>
+          {!isLoggedIn ? (
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px" }}>
+              <LoginView />
             </div>
-
-            <div
+          ) : (
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              onClick={(e) => e.stopPropagation()}
               style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "20px",
+                width: "95vw",
+                height: "85vh",
+                maxWidth: "520px",
+                ...PIXEL_STYLES.border,
+                backgroundColor: "#ffffff",
+                borderWidth: "6px",
+                borderColor: "#e2e8f0",
+                padding: "0px",
+                position: "relative",
+                fontFamily: pixelFont,
+                boxShadow: "0 25px 60px rgba(15, 23, 42, 0.15)",
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
+                overflow: "hidden",
               }}
             >
-              {analysisStatus === "error" ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: "100%",
-                    gap: "20px",
-                    textAlign: "center",
-                    color: "#ef4444",
-                    padding: "40px 20px",
-                  }}
-                >
-                  <AlertTriangle size={56} strokeWidth={1.5} />
-                  <h3 style={{ fontSize: "20px", fontWeight: "900", margin: 0 }}>분석을 진행할 수 없습니다</h3>
-                  <p
-                    style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0, wordBreak: "keep-all" }}
-                  >
-                    {summary || "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다."}
-                  </p>
-                  <p style={{ fontSize: "13px", color: "#94a3b8", marginTop: "10px" }}>
-                    커뮤니티 탭에서 다른 사람들과 의견을 나누어 보세요!
-                  </p>
+              <div
+                style={{
+                  background: "#1e293b",
+                  padding: "12px 16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottom: "1px solid #0f172a",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Search size={14} color="white" style={{ opacity: 0.8 }} />
+                  <span style={{ color: "white", fontSize: "12px", fontWeight: "900", letterSpacing: "-0.2px" }}>
+                    [{channelName}] {videoTitle}
+                  </span>
                 </div>
-              ) : (
-                <>
+                <button
+                  onClick={() => setResultModalOpen(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)",
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    display: "flex",
+                    padding: "4px",
+                    borderRadius: "4px",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  backgroundColor: "#ffffff",
+                }}
+              >
+                {analysisStatus === "error" ? (
                   <div
                     style={{
-                      backgroundColor: "white",
-                      border: `2px solid ${verdictConfig[overallVerdict].color}`,
-                      padding: "12px 16px",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      borderRadius: "6px",
-                      boxShadow: `0 4px 15px ${verdictConfig[overallVerdict].color}11`,
+                      justifyContent: "center",
+                      height: "100%",
+                      gap: "20px",
+                      textAlign: "center",
+                      color: "#ef4444",
+                      padding: "40px 20px",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          backgroundColor: verdictConfig[overallVerdict].color,
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          borderRadius: "4px",
-                          border: "2px solid #0f172a",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {(() => {
-                          const Icon = verdictConfig[overallVerdict].icon;
-                          return <Icon size={20} color="#fff" />;
-                        })()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>최종 수사 결과</div>
-                        <div
-                          style={{ fontSize: "18px", fontWeight: "900", color: verdictConfig[overallVerdict].color }}
-                        >
-                          {verdictConfig[overallVerdict].title}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "bold" }}>영상 신뢰도</div>
-                      <div style={{ fontSize: "24px", fontWeight: "900", color: "#1e293b" }}>
-                        {trustScore}
-                        <span style={{ fontSize: "14px", color: verdictConfig[overallVerdict].color }}> %</span>
-                      </div>
-                    </div>
+                    <AlertTriangle size={56} strokeWidth={1.5} />
+                    <h3 style={{ fontSize: "20px", fontWeight: "900", margin: 0 }}>분석을 진행할 수 없습니다</h3>
+                    <p
+                      style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0, wordBreak: "keep-all" }}
+                    >
+                      {summary || "데이터 분석을 지원하지 않거나 분석 중 오류가 발생한 영상입니다."}
+                    </p>
+                    <p style={{ fontSize: "13px", color: "#94a3b8", marginTop: "10px" }}>
+                      커뮤니티 탭에서 다른 사람들과 의견을 나누어 보세요!
+                    </p>
                   </div>
-
-                  {!isLoggedIn ? (
-                    <LoginView />
-                  ) : (
-                    <>
-                      <section>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                          <FileText size={16} color={verdictConfig[overallVerdict].color} />
-                          <h3 style={{ fontSize: "14px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
-                            수사 개요 및 총평
-                          </h3>
-                        </div>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        backgroundColor: verdictConfig[overallVerdict].color,
+                        padding: "16px 20px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        borderRadius: "8px",
+                        boxShadow: `0 4px 12px ${verdictConfig[overallVerdict].color}44`,
+                        border: "1px solid rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <div
                           style={{
-                            backgroundColor: "white",
-                            padding: "20px",
-                            fontSize: "14px",
-                            lineHeight: "1.7",
-                            color: "#475569",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                            position: "relative",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                            width: "40px",
+                            height: "40px",
+                            backgroundColor: "rgba(255, 255, 255, 0.2)",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: "6px",
+                            flexShrink: 0,
                           }}
+                        >
+                          {(() => {
+                            const Icon = verdictConfig[overallVerdict].icon;
+                            return <Icon size={24} color="#fff" />;
+                          })()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "bold" }}>최종 수사 결과</div>
+                          <div
+                            style={{ fontSize: "20px", fontWeight: "900", color: "#fff" }}
+                          >
+                            {verdictConfig[overallVerdict].title}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "bold" }}>영상 신뢰도</div>
+                        <div style={{ fontSize: "28px", fontWeight: "900", color: "#fff" }}>
+                          {trustScore}
+                          <span style={{ fontSize: "16px", opacity: 0.8 }}> %</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <section>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <FileText size={16} color={verdictConfig[overallVerdict].color} />
+                        <h3 style={{ fontSize: "14px", color: "#1e293b", margin: 0, fontWeight: "bold" }}>
+                          수사 개요 및 총평
+                        </h3>
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: "#f8fafc",
+                          padding: "20px",
+                          fontSize: "14px",
+                          lineHeight: "1.7",
+                          color: "#475569",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "8px",
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "4px",
+                            height: "100%",
+                            backgroundColor: verdictConfig[overallVerdict].color,
+                          }}
+                        ></div>
+                        {summary || "수사 결과 요약 정보를 불러오는 중입니다..."}
+                      </div>
+                    </section>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginTop: "12px",
+                        padding: "5px",
+                        backgroundColor: "#f1f5f9",
+                        borderRadius: "10px",
+                        border: "1px solid #e2e8f0",
+                        boxShadow: "inset 0 1px 3px rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveModalTab("report")}
+                        style={{
+                          flex: 1,
+                          padding: "10px",
+                          fontSize: "13px",
+                          fontWeight: "900",
+                          fontFamily: pixelFont,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          borderRadius: "7px",
+                          background:
+                            activeModalTab === "report" ? "linear-gradient(135deg, #0ea5e9, #2563eb)" : "transparent",
+                          color: activeModalTab === "report" ? "white" : "#64748b",
+                          border: "none",
+                          boxShadow:
+                            activeModalTab === "report"
+                              ? "0 4px 12px rgba(14, 165, 233, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
+                              : "none",
+                          transform: activeModalTab === "report" ? "translateY(0)" : "none",
+                        }}
+                      >
+                        <FileText
+                          size={15}
+                          style={{
+                            filter:
+                              activeModalTab === "report" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
+                          }}
+                        />
+                        리포트
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveModalTab("community")}
+                        style={{
+                          flex: 1,
+                          padding: "10px",
+                          fontSize: "13px",
+                          fontWeight: "900",
+                          fontFamily: pixelFont,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          borderRadius: "7px",
+                          background:
+                            activeModalTab === "community"
+                              ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
+                              : "transparent",
+                          color: activeModalTab === "community" ? "white" : "#64748b",
+                          border: "none",
+                          boxShadow:
+                            activeModalTab === "community"
+                              ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
+                              : "none",
+                          transform: activeModalTab === "community" ? "translateY(0)" : "none",
+                        }}
+                      >
+                        <Search
+                          size={15}
+                          style={{
+                            filter:
+                              activeModalTab === "community" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
+                          }}
+                        />
+                        커뮤니티
+                      </button>
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                      {activeModalTab === "report" ? (
+                        <motion.section
+                          key="report"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.15 }}
                         >
                           <div
                             style={{
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              width: "4px",
-                              height: "100%",
-                              backgroundColor: verdictConfig[overallVerdict].color,
+                              backgroundColor: "white",
+                              borderRadius: "8px",
+                              border: "1px solid #e2e8f0",
+                              overflow: "hidden",
                             }}
-                          ></div>
-                          {summary || "수사 결과 요약 정보를 불러오는 중입니다..."}
-                        </div>
-                      </section>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          marginTop: "12px",
-                          padding: "5px",
-                          backgroundColor: "#f1f5f9", // 밝은 테마용 배경
-                          borderRadius: "10px",
-                          border: "1px solid #e2e8f0",
-                          boxShadow: "inset 0 1px 3px rgba(0,0,0,0.05)",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setActiveModalTab("report")}
-                          style={{
-                            flex: 1,
-                            padding: "10px",
-                            fontSize: "13px",
-                            fontWeight: "900",
-                            fontFamily: pixelFont,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "8px",
-                            cursor: "pointer",
-                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                            borderRadius: "7px",
-                            background:
-                              activeModalTab === "report" ? "linear-gradient(135deg, #0ea5e9, #2563eb)" : "transparent",
-                            color: activeModalTab === "report" ? "white" : "#64748b",
-                            border: "none",
-                            boxShadow:
-                              activeModalTab === "report"
-                                ? "0 4px 12px rgba(14, 165, 233, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
-                                : "none",
-                            transform: activeModalTab === "report" ? "translateY(0)" : "none",
-                          }}
-                        >
-                          <FileText
-                            size={15}
-                            style={{
-                              filter:
-                                activeModalTab === "report" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
-                            }}
-                          />
-                          리포트
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveModalTab("community")}
-                          style={{
-                            flex: 1,
-                            padding: "10px",
-                            fontSize: "13px",
-                            fontWeight: "900",
-                            fontFamily: pixelFont,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "8px",
-                            cursor: "pointer",
-                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                            borderRadius: "7px",
-                            background:
-                              activeModalTab === "community"
-                                ? "linear-gradient(135deg, #8b5cf6, #6d28d9)"
-                                : "transparent",
-                            color: activeModalTab === "community" ? "white" : "#64748b",
-                            border: "none",
-                            boxShadow:
-                              activeModalTab === "community"
-                                ? "0 4px 12px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)"
-                                : "none",
-                            transform: activeModalTab === "community" ? "translateY(0)" : "none",
-                          }}
-                        >
-                          <Search
-                            size={15}
-                            style={{
-                              filter:
-                                activeModalTab === "community" ? "drop-shadow(0 0 5px rgba(255,255,255,0.5))" : "none",
-                            }}
-                          />
-                          커뮤니티
-                        </button>
-                      </div>
-
-                      <AnimatePresence mode="wait">
-                        {activeModalTab === "report" ? (
-                          <motion.section
-                            key="report"
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.15 }}
                           >
-                            <div
-                              style={{
-                                backgroundColor: "white",
-                                borderRadius: "8px",
-                                border: "1px solid #e2e8f0",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <ReportTab isCompact={true} />
-                            </div>
-                          </motion.section>
-                        ) : (
-                          <motion.section
-                            key="community"
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.15 }}
+                            <ReportTab isCompact={true} />
+                          </div>
+                        </motion.section>
+                      ) : (
+                        <motion.section
+                          key="community"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <div
+                            style={{
+                              backgroundColor: "white",
+                              borderRadius: "8px",
+                              border: "1px solid #e2e8f0",
+                              overflow: "hidden",
+                            }}
                           >
-                            <div
-                              style={{
-                                backgroundColor: "white",
-                                borderRadius: "8px",
-                                border: "1px solid #e2e8f0",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <CommunityTab />
-                            </div>
-                          </motion.section>
-                        )}
-                      </AnimatePresence>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+                            <CommunityTab />
+                          </div>
+                        </motion.section>
+                      )}
+                    </AnimatePresence>
+                  </>
+                )}
+              </div>
 
-            <div
-              style={{
-                padding: "16px 24px",
-                backgroundColor: "#f1f5f9",
-                borderTop: "1px solid #e2e8f0",
-              }}
-            >
-              <PixelButton text="보고서 닫기" size="md" colorType="primary" onClick={() => setResultModalOpen(false)} />
-            </div>
-          </motion.div>
+              <div
+                style={{
+                  padding: "16px 24px",
+                  backgroundColor: "#ffffff",
+                  borderTop: "1px solid #f1f5f9",
+                }}
+              >
+                <PixelButton text="보고서 닫기" size="md" colorType="neutral" onClick={() => setResultModalOpen(false)} />
+              </div>
+            </motion.div>
+          )}
         </div>
       )}
     </AnimatePresence>

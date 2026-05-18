@@ -75,17 +75,17 @@ export function OneTouchReportButton() {
           </div>
         </div>
 
-        <div>
-          <p style={{ margin: 0, fontSize: "14px", fontWeight: "900", color: "#1e293b" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: "14px", fontWeight: "900", color: "#1e293b", wordBreak: "keep-all" }}>
             {isFlashing ? "신고가 접수되었습니다!" : "유튜브에 직접 신고하기"}
           </p>
-          <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#64748b" }}>
+          <p style={{ margin: "6px 0 0 0", fontSize: "11px", color: "#64748b", wordBreak: "keep-all" }}>
             {isFlashing ? "수사팀이 검토를 시작합니다." : "허위 정보 확산 방지에 동참해 주세요."}
           </p>
         </div>
       </div>
 
-      <div style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ position: "relative", zIndex: 1, flexShrink: 0, marginLeft: "8px" }}>
         <div style={{
           padding: "6px 12px",
           backgroundColor: "#fee2e2",
@@ -95,7 +95,8 @@ export function OneTouchReportButton() {
           alignItems: "center",
           gap: "6px",
           fontSize: "12px",
-          fontWeight: "900"
+          fontWeight: "900",
+          whiteSpace: "nowrap"
         }}>
           <ShieldAlert size={16} />
           <span>긴급 수사</span>

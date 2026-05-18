@@ -8,8 +8,10 @@ import com.ssafy.a405.domain.analysis.dto.AnalysisRequestedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptCompletedPayload;
 import com.ssafy.a405.domain.analysis.dto.TranscriptFailedPayload;
 import com.ssafy.a405.domain.analysis.entity.AnalysisJob;
+import com.ssafy.a405.domain.analysis.enums.AnalysisJobStatus;
 import com.ssafy.a405.domain.analysis.enums.AnalysisRequestMode;
 import com.ssafy.a405.domain.analysis.repository.AnalysisJobRepository;
+import com.ssafy.a405.domain.analysis.repository.AnalysisResultRepository;
 import com.ssafy.a405.domain.event.EventEnvelope;
 import com.ssafy.a405.global.common.code.ErrorCode;
 import com.ssafy.a405.global.common.exception.CustomException;
@@ -31,6 +33,7 @@ import java.util.Optional;
 public class AnalysisJobService {
 
 	private final AnalysisJobRepository analysisJobRepository;
+	private final AnalysisResultRepository analysisResultRepository;
 	private final OutboxService outboxService;
 	private final ObjectMapper objectMapper;
 	private final AnalysisDataMappingService analysisDataMappingService;
@@ -70,20 +73,17 @@ public class AnalysisJobService {
 		}
 
 		String normalized = YoutubeUrlNormalizer.normalize(raw);
-
-		// IMPORTANT: default endpoints (/analysis, /analysis/sync, /analysis/latest, /analysis/check)
-		// are "full video" semantics. Do not let RANGE/AT jobs shadow FULL jobs.
-		Optional<AnalysisJob> latest = analysisJobRepository.findFirstByYoutubeUrlAndRequestModeOrderByCreatedAtDesc(
-			normalized,
-			AnalysisRequestMode.FULL
-		);
+		
+		// [수정] 모든 모드(FULL, RANGE, AT)를 통틀어 가장 최신 수사 기록을 반환합니다.
+		// 사용자가 어떤 모드로 수사했든, 새로고침 시 해당 영상의 가장 최신 결과가 노출되어야 합니다.
+		Optional<AnalysisJob> latest = analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(normalized);
 		if (latest.isPresent()) {
 			return latest;
 		}
 
 		// Backward compatibility: previously stored rows may have un-normalized URLs.
 		if (!normalized.equals(raw)) {
-			return analysisJobRepository.findFirstByYoutubeUrlAndRequestModeOrderByCreatedAtDesc(raw, AnalysisRequestMode.FULL);
+			return analysisJobRepository.findFirstByYoutubeUrlOrderByCreatedAtDesc(raw);
 		}
 
 		return Optional.empty();
@@ -166,12 +166,27 @@ public class AnalysisJobService {
 			error = new AnalysisJobGetResponse.ErrorInfo(job.getErrorCode(), job.getErrorMessage());
 		}
 
+		Long analysisId = null;
+		if (job.getStatus() == AnalysisJobStatus.COMPLETED) {
+			String videoId = com.ssafy.a405.global.util.YoutubeUrlNormalizer.extractVideoId(job.getYoutubeUrl());
+			if (videoId != null) {
+				analysisId = analysisResultRepository.findFirstByVideoYtVideoIdOrderByCreatedAtDesc(videoId)
+					.map(com.ssafy.a405.domain.analysis.entity.AnalysisResult::getId)
+					.orElse(null);
+			}
+		}
+
 		return new AnalysisJobGetResponse(
 			job.getJobId(),
 			job.getStatus(),
 			job.getYoutubeUrl(),
 			resultNode,
-			null,
+			analysisId,
+			job.getRequestMode(),
+			job.getRangeStartSeconds(),
+			job.getRangeEndSeconds(),
+			job.getAtSeconds(),
+			job.getWindowSeconds(),
 			error
 		);
 	}
@@ -265,6 +280,11 @@ public class AnalysisJobService {
 		AnalysisJob job = analysisJobRepository.findById(payload.jobId())
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 		job.fail(LocalDateTime.now(), payload.errorCode(), payload.message());
+	}
+
+	@Transactional
+	public void resetAnalysisHistory(String youtubeUrl) {
+		analysisJobRepository.deleteAllByYoutubeUrl(youtubeUrl);
 	}
 }
 

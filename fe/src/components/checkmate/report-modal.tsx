@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, ChevronRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useCheckmateStore, REPORT_REASONS } from "../../lib/store";
@@ -11,12 +11,29 @@ import { PixelAlertModal } from "../common/pixel-alert-modal";
  * 사용자가 리포트를 검토한 후 최종적으로 신고 사유를 선택하는 창입니다.
  * store.ts의 REPORT_REASONS 상수를 기반으로 동작합니다.
  */
-export function ReportModal() {
+export function ReportModal({ shadowHost }: { shadowHost?: HTMLElement }) {
   const { isReportModalOpen, setReportModalOpen, submitReport, reportingStatus } = useCheckmateStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false); // 최종 확인 모달 상태
 
+  useEffect(() => {
+    if (!shadowHost) return;
+    if (isReportModalOpen) {
+      shadowHost.style.display = "block";
+      shadowHost.classList.add("modal-open");
+    } else {
+      // GlobalResultModal과 상태를 공유하므로, 둘 다 닫혀있을 때만 숨김 처리
+      // 하지만 여기서는 간단히 처리하고 GlobalResultModal과 합쳐서 관리하는 것이 더 정확할 수 있음.
+      // 일단 개별적으로도 동작하도록 작성.
+      if (!useCheckmateStore.getState().isResultModalOpen) {
+        shadowHost.style.display = "none";
+        shadowHost.classList.remove("modal-open");
+      }
+    }
+  }, [isReportModalOpen, shadowHost]);
+
   const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace";
+  const MAIN_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
   const handleClose = () => {
     if (reportingStatus === "loading") return;
@@ -52,7 +69,7 @@ export function ReportModal() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 2147483647,
             padding: "20px",
           }}
         >
@@ -88,7 +105,7 @@ export function ReportModal() {
               display: "flex",
               flexDirection: "column",
               gap: "20px",
-              fontFamily: PIXEL_FONT,
+              fontFamily: MAIN_FONT, // 기본 본문 폰트 변경
               boxShadow: "8px 8px 0 rgba(0,0,0,0.2)",
             }}
           >
@@ -96,10 +113,10 @@ export function ReportModal() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <AlertCircle size={20} color="#ef4444" strokeWidth={3} />
-                <h3 style={{ margin: 0, fontSize: "18px", color: "#334155", fontWeight: "bold" }}>수사 요청 (신고)</h3>
+                <h3 style={{ margin: 0, fontSize: "18px", color: "#334155", fontWeight: "900", fontFamily: PIXEL_FONT }}>수사 요청 (신고)</h3>
               </div>
               <div style={{ height: "2px", backgroundColor: "#e2e8f0", width: "100%" }} />
-              <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>
+              <p style={{ margin: 0, fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
                 유튜브 커뮤니티 가이드 위반 사항을 신고합니다.
               </p>
             </div>
@@ -125,10 +142,10 @@ export function ReportModal() {
                     }}
                   >
                     <div>
-                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "bold", color: "#334155" }}>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1e293b" }}>
                         {reason.label}
                       </p>
-                      <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#64748b" }}>{reason.description}</p>
+                      <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#475569", fontWeight: "600" }}>{reason.description}</p>
                     </div>
                     <ChevronRight size={16} color={selectedId === reason.id ? "#ef4444" : "#94a3b8"} />
                   </motion.div>

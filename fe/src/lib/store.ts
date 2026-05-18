@@ -151,6 +151,10 @@ interface CheckmateState {
   channelName: string;
   currentVideoId: string | null;
 
+  // 분석 구간 시간 (초 단위)
+  startSeconds: number | null;
+  endSeconds: number | null;
+
   // 분석 결과 데이터
   trustScore: number;
   overallVerdict: Verdict;
@@ -158,6 +162,8 @@ interface CheckmateState {
   analysisId: number | null; // RDB PK
   claims: Claim[];
   errorMsg: string | null;
+  /** 분석 범위 정보 (UI 표시용) */
+  analysisScope: { type: "full" | "range" | "at"; start?: number; end?: number; at?: number } | null;
 
   // 커뮤니티 데이터
   communityVotes: { trueVotes: number; fakeVotes: number; userVote: boolean | null; userReactionId: number | null };
@@ -185,19 +191,23 @@ interface CheckmateState {
     totalElements: number;
   };
 
+  // [수정] 사용자가 명시적으로 초기화했는지 여부 (자동 복구 방지)
+  isUserReset: boolean;
+
   // 액션 (상태 변경 함수들)
   openPanel: () => void;
   closePanel: () => void;
   setActiveTab: (tab: Tab) => void;
   showWarning: (count: number) => void;
   closeWarning: () => void;
-  startAnalysis: () => Promise<void>;
-  startAnalysisSync: () => Promise<void>;
+  startAnalysis: (range?: { startSeconds: number | null; endSeconds: number | null }) => Promise<void>;
+  startAnalysisSync: (range?: { startSeconds: number | null; endSeconds: number | null }) => Promise<void>;
   startDemoAnalysis: () => void;
   checkExistingAnalysis: (videoId: string) => Promise<void>;
   pollAnalysisJob: (videoId: string, jobId: string) => Promise<void>;
   mapAnalysisResult: (videoId: string, data: any) => void;
   setCurrentVideo: (id: string, title?: string, channel?: string) => void;
+  setAnalysisRange: (type: "start" | "end", time: number | null) => void;
   fetchReactions: (analysisId: number) => Promise<void>;
   postReaction: (analysisId: number, reactionType: boolean) => Promise<void>;
   voteOnCard: (cardId: string, vote: "true" | "fake") => void;
@@ -209,6 +219,7 @@ interface CheckmateState {
   addChatMessage: (msg: { username: string; message: string; badge?: "verifier" | "reporter" }) => void;
   setResultModalOpen: (open: boolean) => void;
   checkAnalysisStatus: () => Promise<void>;
+  reAnalyze: () => Promise<void>;
 
   // 인증 액션
   setLoginStatus: (isLoggedIn: boolean, user?: User | null) => void;
@@ -234,12 +245,15 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   videoTitle: "",
   channelName: "",
   currentVideoId: null,
+  startSeconds: null,
+  endSeconds: null,
   trustScore: 0,
   overallVerdict: "unknown",
   summary: "",
   analysisId: null,
   claims: [],
   errorMsg: null,
+  analysisScope: null,
   communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
   analyzedVideos: {},
   commentPagination: { currentPage: 0, hasNext: false, totalPages: 0, totalElements: 0 },
@@ -256,6 +270,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   isLoggedIn: false,
   user: null,
   isAuthInitializing: true,
+  isUserReset: false,
 
   // 커뮤니티 초기 데이터 (목업)
   wantedCards: [
@@ -281,6 +296,12 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   ],
 
   // 액션 구현
+  setAnalysisRange: (type, time) =>
+    set(() => {
+      if (type === "start") return { startSeconds: time };
+      return { endSeconds: time };
+    }),
+
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -359,6 +380,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         isPanelOpen: false,
         isResultModalOpen: false,
         errorMsg: null, // 캐시된 영상으로 돌아올 때도 에러 메시지 초기화
+        isUserReset: false, // 다른 영상으로 이동 시 리셋
         ...cachedData,
       });
 
@@ -387,6 +409,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         communityVotes: { trueVotes: 0, fakeVotes: 0, userVote: null, userReactionId: null },
         reactionSummary: { proCount: 0, conCount: 0 },
         myReaction: null,
+        isUserReset: false, // 새로운 영상 진입 시 리셋
       });
 
       // 서버에서 기존 분석 이력이 있는지 확인
@@ -404,7 +427,6 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
      * 또는 레거시: result: { analysis: { trustGrade, ... }, transcript: {...} }
      * 방어적으로 여러 경로를 순서대로 탐색.
      */
-
 
     const rawResult = data.result || data;
     const resultObj =
@@ -431,16 +453,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
     // [개선] 제목/채널명: result.analysis.youtubeInfo 또는 다른 경로
     const youtubeInfo = rawResult?.analysis?.youtubeInfo || rawResult?.youtubeInfo || {};
-    let finalTitle =
-      youtubeInfo.videoTitle ||
-      resultObj.videoTitle ||
-      data.videoTitle ||
-      get().videoTitle;
-    let finalChannel =
-      youtubeInfo.channelName ||
-      resultObj.channelName ||
-      data.channelName ||
-      get().channelName;
+    let finalTitle = youtubeInfo.videoTitle || resultObj.videoTitle || data.videoTitle || get().videoTitle;
+    let finalChannel = youtubeInfo.channelName || resultObj.channelName || data.channelName || get().channelName;
 
     if (isUnknown(finalTitle) || isUnknown(finalChannel)) {
       const scraped = scrapeMetadata();
@@ -449,12 +463,25 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
 
     // analysisId는 응답 구조의 여러 경로에서 탐색 (방어적 처리)
-    const rawAnalysisId =
-      data.analysisId ??
-      resultObj.analysisId ??
-      data.result?.analysisId ??
-      null;
+    const rawAnalysisId = data.analysisId ?? resultObj.analysisId ?? data.result?.analysisId ?? null;
     const resolvedAnalysisId = rawAnalysisId != null ? Number(rawAnalysisId) : null;
+
+    // [보완] 서버에서 내려준 수사 모드 정보가 있다면 이를 우선 활용 (snake_case 대응 포함)
+    let resolvedScope = get().analysisScope;
+    const requestMode = data.requestMode || data.request_mode;
+    
+    if (requestMode) {
+      if (requestMode === 'RANGE') {
+        const start = data.rangeStartSeconds ?? data.range_start_seconds;
+        const end = data.rangeEndSeconds ?? data.range_end_seconds;
+        resolvedScope = { type: 'range', start: start, end: end };
+      } else if (requestMode === 'AT') {
+        const at = data.atSeconds ?? data.at_seconds;
+        resolvedScope = { type: 'at', at: at };
+      } else {
+        resolvedScope = { type: 'full' };
+      }
+    }
 
     const finalState = {
       analysisStatus: "complete" as AnalysisStatus,
@@ -467,6 +494,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       warningCount: claims.length > 0 ? claims.length : mappedVerdict === "warning" ? 1 : 0,
       claims: claims,
       analysisId: resolvedAnalysisId,
+      analysisScope: resolvedScope, // 수사 범위 복구
     };
 
     if (get().currentVideoId !== videoId) return;
@@ -500,6 +528,14 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
       return;
     }
 
+    // [추가] 사용자가 명시적으로 초기화한 경우 자동 복구를 건너뜀
+    if (get().isUserReset) {
+      if (currentVideoId === videoId) {
+        set({ analysisStatus: "idle" });
+      }
+      return;
+    }
+
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
@@ -507,7 +543,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Session might be expired (401)");
         }
         throw new Error(`API Error: ${response.status}`);
       }
@@ -524,20 +560,18 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
               // result가 비어있거나 trustGrade가 없는 경우 /result fallback
               const rawRes = jobData.result;
-              const hasTrustGrade =
-                rawRes?.trustGrade ||
-                rawRes?.analysis?.trustGrade;
+              const hasTrustGrade = rawRes?.trustGrade || rawRes?.analysis?.trustGrade;
 
               if (!hasTrustGrade && jobData.analysisId) {
                 // DB에서 직접 결과 조회 (Kafka 타이밍 문제 우회)
-                console.warn('[Checkmate] result가 비어있음, /result fallback 시도');
+                console.warn("[Checkmate] result가 비어있음, /result fallback 시도");
                 const reportBody = await analysisApi.getResult(jobId);
                 if (reportBody.status === 200 && reportBody.data?.trustGrade) {
                   const d = reportBody.data;
                   // AnalysisReportResponse 구조를 mapAnalysisResult 호환 형태로 변환
                   const syntheticData = {
+                    ...jobData,
                     result: d,
-                    analysisId: jobData.analysisId,
                   };
                   if (get().currentVideoId === videoId) set({ analysisStatus: "restoring" });
                   await new Promise((r) => setTimeout(r, 800));
@@ -556,7 +590,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
             }
           } else if (jobStatus === "FAILED") {
             // AI 분석 실패 → "error" 상태로 전환 (분석 실패 UI 표시)
-            console.log('[Checkmate] checkExistingAnalysis: FAILED job detected', jobId);
+            console.log("[Checkmate] checkExistingAnalysis: FAILED job detected", jobId);
             if (get().currentVideoId === videoId) {
               set({
                 analysisStatus: "error",
@@ -613,21 +647,24 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
         // UI 상태가 건너뛰어지는 것을 방지하기 위한 인위적 순차 딜레이
         // 1) detecting (25%) 상태 유지
         if (currentUI === "detecting") {
-          await sleep(2500); 
+          await sleep(2500);
           if (beStatus !== "FAILED") {
             set({ analysisStatus: "analyzing_transcript" });
           }
         }
 
         // 2) analyzing_transcript (50%) 상태 유지
-        if (get().analysisStatus === "analyzing_transcript" && (beStatus === "AI_PROCESSING" || beStatus === "COMPLETED")) {
-          await sleep(4000); 
+        if (
+          get().analysisStatus === "analyzing_transcript" &&
+          (beStatus === "AI_PROCESSING" || beStatus === "COMPLETED")
+        ) {
+          await sleep(4000);
           set({ analysisStatus: "analyzing_claims" });
         }
 
         // 3) analyzing_claims (75%) 상태 유지 (COMPLETED 시 바로 95%로 넘어가는 것 방지)
         if (get().analysisStatus === "analyzing_claims" && beStatus === "COMPLETED") {
-          await sleep(3000); 
+          await sleep(3000);
         }
 
         // 혹시라도 건너뛰어진 상태가 있다면 보정
@@ -681,22 +718,52 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
   },
 
   /**
-   * 영상 분석 요청
+   * 영상 분석 요청 (FULL / RANGE / AT 분기 처리)
    */
-  startAnalysis: async () => {
-    const videoId = get().currentVideoId;
+  startAnalysis: async (range) => {
+    const { currentVideoId: videoId, startSeconds: stateStart, endSeconds: stateEnd } = get();
     if (!videoId) return;
 
-    set({ analysisStatus: "detecting", isWarningVisible: false });
+    const start = range ? range.startSeconds : stateStart;
+    const end = range ? range.endSeconds : stateEnd;
+
+    // 새로운 분석 시작 전 상태 초기화
+    set({
+      analysisStatus: "detecting",
+      isWarningVisible: false,
+      claims: [],
+      summary: "",
+      trustScore: 0,
+      overallVerdict: "unknown",
+      analysisId: null,
+      analysisScope: null,
+      isUserReset: false, // 수사 시작 시 플래그 리셋
+    });
 
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
     try {
-      const response = await analysisApi.requestAnalysis(targetUrl);
+      let response: Response;
+
+      // 1) AT 분석 (시점이 동일하거나 하나만 있는 경우)
+      if (start !== null && start === end) {
+        response = await analysisApi.requestAtAnalysis(targetUrl, start);
+        set({ analysisScope: { type: "at", at: start } });
+      }
+      // 2) RANGE 분석 (구간이 설정된 경우)
+      else if (start !== null && end !== null) {
+        response = await analysisApi.requestRangeAnalysis(targetUrl, start, end);
+        set({ analysisScope: { type: "range", start, end } });
+      }
+      // 3) FULL 분석 (기본값)
+      else {
+        response = await analysisApi.requestAnalysis(targetUrl);
+        set({ analysisScope: { type: "full" } });
+      }
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Request Analysis failed (401)");
         }
         throw new Error(`API 오류: ${response.status}`);
       }
@@ -725,7 +792,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
       if (!response.ok) {
         if (response.status === 401) {
-          get().setLoginStatus(false, null);
+          console.warn("[Checkmate] Fetch Reactions failed (401)");
         }
         throw new Error(`API Error: ${response.status}`);
       }
@@ -956,18 +1023,50 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     }
   },
 
-  startAnalysisSync: async () => {
-    const videoId = get().currentVideoId;
+  /**
+   * 영상 분석 요청 (동기 - FULL / RANGE / AT 분기 처리)
+   */
+  startAnalysisSync: async (range) => {
+    const { currentVideoId: videoId, startSeconds: stateStart, endSeconds: stateEnd } = get();
     if (!videoId) return;
 
-    set({ analysisStatus: "detecting", isWarningVisible: false });
+    const start = range ? range.startSeconds : stateStart;
+    const end = range ? range.endSeconds : stateEnd;
+
+    // 동기 분석 시작 전 상태 초기화
+    set({
+      analysisStatus: "detecting",
+      isWarningVisible: false,
+      claims: [],
+      summary: "",
+      trustScore: 0,
+      overallVerdict: "unknown",
+      analysisId: null,
+      analysisScope: null,
+    });
 
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const response = await analysisApi.requestAnalysisSync(targetUrl, controller.signal);
+      let response: Response;
+
+      // 1) AT 분석 (동기)
+      if (start !== null && start === end) {
+        response = await analysisApi.requestAtAnalysisSync(targetUrl, start);
+        set({ analysisScope: { type: "at", at: start } });
+      }
+      // 2) RANGE 분석 (동기)
+      else if (start !== null && end !== null) {
+        response = await analysisApi.requestRangeAnalysisSync(targetUrl, start, end);
+        set({ analysisScope: { type: "range", start, end } });
+      }
+      // 3) FULL 분석 (동기)
+      else {
+        response = await analysisApi.requestAnalysisSync(targetUrl, controller.signal);
+        set({ analysisScope: { type: "full" } });
+      }
 
       if (response.status === 401) {
         await initializeAuth();
@@ -1086,9 +1185,8 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
 
   submitReport: async (reasonId: string, secondaryReasonId: string) => {
     const videoId = get().currentVideoId;
-    const analysisId = get().analysisId;
     if (!videoId) {
-      console.error('[Report] videoId가 없습니다!');
+      console.error("[Report] videoId가 없습니다!");
       return;
     }
 
@@ -1104,7 +1202,7 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
           reject(new Error("Google 로그인이 필요합니다. 크롬 익스텐션 환경에서 실행해 주세요."));
           return;
         }
-        
+
         chrome.runtime.sendMessage({ type: "GET_AUTH_TOKEN" }, (response) => {
           if (chrome.runtime.lastError) {
             reject(new Error("익스텐션 내부 통신 에러: " + chrome.runtime.lastError.message));
@@ -1136,6 +1234,39 @@ export const useCheckmateStore = create<CheckmateState>((set, get) => ({
     const videoId = get().currentVideoId;
     if (!videoId) return;
     await get().checkExistingAnalysis(videoId);
+  },
+
+  reAnalyze: async () => {
+    const { currentVideoId } = get();
+    if (!currentVideoId) return;
+
+    const targetUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
+
+    // 캐시에서 삭제하여 영구적으로 초기화
+    set((state) => {
+      const newAnalyzed = { ...state.analyzedVideos };
+      delete newAnalyzed[currentVideoId];
+      return { 
+        analyzedVideos: newAnalyzed,
+        analysisStatus: "idle",
+        overallVerdict: "unknown",
+        trustScore: 0,
+        summary: "",
+        analysisId: null,
+        claims: [],
+        warningCount: 0,
+        isWarningVisible: false,
+        errorMsg: null,
+        isUserReset: true, // 초기화 플래그 설정
+      };
+    });
+
+    // 백엔드 기록 삭제 시도 (비동기)
+    try {
+      await analysisApi.deleteHistory(targetUrl);
+    } catch (err) {
+      console.error("[Checkmate] Failed to delete analysis history on backend", err);
+    }
   },
 }));
 
@@ -1181,8 +1312,13 @@ export const initializeAuth = async () => {
         return;
       }
     }
-    // doFetch가 reissue를 시도했음에도 여기까지 왔다면 로그인이 필요한 상태임
-    store.setLoginStatus(false, null);
+
+    // [개선] Phase 2 실패 시에도 Phase 1에서 복원된 정보가 있다면 강제 로그아웃하지 않음
+    // 실제 API 호출 시의 doFetch reissue 로직에 맡김으로써 잦은 튕김 현상 방지
+    const currentState = useCheckmateStore.getState();
+    if (!currentState.isLoggedIn) {
+      store.setLoginStatus(false, null);
+    }
   } catch (error) {
     console.error("인증 초기화 실패:", error);
     const currentState = useCheckmateStore.getState();

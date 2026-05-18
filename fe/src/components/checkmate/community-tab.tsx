@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { PixelConfirmModal } from "../common/pixel-confirm-modal";
 
 const PIXEL_FONT = "'CheckmatePixel', 'DungGeunMo', 'Courier New', monospace !important";
+const MAIN_FONT = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
 const STYLES = {
   container: {
@@ -14,7 +15,7 @@ const STYLES = {
     gap: "24px",
     backgroundColor: "#f8fafc",
     minHeight: "100%",
-    fontFamily: PIXEL_FONT,
+    fontFamily: MAIN_FONT,
   },
   headerTitle: {
     fontSize: "15px",
@@ -46,6 +47,7 @@ const STYLES = {
     overflow: "hidden",
     boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
     border: "1px solid #e2e8f0",
+    isolation: "isolate" as const, // 자식 요소들이 부모의 borderRadius 영역을 넘지 못하도록 격리
   },
   sectionTitle: {
     fontSize: "14px",
@@ -259,7 +261,7 @@ export function CommunityTab() {
               style={{
                 flex: 1,
                 fontSize: "13px",
-                fontFamily: PIXEL_FONT,
+                fontFamily: MAIN_FONT,
                 backgroundColor: "#f8fafc",
                 border: "1px solid #e2e8f0",
                 borderRadius: "6px",
@@ -307,8 +309,9 @@ export function CommunityTab() {
               color: "#475569",
               margin: "4px 0",
               lineHeight: "1.6",
-              fontWeight: "bold",
+              fontWeight: "600", // Pretendard 600
               wordBreak: "break-all",
+              fontFamily: MAIN_FONT,
             }}
           >
             {msg.message}
@@ -346,8 +349,8 @@ export function CommunityTab() {
               backgroundColor: "transparent",
               border: "none",
               fontSize: "12px",
-              fontFamily: PIXEL_FONT,
-              fontWeight: "bold",
+              fontFamily: MAIN_FONT,
+              fontWeight: "600",
               outline: "none",
               color: "#1e293b",
             }}
@@ -428,6 +431,7 @@ export function CommunityTab() {
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              fontFamily: MAIN_FONT,
             }}
           >
             채널명: {channelName || "감지 중.."}
@@ -441,7 +445,7 @@ export function CommunityTab() {
             <Users size={18} color="#6366f1" />
             사용자 실시간 찬반 투표
           </h4>
-          <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 0 28px", fontWeight: "bold" }}>
+          <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 0 28px", fontWeight: "600", fontFamily: MAIN_FONT }}>
             이 영상, 정말 사실일까요? 의견을 투표해 주세요.
           </p>
         </div>
@@ -468,16 +472,28 @@ export function CommunityTab() {
             <motion.div
               initial={{ width: "50%" }}
               animate={{ width: `${truePercent}%` }}
-              style={{ height: "100%", backgroundColor: "#10b981", borderRight: "2px solid white" }}
+              style={{ 
+                height: "100%", 
+                backgroundColor: "#10b981", 
+                borderRight: truePercent > 0 && truePercent < 100 ? "2px solid white" : "none",
+                // 왼쪽 끝만 둥글게, 오른쪽(중앙)은 직선
+                borderRadius: "10px 0 0 10px",
+              }}
             />
             <motion.div
               initial={{ width: "50%" }}
               animate={{ width: `${fakePercent}%` }}
-              style={{ height: "100%", backgroundColor: "#ef4444" }}
+              style={{ 
+                height: "100%", 
+                backgroundColor: "#ef4444",
+                // 오른쪽 끝만 둥글게, 왼쪽(중앙)은 직선
+                borderRadius: truePercent === 0 ? "10px" : "0 10px 10px 0",
+                marginLeft: truePercent === 0 ? 0 : "-2px",
+              }}
             />
           </div>
 
-          <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", fontWeight: "bold" }}>
+          <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "center", fontWeight: "600", fontFamily: MAIN_FONT }}>
             투표 참여자 수 {totalVotes}명
           </div>
         </div>
@@ -575,7 +591,7 @@ export function CommunityTab() {
               }}
             >
               <MessageSquare size={32} color="#cbd5e1" strokeWidth={1.5} />
-              <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "bold" }}>
+              <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: "600", fontFamily: MAIN_FONT }}>
                 이 영상에 대한 첫 번째 의견을 남겨주세요.
               </div>
             </div>
@@ -605,8 +621,8 @@ export function CommunityTab() {
               backgroundColor: "transparent",
               border: "none",
               fontSize: "13px",
-              fontFamily: PIXEL_FONT,
-              fontWeight: "bold",
+              fontFamily: MAIN_FONT,
+              fontWeight: "600",
               outline: "none",
               color: "#1e293b",
             }}
