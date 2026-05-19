@@ -7,51 +7,51 @@ import { FormattedExplanation } from "./formatted-explanation";
 const pixelFont = "'CheckmatePixel', sans-serif";
 const mainFont = "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif";
 
-function VerdictBadge({ verdict }: { verdict: Verdict }) {
-  const config = {
-    warning: {
-      icon: AlertTriangle,
-      label: "허위 정보",
-      color: "#ef4444",
-      bgColor: "#ffffff",
-    },
-    safe: {
-      icon: CheckCircle,
-      label: "사실 확인",
-      color: "#10b981",
-      bgColor: "#ffffff",
-    },
-    unknown: {
-      icon: HelpCircle,
-      label: "판단 보류",
-      color: "#f59e0b",
-      bgColor: "#ffffff",
-    },
-  };
+// function VerdictBadge({ verdict }: { verdict: Verdict }) {
+//   const config = {
+//     warning: {
+//       icon: AlertTriangle,
+//       label: "허위 정보",
+//       color: "#ef4444",
+//       bgColor: "#ffffff",
+//     },
+//     safe: {
+//       icon: CheckCircle,
+//       label: "사실 확인",
+//       color: "#10b981",
+//       bgColor: "#ffffff",
+//     },
+//     unknown: {
+//       icon: HelpCircle,
+//       label: "판단 보류",
+//       color: "#f59e0b",
+//       bgColor: "#ffffff",
+//     },
+//   };
 
-  const { icon: Icon, label, color, bgColor } = config[verdict];
+//   const { icon: Icon, label, color, bgColor } = config[verdict];
 
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "4px 10px",
-        fontSize: "11px",
-        fontWeight: "900",
-        borderRadius: "20px",
-        backgroundColor: bgColor,
-        color: color,
-        border: `1.5px solid ${color}`,
-        boxShadow: `0 2px 4px ${color}22`,
-      }}
-    >
-      <Icon size={12} />
-      {label}
-    </span>
-  );
-}
+//   return (
+//     <span
+//       style={{
+//         display: "inline-flex",
+//         alignItems: "center",
+//         gap: "6px",
+//         padding: "4px 10px",
+//         fontSize: "11px",
+//         fontWeight: "900",
+//         borderRadius: "20px",
+//         backgroundColor: bgColor,
+//         color: color,
+//         border: `1.5px solid ${color}`,
+//         boxShadow: `0 2px 4px ${color}22`,
+//       }}
+//     >
+//       <Icon size={12} />
+//       {label}
+//     </span>
+//   );
+// }
 
 export function TrustMeter({ score }: { score: number }) {
   const bars = 10;
@@ -201,7 +201,7 @@ function ClaimCard({ claim, index }: { claim: Claim; index: number }) {
             증거물 정밀 판독
           </span>
         </div>
-        <VerdictBadge verdict={parsed.verdict} />
+        {/* <VerdictBadge verdict={parsed.verdict} /> */}
       </div>
 
       <div style={{ padding: "20px", display: "flex", flexDirection: "column" }}>
@@ -496,7 +496,15 @@ export function ReportTab({ isCompact = false }: ReportTabProps) {
                 )}
               </div>
 
-              <h2 style={{ fontSize: "28px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "-0.8px", fontFamily: pixelFont }}>
+              <h2
+                style={{
+                  fontSize: "28px",
+                  fontWeight: "900",
+                  margin: "0 0 4px 0",
+                  letterSpacing: "-0.8px",
+                  fontFamily: pixelFont,
+                }}
+              >
                 {current.title}
               </h2>
               <p style={{ fontSize: "12px", opacity: 0.8, fontWeight: "bold", fontFamily: pixelFont }}>
