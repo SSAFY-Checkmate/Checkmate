@@ -1,6 +1,6 @@
 # ✅ CheckMate
 
-<video controls src="docs/CheckMateLogo.mp4" title="Title"></video>
+![alt text](image.png){width=450}
 
 > **AI 기반 유튜브 영상 팩트체크 서비스**  
 > 유튜브 영상의 핵심 주장을 추출하고, 신뢰 가능한 근거와 비교해 허위·과장 가능성을 분석하는 근거 제시형 팩트체크 플랫폼
@@ -59,9 +59,11 @@ AI의 팩트체크 결과를 바탕으로 사용자들이 추가적인 의견을
 
 [화면]
 - 숏폼
+
 ![alt text](docs/숏폼.gif){width=450}
 
 - 롱폼
+
 ![alt text](<docs/전체 플로우.gif>){width=450}
 
 
