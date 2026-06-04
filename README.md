@@ -1,6 +1,6 @@
 # ✅ CheckMate
 
-![alt text](docs/CheckMateLogo.gif){width=450}
+![alt text](docs/CheckMateLogo.gif)
 
 > **AI 기반 유튜브 영상 팩트체크 서비스**  
 > 유튜브 영상의 핵심 주장을 추출하고, 신뢰 가능한 근거와 비교해 허위·과장 가능성을 분석하는 근거 제시형 팩트체크 플랫폼
@@ -142,7 +142,9 @@ Spring Boot 3
 FastAPI
 Qdrant
 Langchain
+Langsmith
 OpenAI Embedding / LLM
+OpenAI API
 ```
 
 ### Database / Infra
@@ -157,7 +159,8 @@ Jenkins
 
 ### AI Models
 ```
-
+GPT 4o
+GPT 5
 ```
 ---
 
