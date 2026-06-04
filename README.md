@@ -60,11 +60,11 @@ AI의 팩트체크 결과를 바탕으로 사용자들이 추가적인 의견을
 [화면]
 - 숏폼
 
-![alt text](docs/숏폼.gif){width=450}
+![alt text](docs/숏폼.gif)
 
 - 롱폼
 
-![alt text](<docs/전체 플로우.gif>){width=450}
+![alt text](<docs/전체 플로우.gif>)
 
 
 ---
@@ -82,23 +82,23 @@ AI의 팩트체크 결과를 바탕으로 사용자들이 추가적인 의견을
 [화면]
 - 익스텐션 활성화
 
-![alt text](docs/익스텐션활성비활성.gif){width=450}
+![alt text](docs/익스텐션활성비활성.gif)
 
 - 링크 입력 및 검증 로딩
 
-![alt text](docs/검증중.png){width=450}
+![alt text](docs/검증중.png)
 
 - 팩트체크 결과 (안전)
 
-![alt text](docs/안전.png){width=450}
+![alt text](docs/안전.png)
 
 - 팩트체크 결과 (주의)
 
-![alt text](docs/주의.png){width=450}
+![alt text]
 
 - 팩트체크 근거보기
 
-![alt text](docs/근거보기.png){width=200}
+<img src="docs/근거보기.png" width="300" height="400"/>
 
 
 ### 🚨 2) 원터치 신고 기능
@@ -106,7 +106,7 @@ AI의 팩트체크 결과를 바탕으로 사용자들이 추가적인 의견을
 - 다수의 신고가 누적된 영상은 우선적으로 검증 프로세스 진행
 
 
-![alt text](docs/신고하기.gif){width=450}
+![alt text](docs/신고하기.gif)
 
 
 ### 💬 3) 팩트체크 논의 커뮤니티
@@ -116,8 +116,12 @@ AI의 팩트체크 결과를 바탕으로 사용자들이 추가적인 의견을
 [화면]
 - 투표기능, 댓글 기능
 
-![alt text](docs/커뮤니티1.png){width=200}
-![alt text](docs/커뮤니티2.png){width=200}
+| 기능 | 화면 예시 | 
+| :--- | :---: | 
+| **투표기능** | <img src="docs/커뮤니티1.png" width="300" height="400"/> |
+| **댓글기능** | <img src="docs/커뮤니티2.png" width="300" height="400"/> | 
+
+
 
 --- 
  
