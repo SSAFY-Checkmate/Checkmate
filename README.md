@@ -166,7 +166,7 @@ Jenkins
 | LE |  | FE LE | BE LE |  |  |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | 문승은 | 정유경 | 윤예솔 | 김성헌 | 박재은 | 정승호 |
-| AI | AI / INFRA | FE | FE | BE | FE |
+| AI | AI / INFRA | FE | BE / INFRA | BE | BE |
 
 ---
 
